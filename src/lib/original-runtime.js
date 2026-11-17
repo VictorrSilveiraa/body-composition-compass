@@ -1,5 +1,6 @@
 import {num,fmt,today,toDate,fmtDate,ageAt,foldVal,calc,bmiClass,bfClass,whrRisk,PROTOCOLS,FOLDS,CIRC_TRUNK,CIRC_LIMBS,STEPS,METRICS,GROUPS,MET,esc,getPath,setPath,clone,initials,firstName} from "./calculos.js";
 import {motivo} from "./motivo";
+import {tick} from "./motion";
 const FOLD_NAME=Object.fromEntries(FOLDS.map(f=>[f.k,f.l]));
 export function mountOriginal(options){
 
@@ -94,7 +95,7 @@ function sparkline(vals, color='var(--blue-ink)'){
   const W=140,H=44; let mn=Math.min(...v), mx=Math.max(...v); if (mn===mx){mn-=1;mx+=1}
   const P = v.map((y,i)=>[4+i*(W-8)/(v.length-1), 6+(1-(y-mn)/(mx-mn))*(H-12)]);
   const L = P.at(-1);
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:44px;margin-top:8px" preserveAspectRatio="none"><path d="${smoothPath(P)}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg><div style="position:relative;height:0"><span style="position:absolute;right:${(W-L[0])/W*100}%;bottom:${(H-L[1])/H*44 - 6}px;transform:translateX(50%);width:12px;height:12px;border-radius:50%;background:var(--green-2);box-shadow:0 0 0 3px var(--surface)"></span></div>`;
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" style="width:100%;height:44px;margin-top:8px" preserveAspectRatio="none"><path d="${smoothPath(P)}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg><div style="position:relative;height:0"><span class="spark-dot" style="position:absolute;right:${(W-L[0])/W*100}%;bottom:${(H-L[1])/H*44 - 6}px;transform:translateX(50%);width:12px;height:12px;border-radius:50%;background:var(--green-2);box-shadow:0 0 0 3px var(--surface)"></span></div>`;
 }
 function lineChart(pts, {unit='', d=1, color='var(--ink)', fill='var(--blue)'}={}){
   if (!pts.length) return `<div class="empty"><p>Sem dados para esta medida ainda.</p></div>`;
@@ -117,8 +118,8 @@ function lineChart(pts, {unit='', d=1, color='var(--ink)', fill='var(--blue)'}={
     ${area?`<path d="${area}" fill="url(#${gid})"/>`:''}
     ${line?`<path d="${line}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`:''}
     ${P.map((p,i)=>`
-      <circle cx="${p[0]}" cy="${p[1]}" r="${i===P.length-1?7:5}" fill="${i===P.length-1?'var(--yellow-2)':'var(--surface)'}" stroke="${color}" stroke-width="2.5"/>
-      ${showLabel(i)?`<text x="${p[0]}" y="${p[1]-14}" text-anchor="middle" font-size="17" font-weight="600" fill="var(--ink)">${fmt(pts[i].y,d)}</text>`:''}
+      <circle style="--i:${i}" cx="${p[0]}" cy="${p[1]}" r="${i===P.length-1?7:5}" fill="${i===P.length-1?'var(--yellow-2)':'var(--surface)'}" stroke="${color}" stroke-width="2.5"/>
+      ${showLabel(i)?`<text class="pt-label" style="--i:${i}" x="${p[0]}" y="${p[1]-14}" text-anchor="middle" font-size="17" font-weight="600" fill="var(--ink)">${fmt(pts[i].y,d)}</text>`:''}
       ${(i%step===0 || i===P.length-1)?`<text x="${p[0]}" y="${H-8}" text-anchor="${i===0&&P.length>1?'start':i===P.length-1&&P.length>1?'end':'middle'}" font-size="14" fill="var(--muted)">${fmtDate(pts[i].date,{day:'2-digit',month:'short'}).replace(' de ',' ')}</text>`:''}
     `).join('')}
   </svg>`;
@@ -381,7 +382,7 @@ function viewCompare(){
     const color = m.dir===1 ? 'var(--green-ink)' : m.dir===-1 ? 'var(--ink)' : 'var(--blue-ink)';
     const fill = m.dir===1 ? 'var(--green)' : m.dir===-1 ? 'var(--yellow)' : 'var(--blue)';
     h += `<div class="chips">${avail.map(x=>`<button class="chip ${x.k===state.evo?'on':''}" data-act="evo" data-m="${x.k}">${x.l}</button>`).join('')}</div>
-    <div class="card white">
+    <div class="card white" data-key="evo-${state.evo}">
       <div class="card-head"><span class="label"><b style="font-size:18px">${m.l}</b><br><span class="small muted">${pts.length} ${pts.length>1?'registros':'registro'}${m.u?' · '+m.u:''}</span></span>
         <span style="margin-left:auto">${pts.length>1?deltaChip(lastv,first,m.dir,m.u,d):''}</span></div>
       ${lineChart(pts,{d,color,fill})}
@@ -392,7 +393,7 @@ function viewCompare(){
       </div>
     </div>
     <h2 class="sec">Histórico</h2>
-    <div class="kv">${pts.slice().reverse().map((x,i,arr)=>`<div class="kv-row" data-act="go" data-to="detail" data-id="${x.id}" style="cursor:pointer"><span class="k">${fmtDate(x.date)}</span><span>${arr[i+1]?deltaChip(x.y,arr[i+1].y,m.dir,'',d):''}</span><span class="v">${fmt(x.y,d)}<small>${m.u}</small></span></div>`).join('')}</div>`;
+    <div class="kv" data-key="hist-${state.evo}">${pts.slice().reverse().map((x,i,arr)=>`<div class="kv-row" data-act="go" data-to="detail" data-id="${x.id}" style="cursor:pointer"><span class="k">${fmtDate(x.date)}</span><span>${arr[i+1]?deltaChip(x.y,arr[i+1].y,m.dir,'',d):''}</span><span class="v">${fmt(x.y,d)}<small>${m.u}</small></span></div>`).join('')}</div>`;
     return h;
   }
 
@@ -410,7 +411,7 @@ function viewCompare(){
       <label class="sel b"><small>Depois (B)</small><select data-ch="cmpB">${opts(B.id)}</select></label>
     </div>
     <p class="small muted" style="margin:-4px 2px 14px">${Math.abs(days)} dias entre as avaliações${days<0?' (A é mais recente que B)':''}</p>
-    <div class="dash">
+    <div class="dash" data-key="ab-${A.id}-${B.id}">
       ${big.map(([l,b,a,dir,u,col,uu])=>`<div class="card ${col}"><div class="card-head"><span class="label">${l}</span></div>
         <div class="mid">${fmt(b)}<small>${uu||u}</small></div>
         <div class="sub">${a!=null&&b!=null?deltaChip(b,a,dir,u):'<span class="small muted">sem dados</span>'}</div>
@@ -428,7 +429,7 @@ function viewCompare(){
       if (va!=null && vb!=null && va!==0){
         const pct = (vb-va)/Math.abs(va)*100, w = Math.min(50, Math.abs(pct)*2.5);
         const cls = Math.abs(vb-va)<1e-9 ? 'var(--line)' : m.dir===0 ? 'var(--blue-2)' : ((vb-va)*m.dir>0 ? 'var(--green-2)' : 'var(--peach)');
-        bar = `<div class="bar-d"><i style="left:${pct<0?50-w:50}%;width:${Math.max(w,1)}%;background:${cls}"></i><i style="left:calc(50% - 1px);width:2px;background:var(--muted)"></i></div>`;
+        bar = `<div class="bar-d"><i class="${pct<0?'neg':'pos'}" style="left:${pct<0?50-w:50}%;width:${Math.max(w,1)}%;background:${cls}"></i><i style="left:calc(50% - 1px);width:2px;background:var(--muted)"></i></div>`;
       }
       return `<div class="cmp-row"><span class="k">${m.l}</span><span>${va!=null&&vb!=null?deltaChip(vb,va,m.dir,'',d):''}</span>
         <span class="vals">${fmt(va,d)} → <b>${fmt(vb,d)}</b> ${m.u}</span><span class="vals">${va&&vb?((vb-va)/Math.abs(va)*100>0?'+':'')+fmt((vb-va)/Math.abs(va)*100,1)+'%':''}</span>${bar}</div>`;
@@ -603,7 +604,7 @@ function viewWizard(){
       <div class="grow"></div><span class="tag yellow">${fmtDate(draft.date,{day:'2-digit',month:'short'})}</span></header>
     <div class="steps">${STEPS.map((st,i)=>{ const [f,t] = stepFilled(st.k); const done = f>0 && (i<state.step || f===t) && i!==state.step; return `<button class="step-chip ${i===state.step?'on':''} ${done?'done':''}" data-act="step" data-i="${i}"><span class="n">${done&&i!==state.step?ic('check','sm'):i+1}</span>${st.l}</button>`; }).join('')}</div>
     <div class="progress"><span style="width:${pct}%"></span></div>
-    <section class="view" key="${state.step}">${intro}${body}</section>
+    <section class="step-view" data-key="step-${state.step}" data-dir="${state.stepDir||'fwd'}">${intro}${body}</section>
   </div>
   <div class="wiz-bar"><div class="in">
     ${state.step>0?`<button class="btn ghost" data-act="prevStep">${ic('back')} <span>Voltar</span></button>`:''}
@@ -616,7 +617,7 @@ function bmiPos(b){ if (b==null) return 0; return Math.max(0, Math.min(100, (b-1
 
 function updateLive(){
   const p = prof(), r = calc(draft, p);
-  const set = (k, v) => document.querySelectorAll(`[data-live="${k}"]`).forEach(el => el.textContent = v);
+  const set = (k, v) => document.querySelectorAll(`[data-live="${k}"]`).forEach(el => { v = String(v); if (el.textContent === v) return; el.textContent = v; tick(el); });
   set('age', r.age ?? '—');
   set('bmi', fmt(r.bmi)); set('bmiClass', bmiClass(r.bmi));
   const bp = document.querySelector('[data-live="bmiPos"]'); if (bp) bp.style.left = bmiPos(r.bmi)+'%';
@@ -627,8 +628,9 @@ function updateLive(){
   // chips de passo
   document.querySelectorAll('.step-chip').forEach((el,i)=>{
     if (i===state.step) return;
-    const [f,t] = stepFilled(STEPS[i].k); const done = f>0 && (i<state.step || f===t);
-    el.classList.toggle('done', !!done);
+    const [f,t] = stepFilled(STEPS[i].k); const done = !!(f>0 && (i<state.step || f===t));
+    if (el.classList.contains('done') === done) return;
+    el.classList.toggle('done', done);
     el.querySelector('.n').innerHTML = done ? ic('check','sm') : i+1;
   });
 }
@@ -636,7 +638,9 @@ function updateLive(){
 /* =========================================================
    RENDER / ROUTER
    ========================================================= */
-const app = options.app;
+let app = options.app;
+const ORDER = {home:0,list:1,detail:2,compare:3,profile:4,onboard:5,wizard:6};
+let lastRoute = null;
 function render(){
   if (!db.profiles.length && state.route!=='onboard') state.route = 'onboard';
   if (db.profiles.length && !db.profiles.find(p=>p.id===db.activeId)) { db.activeId = db.profiles[0].id; }
@@ -655,11 +659,15 @@ function render(){
   let navHtml='';
   if(showNav){ const tabs=[['home','home','Início'],['list','cal','Avaliações'],['compare','chart','Evolução'],['profile','user','Perfil']]; const cur=state.route==='detail'?'list':state.route;
   navHtml=`<nav class="nav">${tabs.map(([r,i,l])=>`<button class="${cur===r?'on':''}" data-act="go" data-to="${r}" aria-label="${l}">${ic(i)}<span>${l}</span></button>`).join('')}</nav>`; }
-  options.render(`<div class="view">${html}</div>${navHtml}`);
-
+  // key muda = tela nova (anima a entrada); dir = indo "para frente" ou voltando
+  const key = state.route==='wizard' ? 'wizard' : state.route+':'+(state.param||'');
+  const dir = lastRoute==null || (ORDER[state.route]??0) >= (ORDER[lastRoute]??0) ? 'fwd' : 'back';
+  lastRoute = state.route;
+  options.render(html, navHtml, key, dir);
 }
 function routePath(route,param){const paths={home:'/',list:'/avaliacoes',detail:'/avaliacoes/'+param,compare:'/evolucao',profile:'/perfil',wizard:state.editingId?'/avaliacoes/'+state.editingId+'/editar':'/nova',onboard:param?'/pessoa/'+param+'/editar':'/pessoa/nova'};return paths[route]||'/';}
-function go(route,param=null,push=true){state.route=route;state.param=param;try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} if(push) options.navigate(routePath(route,param)); render();window.scrollTo({top:0});}
+// Muda a URL e deixa o syncPath desenhar a tela nova numa única passada (sem piscar a tela antiga).
+function go(route,param=null,push=true){state.route=route;state.param=param;try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} const to=routePath(route,param); if(push && to!==window.location.pathname) options.navigate(to); else render();}
 function syncPath(path){
  let route='home',param=null;
  if(path==='/avaliacoes') route='list'; else if(path==='/evolucao')route='compare';else if(path==='/perfil')route='profile';else if(path==='/nova')route='wizard';else if(path.startsWith('/pessoa/')){route='onboard';param=path.endsWith('/editar')?path.split('/')[2]:null;}else if(path.startsWith('/avaliacoes/')){param=path.split('/')[2];route=path.endsWith('/editar')?'wizard':'detail';}
@@ -692,9 +700,9 @@ const ACT = {
     if (draft && draft._editing!==a.id) sheet('Substituir rascunho?', 'Há uma avaliação em andamento. Editar esta vai descartar o rascunho atual.', [{label:'Descartar e editar',cls:'dark',fn:start},{label:'Cancelar'}]);
     else start();
   },
-  step: async b => { state.step = +b.dataset.i; saveDraft(); render(); window.scrollTo({top:0}); },
-  nextStep: async () => { state.step = Math.min(STEPS.length-1, state.step+1); saveDraft(); render(); window.scrollTo({top:0}); },
-  prevStep: async () => { state.step = Math.max(0, state.step-1); saveDraft(); render(); window.scrollTo({top:0}); },
+  step: async b => { const i = +b.dataset.i; state.stepDir = i<state.step ? 'back' : 'fwd'; state.step = i; saveDraft(); render(); window.scrollTo({top:0,behavior:'smooth'}); },
+  nextStep: async () => { state.stepDir = 'fwd'; state.step = Math.min(STEPS.length-1, state.step+1); saveDraft(); render(); window.scrollTo({top:0,behavior:'smooth'}); },
+  prevStep: async () => { state.stepDir = 'back'; state.step = Math.max(0, state.step-1); saveDraft(); render(); window.scrollTo({top:0,behavior:'smooth'}); },
   proto: async b => { draft.protocol = b.dataset.v; saveDraft(); render(); },
   multi: async () => { draft.multi = !draft.multi; saveDraft(); render(); },
   wizExit: async () => sheet('Sair da avaliação?', 'O que você já preencheu fica salvo como rascunho para continuar depois.', [
@@ -757,7 +765,11 @@ const ACT = {
 };
 const click = async e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
-  const fn = ACT[b.dataset.act]; if (fn){ e.preventDefault(); try { await fn(b,e); } catch (e2) { toast(motivo(e2,'Não foi possível salvar. Tente novamente.')); } }
+  const fn = ACT[b.dataset.act]; if (fn){ e.preventDefault();
+    // ação demorada (salvar na nuvem): o botão "respira" e bloqueia clique duplo
+    const busy = setTimeout(()=>b.setAttribute('data-busy',''), 180);
+    try { await fn(b,e); } catch (e2) { toast(motivo(e2,'Não foi possível salvar. Tente novamente.')); }
+    finally { clearTimeout(busy); b.removeAttribute('data-busy'); } }
 };
 const input = e => {
   const k = e.target.dataset?.k;
@@ -777,10 +789,17 @@ const keydown = e => {
 };
 
 const importChange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const data=JSON.parse(await f.text());const preview=options.previewImport(data);sheet('Importar backup',`${preview.profiles.length} pessoas e ${preview.assessments.length} avaliações.`,[{label:'Importar sem duplicar',cls:'dark',fn:async()=>{try{db=await options.importBackup(preview);go('home');toast('Backup importado');}catch(e2){toast(motivo(e2,'Não foi possível importar o backup'));}}},{label:'Cancelar'}]);}catch(e2){toast(motivo(e2,'Arquivo de backup inválido'));}e.target.value='';};
-const file=document.getElementById('importFile');
-file?.addEventListener('change',importChange);
-app.addEventListener('click',click); app.addEventListener('input',input);app.addEventListener('change',change);app.addEventListener('keydown',keydown);
+let file=null;
+function listen(on){
+  const m = on ? 'addEventListener' : 'removeEventListener';
+  if (on) file = document.getElementById('importFile');
+  file?.[m]('change',importChange);
+  app[m]('click',click); app[m]('input',input); app[m]('change',change); app[m]('keydown',keydown);
+}
+listen(true);
 syncPath(options.path);
-return {syncPath,destroy(){clearTimeout(draftTimer); draftPending.catch(()=>{}).then(()=>options.saveDraft(draft)).catch(()=>{});file?.removeEventListener('change',importChange);app.removeEventListener('click',click);app.removeEventListener('input',input);app.removeEventListener('change',change);app.removeEventListener('keydown',keydown);}};
+// attach: o app continua vivo entre páginas; só troca o elemento onde desenha (sem recarregar dados).
+function attach(el, path){ listen(false); app = el; listen(true); syncPath(path); }
+return {syncPath,attach,destroy(){clearTimeout(draftTimer); draftPending.catch(()=>{}).then(()=>options.saveDraft(draft)).catch(()=>{});listen(false);}};
 
 }

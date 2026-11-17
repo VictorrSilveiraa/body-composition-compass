@@ -175,8 +175,9 @@ svg{display:block}
 .ico.sm{width:18px;height:18px}
 
 .app{max-width:560px;margin:0 auto;min-height:100dvh;padding:16px 16px calc(120px + env(safe-area-inset-bottom))}
-.view{animation:fade .28s ease}
-@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* troca de tela: só opacidade no contêiner (transform aqui quebraria a barra fixa do assistente) */
+.view{animation:viewIn .3s cubic-bezier(.22,1,.36,1) backwards}
+@keyframes viewIn{from{opacity:0}}
 
 /* ---------- top bar ---------- */
 .top{display:flex;align-items:center;gap:12px;margin-bottom:20px}
@@ -473,3 +474,176 @@ h2.sec a,h2.sec button{font-size:14px;color:var(--muted);font-weight:500;text-de
 :root{--ring-track:oklch(1 0 0 / .75)}
 .auth-wrap .onb-hero{padding:26px 22px}.auth-wrap .onb-hero h1{margin-top:16px;max-width:15ch}
 .toggle{white-space:normal;min-height:58px;height:auto}.toggle>span:first-child{min-width:0;flex:1}.toggle .switch{flex-shrink:0}.step-chip.on{background:var(--ink);color:var(--surface)}
+
+/* =========================================================
+   MOVIMENTO — entradas ao rolar, números, gráficos, toques
+   Só transform/opacity nas animações contínuas. Desliga com "reduzir movimento".
+   ========================================================= */
+:root{--ease:cubic-bezier(.22,1,.36,1);--spring:cubic-bezier(.34,1.56,.64,1);--d:0ms}
+
+/* ---- revelar ao entrar na tela (motion.ts põe data-rv) ---- */
+[data-rv="pre"]{opacity:0}
+[data-rv="in"]{animation:rvUp .7s var(--ease) var(--d) backwards}
+@keyframes rvUp{from{opacity:0;translate:0 18px;scale:.985}}
+.card[data-rv="in"],.onb-hero[data-rv="in"]{animation-name:rvCard;animation-duration:.8s}
+@keyframes rvCard{from{opacity:0;translate:0 26px;scale:.95}}
+.kv-row[data-rv="in"],.cmp-row[data-rv="in"],.check-row[data-rv="in"]{animation-name:rvRow;animation-duration:.55s}
+@keyframes rvRow{from{opacity:0;translate:-10px 0}}
+.aitem[data-rv="in"],.act-row[data-rv="in"],.prof-row[data-rv="in"]{animation-name:rvSlide;animation-duration:.65s}
+@keyframes rvSlide{from{opacity:0;translate:22px 0}}
+h1.headline[data-rv="in"],h2.sec[data-rv="in"]{animation-name:rvText;animation-duration:.85s}
+@keyframes rvText{from{opacity:0;translate:0 .55em;clip-path:inset(0 0 100% 0)}to{opacity:1;translate:0 0;clip-path:inset(-20% -5% -30% -5%)}}
+.top[data-rv="in"]{animation-name:rvTop;animation-duration:.6s}
+@keyframes rvTop{from{opacity:0;translate:0 -10px}}
+.cta[data-rv="in"]{animation:rvCta .9s var(--spring) var(--d) backwards,ctaRing 1.6s var(--ease) calc(var(--d) + .55s)}
+@keyframes rvCta{from{opacity:0;translate:0 22px;scale:.9}}
+@keyframes ctaRing{0%,100%{box-shadow:0 0 0 4px var(--surface),0 0 0 6px var(--yellow)}45%{box-shadow:0 0 0 4px var(--surface),0 0 0 14px oklch(0.944 0.103 103 / 0)}46%{box-shadow:0 0 0 4px var(--surface),0 0 0 4px oklch(0.944 0.103 103 / 0)}}
+
+/* ---- detalhes que entram depois do bloco ---- */
+[data-rv="in"] .chip-ico,[data-rv="in"] .s-ico,[data-rv="in"] .c-ico,[data-rv="in"] .top .avatar,[data-rv="in"] .dpill,[data-rv="in"] .check-row .ok,[data-rv="in"].check-row .ok{animation:pop .65s var(--spring) calc(var(--d) + .14s) backwards}
+@keyframes pop{from{opacity:0;scale:.35}}
+[data-rv="in"] .delta,[data-rv="in"] .tag,[data-rv="in"] .f-prev{animation:pop .55s var(--spring) calc(var(--d) + .5s) backwards}
+[data-rv="in"] .ring-wrap .inner{animation:pop .8s var(--spring) calc(var(--d) + .3s) backwards}
+[data-rv="in"] .ring-wrap svg{animation:ringSpin 1.4s var(--ease) calc(var(--d) + .1s) backwards}
+@keyframes ringSpin{from{rotate:-60deg;opacity:0}}
+[data-rv="in"] .legend>span,[data-rv="in"] .stat{animation:rvUp .6s var(--ease) calc(var(--d) + .45s) backwards}
+[data-rv="in"] .stat:nth-child(2){animation-delay:calc(var(--d) + .53s)} [data-rv="in"] .stat:nth-child(3){animation-delay:calc(var(--d) + .61s)}
+[data-rv="in"] .legend>span:nth-child(2){animation-delay:calc(var(--d) + .55s)}
+[data-rv="in"] .pill small{animation:rvUp .5s var(--ease) calc(var(--d) + .5s) backwards}
+[data-rv="in"] .spark{animation:wipe 1.3s var(--ease) calc(var(--d) + .3s) backwards}
+[data-rv="in"] .spark-dot{animation:pop .5s var(--spring) calc(var(--d) + 1.3s) backwards}
+@keyframes wipe{from{clip-path:inset(-10% 100% -10% 0)}to{clip-path:inset(-10% -2% -10% 0)}}
+[data-rv="in"] .chart{animation:wipe 1.5s var(--ease) calc(var(--d) + .2s) backwards}
+.chart circle{transform-box:fill-box;transform-origin:center}
+[data-rv="in"] .chart circle{animation:pop .5s var(--spring) calc(var(--d) + .35s + var(--i,0) * 110ms) backwards}
+[data-rv="in"] .chart .pt-label{animation:rvUp .5s var(--ease) calc(var(--d) + .5s + var(--i,0) * 110ms) backwards}
+.bar-d i.pos{transform-origin:left center} .bar-d i.neg{transform-origin:right center}
+[data-rv="in"] .bar-d i.pos,[data-rv="in"] .bar-d i.neg,[data-rv="in"].cmp-row .bar-d i.pos,[data-rv="in"].cmp-row .bar-d i.neg{animation:growX .9s var(--ease) calc(var(--d) + .25s) backwards}
+@keyframes growX{from{scale:0 1}}
+[data-rv="in"] .bmi-scale i{animation:pop .6s var(--spring) calc(var(--d) + .4s) backwards}
+[data-rv="in"] .e-ico{animation:pop .7s var(--spring) calc(var(--d) + .15s) backwards,float 5s ease-in-out calc(var(--d) + 1s) infinite}
+@keyframes float{50%{translate:0 -6px}}
+
+/* ---- menu inferior ---- */
+.nav[data-rv="nav"]{animation:navIn .9s var(--spring) .3s backwards}
+@keyframes navIn{from{opacity:0;translate:0 170%}}
+.nav button{transition:background-color .35s var(--ease),width .35s var(--ease),scale .2s var(--ease)}
+.nav button:active{scale:.9}
+.nav button.on svg{animation:navPop .6s var(--spring)}
+@keyframes navPop{from{scale:.5;rotate:-15deg}}
+
+/* ---- toque: onda + leve afundar ---- */
+.cta,.btn,.aitem,.act-row,.prof-row,.proto,.chip,.step-chip,.nav button,.icon-btn,.seg button,.toggle,.draft-banner,.kv-row[data-act],.card[data-act],.tag[data-act],.vs{position:relative;overflow:hidden}
+[data-rip]::before{content:"";position:absolute;left:var(--rx);top:var(--ry);width:var(--rs);height:var(--rs);margin:calc(var(--rs) / -2) 0 0 calc(var(--rs) / -2);border-radius:50%;background:currentColor;pointer-events:none;animation:rip .65s var(--ease) forwards}
+@keyframes rip{from{scale:0;opacity:.2}to{scale:1;opacity:0}}
+.act-row,.prof-row,.chip,.step-chip,.card[data-act],.toggle,.draft-banner,.tag[data-act],.kv-row[data-act],.vs,.check-row button,.seg button{transition:scale .22s var(--ease),translate .3s var(--ease),background-color .3s,color .3s,box-shadow .3s}
+.proto{transition:scale .22s var(--ease),background-color .3s,border-color .3s}
+.aitem{transition:transform .15s,background-color .3s}
+.icon-btn{transition:scale .2s var(--ease),background-color .25s}
+.icon-btn:active{transform:none;scale:.9}
+.act-row:active,.prof-row:active,.proto:active,.chip:active,.step-chip:active,.card[data-act]:active,.toggle:active,.draft-banner:active,.tag[data-act]:active,.kv-row[data-act]:active{scale:.975}
+.vs:active{scale:.9;rotate:180deg}.vs{transition:scale .2s,rotate .45s var(--spring)}
+.cta .arrows,.btn .arrows{display:inline-block;animation:nudge 1.8s var(--ease) infinite}
+@keyframes nudge{0%,100%{translate:0 0;opacity:1}50%{translate:5px 0;opacity:.55}}
+[data-busy]{pointer-events:none;animation:busy 1s ease-in-out infinite}
+@keyframes busy{50%{opacity:.55}}
+
+/* ---- mouse (computador) ---- */
+@media (hover:hover) and (pointer:fine){
+  .card[data-act]:hover{translate:0 -3px;box-shadow:0 16px 34px oklch(0.182 0 0 / .08)}
+  .aitem:hover,.act-row:hover,.prof-row:not(.on):hover,.chip:not(.on):hover,.step-chip:not(.on):hover,.toggle:hover,.proto:not(.on):hover,.kv-row[data-act]:hover,.icon-btn:hover{background-color:var(--card-2)}
+  .aitem>.ico:last-child{transition:translate .3s var(--ease)}
+  .aitem:hover>.ico:last-child{translate:4px 0}
+  .act-row .chip-ico{transition:scale .3s var(--spring)}
+  .act-row:hover .chip-ico{scale:1.1}
+  .cta .c-ico{transition:rotate .5s var(--spring),scale .3s var(--spring)}
+  .cta:hover .c-ico:last-child{rotate:90deg}
+  .cta:hover .c-ico:first-child{scale:1.08}
+  .btn.primary,.btn.dark{transition:transform .15s,translate .25s var(--ease),opacity .15s}
+  .btn.primary:hover,.btn.dark:hover{translate:0 -2px}
+  .nav button:not(.on):hover{background-color:var(--card-2)}
+  h2.sec button:hover{color:var(--ink)}
+}
+
+/* ---- campos e controles ---- */
+.field{transition:box-shadow .35s var(--ease),background-color .3s}
+.field:focus-within{box-shadow:0 10px 26px oklch(0.182 0 0 / .07)}
+.field.req:focus-within{box-shadow:inset 0 0 0 1.5px var(--blue-2),0 10px 26px oklch(0.182 0 0 / .07)}
+.f-input{transition:border-color .2s,box-shadow .35s var(--ease)}
+.f-input:focus-within{box-shadow:0 0 0 4px oklch(0.944 0.103 103 / .65)}
+.proto .radio{transition:background-color .3s,box-shadow .3s}
+.proto.on .radio::after{animation:pop .45s var(--spring)}
+.switch{transition:background-color .3s}
+.switch::after{transition:transform .45s var(--spring)}
+.seg.full{position:relative;isolation:isolate}
+.seg.full::before{content:"";position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);border-radius:99px;background:var(--surface);box-shadow:0 2px 8px oklch(0 0 0 / .06);z-index:-1;opacity:0;scale:.7;transition:translate .5s var(--spring),opacity .25s,scale .35s var(--spring)}
+.seg.full:has(button.on)::before{opacity:1;scale:1}
+.seg.full:has(button.on:nth-child(2))::before{translate:calc(100% + 4px) 0}
+.seg.full button.on{background:transparent;box-shadow:none}
+.field .seg.full::before{background:var(--ink);box-shadow:none}
+.field .seg.full button.on{background:transparent;color:var(--surface)}
+.bmi-scale i{transition:left .7s var(--spring)}
+.progress span{transition:width .7s var(--ease)}
+span[data-live],b[data-live]{display:inline-block}
+[data-tick]{animation:tick .4s var(--ease)}
+@keyframes tick{from{opacity:.2;translate:0 -6px}}
+
+/* ---- assistente: troca de etapa desliza na direção certa ---- */
+.step-view{animation:stepIn .5s var(--ease) backwards}
+.step-view[data-dir="back"]{animation-name:stepInBack}
+@keyframes stepIn{from{opacity:0;translate:32px 0}}
+@keyframes stepInBack{from{opacity:0;translate:-32px 0}}
+.step-chip .n{transition:background-color .3s}
+.step-chip.on .n,.step-chip.done .n svg{animation:pop .5s var(--spring)}
+.chip{transition:background-color .3s,color .3s,scale .22s var(--ease)}
+
+/* ---- painel de confirmação e aviso ---- */
+.scrim{animation:fadein .3s var(--ease)}
+.sheet{animation:sheetUp .55s var(--spring)}
+@keyframes sheetUp{from{translate:0 100%}}
+.sheet h3,.sheet p,.sheet .btns .btn{animation:rvUp .5s var(--ease) backwards}
+.sheet h3{animation-delay:.08s}.sheet p{animation-delay:.12s}
+.sheet .btns .btn:nth-child(1){animation-delay:.16s}.sheet .btns .btn:nth-child(2){animation-delay:.21s}.sheet .btns .btn:nth-child(3){animation-delay:.26s}
+.scrim.out{animation:fadeout .22s ease forwards}
+.scrim.out .sheet{animation:sheetDown .22s var(--ease) forwards}
+@keyframes fadeout{to{opacity:0}}
+@keyframes sheetDown{to{translate:0 40%;opacity:0}}
+@keyframes sheetPop{from{opacity:0;scale:.9;translate:0 20px}}
+@keyframes sheetPopOut{to{opacity:0;scale:.94}}
+@media (min-width:900px){.sheet{animation-name:sheetPop}.scrim.out .sheet{animation-name:sheetPopOut}}
+.toast{animation:toastIn .55s var(--spring)}
+@keyframes toastIn{from{opacity:0;translate:0 26px;scale:.9}}
+.toast.out{animation:toastOut .26s var(--ease) forwards}
+@keyframes toastOut{to{opacity:0;translate:0 14px;scale:.96}}
+
+/* ---- carregamento (esqueleto com brilho) ---- */
+.sk-wrap{display:block}
+.sk{display:block;background:var(--card);border-radius:var(--r-xl);position:relative;overflow:hidden}
+.sk::after{content:"";position:absolute;inset:0;translate:-100% 0;background:linear-gradient(90deg,transparent,oklch(1 0 0 / .7),transparent);animation:shimmer 1.4s ease-in-out infinite}
+@keyframes shimmer{to{translate:100% 0}}
+.sk-top{display:flex;align-items:center;gap:10px;margin-bottom:24px}
+.sk-col{display:grid;gap:6px}
+.sk-c{width:48px;height:48px;border-radius:50%;flex:none}
+.sk-l{height:13px;border-radius:99px}
+.sk-h{height:24px;margin-bottom:10px}
+.sk-hero{height:190px;background:var(--blue);margin-bottom:12px}
+.sk-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.sk-card{height:150px}
+.sk-row{height:90px;border-radius:var(--r-lg);margin-bottom:10px}
+
+/* ---- decoração viva ---- */
+.onb-hero .blob{animation:blob 9s ease-in-out infinite}
+.onb-hero .blob.b2{animation-duration:7s;animation-direction:reverse}
+@keyframes blob{50%{translate:-14px 12px;scale:1.07}}
+
+@media print{[data-rv]{opacity:1!important;animation:none!important}}
+@media (prefers-reduced-motion:reduce){[data-rv]{opacity:1!important}.sk::after{display:none}}
+
+/* ---- transição nativa entre páginas (Chrome/Edge/Safari recentes) ---- */
+::view-transition-old(root){animation:vtOut .3s cubic-bezier(.22,1,.36,1) .04s both}
+::view-transition-new(root){animation:vtIn .22s cubic-bezier(.22,1,.36,1) both}
+@keyframes vtOut{to{opacity:0;scale:.985}}
+@keyframes vtIn{from{opacity:0}}
+.nav{view-transition-name:nav}
+::view-transition-group(nav){animation-duration:.35s}
+@media (prefers-reduced-motion:reduce){::view-transition-old(root),::view-transition-new(root){animation:none}}
