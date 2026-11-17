@@ -40,6 +40,11 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
+    // "original" = telas importadas: estilo 100% vindo de styles.css, sem classes do shadcn
+    // (altura fixa, nowrap, ícones 16px e centralização quebravam linhas e cartões).
+    if (variant === "original") {
+      return <Comp className={className} ref={ref} {...props} />;
+    }
     return (
       <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
     );

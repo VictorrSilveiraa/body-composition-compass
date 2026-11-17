@@ -40,6 +40,7 @@ const I = {
   swap:'<path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>',
   target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
   heart:'<path d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 8 3.5C20 15.4 12 20 12 20z"/>',
+  out:'<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M10 16l-4-4 4-4M6 12h10"/>',
 };
 const ic = (n, cls='') => `<svg class="ico ${cls}" viewBox="0 0 24 24">${I[n]||''}</svg>`;
 
@@ -457,8 +458,9 @@ function viewProfile(){
     <span class="avatar">${esc(initials(x.name))}</span><span class="grow"><b style="font-weight:600">${esc(x.name)}</b><br><span class="small muted">${listOf(x.id).length} avaliações</span></span>${x.id===p.id?ic('check'):''}</button>`).join('')}</div>
   </div>
   <div>
-  <h2 class="sec">Seus dados</h2><button class="act-row" data-act="logout"><span class="grow"><b>Sair da conta</b><span>${esc(options.email)}</span></span>${ic("right")}</button>
+  <h2 class="sec">Seus dados</h2>
   <div class="actions">
+    <button class="act-row" data-act="logout"><span class="chip-ico">${ic('out','sm')}</span><span class="grow"><b>Sair da conta</b><span>${esc(options.email||'')}</span></span></button>
     <button class="act-row" data-act="export"><span class="chip-ico">${ic('dl','sm')}</span><span class="grow"><b>Exportar backup</b><span>Arquivo .json com tudo — guarde ou envie para outro aparelho</span></span></button>
     <button class="act-row" data-act="import"><span class="chip-ico">${ic('ul','sm')}</span><span class="grow"><b>Restaurar backup</b><span>Importa um arquivo .json exportado antes</span></span></button>
     <button class="act-row" data-act="csv"><span class="chip-ico">${ic('table','sm')}</span><span class="grow"><b>Exportar planilha (CSV)</b><span>Todas as avaliações de ${esc(firstName(p.name))}, abre no Excel</span></span></button>

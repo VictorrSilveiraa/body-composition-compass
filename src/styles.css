@@ -417,6 +417,9 @@ h2.sec a,h2.sec button{font-size:14px;color:var(--muted);font-weight:500;text-de
 .act-row b{display:block;font-weight:600}
 .act-row span{font-size:13px;color:var(--muted)}
 .act-row.danger{color:var(--red-ink)}
+.act-row .grow,.prof-row .grow,.proto>span:last-child{min-width:0}
+.act-row .grow{color:inherit;font-size:inherit}
+.act-row .grow span{overflow-wrap:anywhere}
 
 /* onboarding */
 .onb-hero{background:var(--blue);border-radius:var(--r-xl);padding:26px 22px;margin-bottom:16px;position:relative;overflow:hidden}
