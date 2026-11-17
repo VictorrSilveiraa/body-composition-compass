@@ -1,6 +1,7 @@
 import {num,fmt,today,toDate,fmtDate,ageAt,foldVal,calc,bmiClass,bfClass,whrRisk,PROTOCOLS,FOLDS,CIRC_TRUNK,CIRC_LIMBS,STEPS,METRICS,GROUPS,MET,esc,getPath,setPath,clone,initials,firstName} from "./calculos.js";
 import {motivo} from "./motivo";
 import {tick} from "./motion";
+import {printReport} from "./report.js";
 const FOLD_NAME=Object.fromEntries(FOLDS.map(f=>[f.k,f.l]));
 export function mountOriginal(options){
 
@@ -310,7 +311,7 @@ function viewDetail(id){
   const bio = [['% Gordura',num(ex.bf),'%'],['Massa muscular',num(ex.muscle),'kg'],['Gordura visceral',num(ex.visceral),''],['Água corporal',num(ex.water),'%']].map(([l,v,u])=>row(l,v,u)).join('');
   return `<header class="top no-print-sm"><button class="icon-btn no-print" data-act="back">${ic('back')}</button>
     <div class="title-block"><small>Avaliação · ${esc(p.name)}</small><b>${fmtDate(a.date,{day:'numeric',month:'long',year:'numeric'})}</b></div><div class="grow"></div>
-    <button class="icon-btn no-print" data-act="print" aria-label="Imprimir">${ic('print')}</button>
+    <button class="icon-btn no-print" data-act="print" aria-label="Exportar PDF" title="Exportar PDF">${ic('print')}</button>
     <button class="icon-btn no-print" data-act="edit" data-id="${a.id}" aria-label="Editar">${ic('edit')}</button></header>
 
   <div class="dash detail-dash">
@@ -359,6 +360,7 @@ function viewDetail(id){
 
   <div class="no-print" style="display:grid;gap:8px;margin-top:22px">
     ${pv?`<button class="cta" style="margin-top:0" data-act="cmpWith" data-a="${pv.id}" data-b="${a.id}"><span class="c-ico">${ic('swap')}</span><span>Comparar com a anterior <span class="arrows">›››</span></span><span class="c-ico">${ic('chart')}</span></button>`:''}
+    <button class="btn ghost" data-act="print">${ic('dl','sm')} Exportar relatório em PDF</button>
     <button class="btn danger" style="margin-top:12px" data-act="del" data-id="${a.id}">${ic('trash','sm')} Excluir avaliação</button>
   </div>`;
 }
@@ -741,7 +743,7 @@ const ACT = {
   del: async b => sheet('Excluir avaliação?', 'Esta ação não pode ser desfeita.', [
     {label:'Excluir', cls:'danger', fn:async ()=>{ db.assessments = db.assessments.filter(a=>a.id!==b.dataset.id); await save(); go('list'); toast('Avaliação excluída'); }},
     {label:'Cancelar'}]),
-  print: async () => window.print(),
+  print: async b => { const a = findA(b.dataset.id || state.param); if (!a) return; const p = db.profiles.find(x=>x.id===a.profileId) || prof(); printReport({a, p, list: listOf(a.profileId)}); },
   evo: async b => { state.evo = b.dataset.m; state.cmpTab = 'evo'; if (state.route!=='compare') go('compare'); else render(); },
   cmpTab: async b => { state.cmpTab = b.dataset.v; render(); },
   cmpWith: async b => { state.cmpA = b.dataset.a; state.cmpB = b.dataset.b; state.cmpTab = 'ab'; go('compare'); },
