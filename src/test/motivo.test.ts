@@ -2,6 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { motivo } from '@/lib/motivo';
 
 describe('motivo', () => {
+  it.each(['Auth session missing!', 'otp_expired', 'refresh_token_not_found'])('identifica recuperação inválida: %s', code => {
+    expect(motivo({code}, 'genérico')).not.toBe('genérico');
+  });
+  it('identifica senha igual à atual', () => {
+    expect(motivo({code:'same_password'}, 'genérico')).not.toBe('genérico');
+  });
   it('explica senha fraca', () => {
     expect(motivo(new Error('Password is known to be weak and easy to guess, please choose a different one.'), 'genérico'))
       .toBe('Essa senha é fácil de adivinhar. Escolha uma mais forte, com letras e números.');

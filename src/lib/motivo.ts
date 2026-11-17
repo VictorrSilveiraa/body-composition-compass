@@ -11,6 +11,9 @@ function textOf(e: unknown): string {
 
 export function motivo(e: unknown, fallback: string): string {
   const m = textOf(e);
+  if (/auth session missing|session_not_found|refresh_token_not_found|refresh_token_already_used|otp_expired|token.*expired|invalid.*token/i.test(m)) return 'Esse link expirou ou já foi usado. Peça um novo em "Esqueci minha senha".';
+  if (/same_password|different from.*old password/i.test(m)) return 'Essa já é sua senha atual. Escolha outra senha ou volte para entrar.';
+  if (/weak_password|password.*at least|password.*should contain/i.test(m)) return 'A senha não atende aos requisitos. Use pelo menos 8 caracteres, com letras, números e símbolos.';
   if (/known to be weak|weak and easy/i.test(m)) return 'Essa senha é fácil de adivinhar. Escolha uma mais forte, com letras e números.';
   if (/already registered/i.test(m)) return 'Este e-mail já tem conta. Entre com a senha ou use "Esqueci minha senha".';
   if (/invalid login credentials/i.test(m)) return 'E-mail ou senha não conferem. Confira ou use "Esqueci minha senha".';
