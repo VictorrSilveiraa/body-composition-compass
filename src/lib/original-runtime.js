@@ -1,4 +1,5 @@
 import {num,fmt,today,toDate,fmtDate,ageAt,foldVal,calc,bmiClass,bfClass,whrRisk,PROTOCOLS,FOLDS,CIRC_TRUNK,CIRC_LIMBS,STEPS,METRICS,GROUPS,MET,esc,getPath,setPath,clone,initials,firstName} from "./calculos.js";
+import {motivo} from "./motivo";
 const FOLD_NAME=Object.fromEntries(FOLDS.map(f=>[f.k,f.l]));
 export function mountOriginal(options){
 
@@ -754,7 +755,7 @@ const ACT = {
 };
 const click = async e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
-  const fn = ACT[b.dataset.act]; if (fn){ e.preventDefault(); try { await fn(b,e); } catch { toast('Não foi possível salvar. Tente novamente.'); } }
+  const fn = ACT[b.dataset.act]; if (fn){ e.preventDefault(); try { await fn(b,e); } catch (e2) { toast(motivo(e2,'Não foi possível salvar. Tente novamente.')); } }
 };
 const input = e => {
   const k = e.target.dataset?.k;
@@ -773,7 +774,7 @@ const keydown = e => {
   if (ins[i+1]) ins[i+1].focus(); else { e.target.blur(); ACT.nextStep(); }
 };
 
-const importChange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const data=JSON.parse(await f.text());const preview=options.previewImport(data);sheet('Importar backup',`${preview.profiles.length} pessoas e ${preview.assessments.length} avaliações.`,[{label:'Importar sem duplicar',cls:'dark',fn:async()=>{try{db=await options.importBackup(preview);go('home');toast('Backup importado');}catch{toast('Não foi possível importar o backup');}}},{label:'Cancelar'}]);}catch{toast('Arquivo de backup inválido');}e.target.value='';};
+const importChange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const data=JSON.parse(await f.text());const preview=options.previewImport(data);sheet('Importar backup',`${preview.profiles.length} pessoas e ${preview.assessments.length} avaliações.`,[{label:'Importar sem duplicar',cls:'dark',fn:async()=>{try{db=await options.importBackup(preview);go('home');toast('Backup importado');}catch(e2){toast(motivo(e2,'Não foi possível importar o backup'));}}},{label:'Cancelar'}]);}catch(e2){toast(motivo(e2,'Arquivo de backup inválido'));}e.target.value='';};
 const file=document.getElementById('importFile');
 file?.addEventListener('change',importChange);
 app.addEventListener('click',click); app.addEventListener('input',input);app.addEventListener('change',change);app.addEventListener('keydown',keydown);
