@@ -17,8 +17,11 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedAvaliacoesRouteImport } from './routes/_authenticated/avaliacoes'
 import { Route as AuthenticatedEvolucaoRouteImport } from './routes/_authenticated/evolucao'
 import { Route as AuthenticatedNovaRouteImport } from './routes/_authenticated/nova'
+import { Route as AuthenticatedPacientesRouteImport } from './routes/_authenticated/pacientes'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedAvaliacoesIdRouteImport } from './routes/_authenticated/avaliacoes.$id'
+import { Route as AuthenticatedPacientesIdRouteImport } from './routes/_authenticated/pacientes.$id'
+import { Route as AuthenticatedPerfilEditarRouteImport } from './routes/_authenticated/perfil.editar'
 import { Route as AuthenticatedPessoaNovaRouteImport } from './routes/_authenticated/pessoa.nova'
 import { Route as AuthenticatedAvaliacoesIdEditarRouteImport } from './routes/_authenticated/avaliacoes.$id.editar'
 import { Route as AuthenticatedPessoaIdEditarRouteImport } from './routes/_authenticated/pessoa.$id.editar'
@@ -62,6 +65,11 @@ const AuthenticatedNovaRoute = AuthenticatedNovaRouteImport.update({
   path: '/nova',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPacientesRoute = AuthenticatedPacientesRouteImport.update({
+  id: '/pacientes',
+  path: '/pacientes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
   id: '/perfil',
   path: '/perfil',
@@ -72,6 +80,18 @@ const AuthenticatedAvaliacoesIdRoute =
     id: '/$id',
     path: '/$id',
     getParentRoute: () => AuthenticatedAvaliacoesRoute,
+  } as any)
+const AuthenticatedPacientesIdRoute =
+  AuthenticatedPacientesIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedPacientesRoute,
+  } as any)
+const AuthenticatedPerfilEditarRoute =
+  AuthenticatedPerfilEditarRouteImport.update({
+    id: '/editar',
+    path: '/editar',
+    getParentRoute: () => AuthenticatedPerfilRoute,
   } as any)
 const AuthenticatedPessoaNovaRoute = AuthenticatedPessoaNovaRouteImport.update({
   id: '/pessoa/nova',
@@ -99,8 +119,11 @@ export interface FileRoutesByFullPath {
   '/avaliacoes': typeof AuthenticatedAvaliacoesRouteWithChildren
   '/evolucao': typeof AuthenticatedEvolucaoRoute
   '/nova': typeof AuthenticatedNovaRoute
-  '/perfil': typeof AuthenticatedPerfilRoute
+  '/pacientes': typeof AuthenticatedPacientesRouteWithChildren
+  '/perfil': typeof AuthenticatedPerfilRouteWithChildren
   '/avaliacoes/$id': typeof AuthenticatedAvaliacoesIdRouteWithChildren
+  '/pacientes/$id': typeof AuthenticatedPacientesIdRoute
+  '/perfil/editar': typeof AuthenticatedPerfilEditarRoute
   '/pessoa/nova': typeof AuthenticatedPessoaNovaRoute
   '/avaliacoes/$id/editar': typeof AuthenticatedAvaliacoesIdEditarRoute
   '/pessoa/$id/editar': typeof AuthenticatedPessoaIdEditarRoute
@@ -113,8 +136,11 @@ export interface FileRoutesByTo {
   '/avaliacoes': typeof AuthenticatedAvaliacoesRouteWithChildren
   '/evolucao': typeof AuthenticatedEvolucaoRoute
   '/nova': typeof AuthenticatedNovaRoute
-  '/perfil': typeof AuthenticatedPerfilRoute
+  '/pacientes': typeof AuthenticatedPacientesRouteWithChildren
+  '/perfil': typeof AuthenticatedPerfilRouteWithChildren
   '/avaliacoes/$id': typeof AuthenticatedAvaliacoesIdRouteWithChildren
+  '/pacientes/$id': typeof AuthenticatedPacientesIdRoute
+  '/perfil/editar': typeof AuthenticatedPerfilEditarRoute
   '/pessoa/nova': typeof AuthenticatedPessoaNovaRoute
   '/avaliacoes/$id/editar': typeof AuthenticatedAvaliacoesIdEditarRoute
   '/pessoa/$id/editar': typeof AuthenticatedPessoaIdEditarRoute
@@ -129,8 +155,11 @@ export interface FileRoutesById {
   '/_authenticated/avaliacoes': typeof AuthenticatedAvaliacoesRouteWithChildren
   '/_authenticated/evolucao': typeof AuthenticatedEvolucaoRoute
   '/_authenticated/nova': typeof AuthenticatedNovaRoute
-  '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
+  '/_authenticated/pacientes': typeof AuthenticatedPacientesRouteWithChildren
+  '/_authenticated/perfil': typeof AuthenticatedPerfilRouteWithChildren
   '/_authenticated/avaliacoes/$id': typeof AuthenticatedAvaliacoesIdRouteWithChildren
+  '/_authenticated/pacientes/$id': typeof AuthenticatedPacientesIdRoute
+  '/_authenticated/perfil/editar': typeof AuthenticatedPerfilEditarRoute
   '/_authenticated/pessoa/nova': typeof AuthenticatedPessoaNovaRoute
   '/_authenticated/avaliacoes/$id/editar': typeof AuthenticatedAvaliacoesIdEditarRoute
   '/_authenticated/pessoa/$id/editar': typeof AuthenticatedPessoaIdEditarRoute
@@ -145,8 +174,11 @@ export interface FileRouteTypes {
     | '/avaliacoes'
     | '/evolucao'
     | '/nova'
+    | '/pacientes'
     | '/perfil'
     | '/avaliacoes/$id'
+    | '/pacientes/$id'
+    | '/perfil/editar'
     | '/pessoa/nova'
     | '/avaliacoes/$id/editar'
     | '/pessoa/$id/editar'
@@ -159,8 +191,11 @@ export interface FileRouteTypes {
     | '/avaliacoes'
     | '/evolucao'
     | '/nova'
+    | '/pacientes'
     | '/perfil'
     | '/avaliacoes/$id'
+    | '/pacientes/$id'
+    | '/perfil/editar'
     | '/pessoa/nova'
     | '/avaliacoes/$id/editar'
     | '/pessoa/$id/editar'
@@ -174,8 +209,11 @@ export interface FileRouteTypes {
     | '/_authenticated/avaliacoes'
     | '/_authenticated/evolucao'
     | '/_authenticated/nova'
+    | '/_authenticated/pacientes'
     | '/_authenticated/perfil'
     | '/_authenticated/avaliacoes/$id'
+    | '/_authenticated/pacientes/$id'
+    | '/_authenticated/perfil/editar'
     | '/_authenticated/pessoa/nova'
     | '/_authenticated/avaliacoes/$id/editar'
     | '/_authenticated/pessoa/$id/editar'
@@ -247,6 +285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNovaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/pacientes': {
+      id: '/_authenticated/pacientes'
+      path: '/pacientes'
+      fullPath: '/pacientes'
+      preLoaderRoute: typeof AuthenticatedPacientesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/perfil': {
       id: '/_authenticated/perfil'
       path: '/perfil'
@@ -260,6 +305,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/avaliacoes/$id'
       preLoaderRoute: typeof AuthenticatedAvaliacoesIdRouteImport
       parentRoute: typeof AuthenticatedAvaliacoesRoute
+    }
+    '/_authenticated/pacientes/$id': {
+      id: '/_authenticated/pacientes/$id'
+      path: '/$id'
+      fullPath: '/pacientes/$id'
+      preLoaderRoute: typeof AuthenticatedPacientesIdRouteImport
+      parentRoute: typeof AuthenticatedPacientesRoute
+    }
+    '/_authenticated/perfil/editar': {
+      id: '/_authenticated/perfil/editar'
+      path: '/editar'
+      fullPath: '/perfil/editar'
+      preLoaderRoute: typeof AuthenticatedPerfilEditarRouteImport
+      parentRoute: typeof AuthenticatedPerfilRoute
     }
     '/_authenticated/pessoa/nova': {
       id: '/_authenticated/pessoa/nova'
@@ -313,11 +372,37 @@ const AuthenticatedAvaliacoesRouteWithChildren =
     AuthenticatedAvaliacoesRouteChildren,
   )
 
+interface AuthenticatedPacientesRouteChildren {
+  AuthenticatedPacientesIdRoute: typeof AuthenticatedPacientesIdRoute
+}
+
+const AuthenticatedPacientesRouteChildren: AuthenticatedPacientesRouteChildren =
+  {
+    AuthenticatedPacientesIdRoute: AuthenticatedPacientesIdRoute,
+  }
+
+const AuthenticatedPacientesRouteWithChildren =
+  AuthenticatedPacientesRoute._addFileChildren(
+    AuthenticatedPacientesRouteChildren,
+  )
+
+interface AuthenticatedPerfilRouteChildren {
+  AuthenticatedPerfilEditarRoute: typeof AuthenticatedPerfilEditarRoute
+}
+
+const AuthenticatedPerfilRouteChildren: AuthenticatedPerfilRouteChildren = {
+  AuthenticatedPerfilEditarRoute: AuthenticatedPerfilEditarRoute,
+}
+
+const AuthenticatedPerfilRouteWithChildren =
+  AuthenticatedPerfilRoute._addFileChildren(AuthenticatedPerfilRouteChildren)
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAvaliacoesRoute: typeof AuthenticatedAvaliacoesRouteWithChildren
   AuthenticatedEvolucaoRoute: typeof AuthenticatedEvolucaoRoute
   AuthenticatedNovaRoute: typeof AuthenticatedNovaRoute
-  AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
+  AuthenticatedPacientesRoute: typeof AuthenticatedPacientesRouteWithChildren
+  AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRouteWithChildren
   AuthenticatedPessoaNovaRoute: typeof AuthenticatedPessoaNovaRoute
   AuthenticatedPessoaIdEditarRoute: typeof AuthenticatedPessoaIdEditarRoute
 }
@@ -326,7 +411,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAvaliacoesRoute: AuthenticatedAvaliacoesRouteWithChildren,
   AuthenticatedEvolucaoRoute: AuthenticatedEvolucaoRoute,
   AuthenticatedNovaRoute: AuthenticatedNovaRoute,
-  AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
+  AuthenticatedPacientesRoute: AuthenticatedPacientesRouteWithChildren,
+  AuthenticatedPerfilRoute: AuthenticatedPerfilRouteWithChildren,
   AuthenticatedPessoaNovaRoute: AuthenticatedPessoaNovaRoute,
   AuthenticatedPessoaIdEditarRoute: AuthenticatedPessoaIdEditarRoute,
 }

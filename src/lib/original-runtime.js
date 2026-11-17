@@ -43,13 +43,24 @@ const I = {
   target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
   heart:'<path d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 8 3.5C20 15.4 12 20 12 20z"/>',
   out:'<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M10 16l-4-4 4-4M6 12h10"/>',
+  phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/>',
+  chat:'<path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 10h6M9 13.5h4"/>',
+  search:'<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>',
+  archive:'<rect x="3" y="4" width="18" height="5" rx="2"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/>',
+  badge:'<rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="11" r="2"/><path d="M6 16c.6-1.4 1.7-2 3-2s2.4.6 3 2M14.5 10h3.5M14.5 13.5h3"/>',
+  pin:'<path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  sort:'<path d="M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4M13.5 7.5 17 4l3.5 3.5"/>',
+  steth:'<path d="M6 3v6a5 5 0 0 0 10 0V3"/><path d="M11 14v2a4 4 0 0 0 8 0v-2"/><circle cx="19" cy="12" r="2"/>',
 };
 const ic = (n, cls='') => `<svg class="ico ${cls}" viewBox="0 0 24 24">${I[n]||''}</svg>`;
 
 /* ---------- estado / storage ---------- */
 let db = options.db;
 let draft = loadDraft();
-const state = { route:'home', param:null, step:0, editingId:null, evo:'weight', cmpA:null, cmpB:null, cmpTab:'evo', onlyFilled:true };
+const state = { route:'home', param:null, step:0, editingId:null, evo:'weight', cmpA:null, cmpB:null, cmpTab:'evo', onlyFilled:true, pq:'', pf:'active', ps:'recent' };
+let nutri = { returnDays:30, ...(options.nutri||{}) };
 try { Object.assign(state,JSON.parse(sessionStorage.getItem('avf.view.'+options.userId)||'{}')); } catch {}
 
 let draftTimer; let draftPending = Promise.resolve();
@@ -70,6 +81,42 @@ const prof = () => db.profiles.find(p => p.id===db.activeId) || db.profiles[0];
 const listOf = pid => db.assessments.filter(a => a.profileId===pid).sort((x,y)=> x.date===y.date ? (x.createdAt||0)-(y.createdAt||0) : x.date<y.date ? -1 : 1);
 const findA = id => db.assessments.find(a => a.id===id);
 function prevOf(a){ const l = listOf(a.profileId).filter(x=>x.id!==a.id && (x.date<a.date || (x.date===a.date && (x.createdAt||0)<(a.createdAt||Infinity)))); return l.at(-1) || null; }
+
+/* ---------- nutricionista & pacientes ---------- */
+const nutriName = () => (nutri.name||'').trim() || (options.email||'').split('@')[0] || 'Nutricionista';
+const nutriSign = () => (nutri.name||'').trim() ? nutri.name.trim() + (nutri.crn ? ' · CRN ' + nutri.crn.trim() : '') : '';
+const GOALS = [['emagrecimento','Emagrecimento'],['hipertrofia','Hipertrofia'],['saude','Saúde e bem-estar'],['performance','Performance esportiva'],['reeducacao','Reeducação alimentar'],['clinico','Acompanhamento clínico']];
+const goalLabel = k => GOALS.find(g=>g[0]===k)?.[1] || '';
+const RETURNS = [15,30,45,60,90];
+const isoOf = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const addDays = (iso, n) => { const d = toDate(iso); d.setDate(d.getDate()+n); return isoOf(d); };
+const daysTo = iso => Math.round((toDate(iso) - toDate(today())) / 864e5);
+const returnEvery = p => num(p.returnDays) || num(nutri.returnDays) || 30;
+const AV_COLORS = ['var(--peach)','var(--blue-2)','var(--green-2)','var(--yellow-2)','var(--pink)'];
+const avColor = id => AV_COLORS[[...String(id)].reduce((s,c)=>s+c.charCodeAt(0),0) % AV_COLORS.length];
+const plural = (n, one, many) => `${n} ${n===1?one:many}`;
+const ago = iso => { const d = -daysTo(iso); return d<=0 ? 'hoje' : d===1 ? 'ontem' : d<31 ? `há ${d} dias` : d<365 ? `há ${Math.round(d/30)} ${Math.round(d/30)===1?'mês':'meses'}` : `há ${Math.round(d/365)} ${Math.round(d/365)===1?'ano':'anos'}`; };
+// situação do paciente: arquivado, sem avaliação, retorno atrasado / próximo / em dia
+function pStatus(p){
+  const last = listOf(p.id).at(-1);
+  if (p.archived) return {k:'arch', l:'Arquivado', cls:'muted'};
+  if (!last) return {k:'none', l:'Sem avaliação', cls:'yellow'};
+  const next = addDays(last.date, returnEvery(p)), left = daysTo(next);
+  if (left < 0) return {k:'late', l:`Retorno atrasado ${-left} ${-left===1?'dia':'dias'}`, short:`Atrasado ${-left}d`, cls:'peach', next, left};
+  if (left <= 7) return {k:'soon', l: left===0 ? 'Retorno hoje' : `Retorno em ${left} ${left===1?'dia':'dias'}`, short: left===0?'Hoje':`Em ${left}d`, cls:'blue', next, left};
+  return {k:'ok', l:'Em dia', cls:'green', next, left};
+}
+function setActive(id){ if (db.activeId===id) return; db.activeId = id; state.cmpA = state.cmpB = null; try { localStorage.setItem('avf.active.'+options.userId, id); } catch {} }
+function pAvatar(p, cls=''){ return `<span class="avatar ${cls}" style="background:${avColor(p.id)}">${esc(initials(p.name))}</span>`; }
+function pMeta(p){ return [p.sex==='F'?'Feminino':'Masculino', ageAt(p.birth)!=null?ageAt(p.birth)+' anos':null, num(p.height)?fmt(num(p.height),0)+' cm':null].filter(Boolean).join(' · '); }
+const phoneDigits = s => String(s||'').replace(/\D/g,'');
+const waLink = s => { const d = phoneDigits(s); return d ? 'https://wa.me/' + (d.length<=11 ? '55'+d : d) : ''; };
+function teamStats(){
+  const act = db.profiles.filter(p=>!p.archived), st = act.map(pStatus);
+  const since = addDays(today(), -30);
+  return { total:db.profiles.length, active:act.length, late:st.filter(s=>s.k==='late').length, soon:st.filter(s=>s.k==='soon').length, none:st.filter(s=>s.k==='none').length, arch:db.profiles.length-act.length,
+    month: db.assessments.filter(a=>a.date>=since && db.profiles.some(p=>p.id===a.profileId)).length, all: db.assessments.length };
+}
 
 /* ---------- componentes ---------- */
 function deltaChip(cur, prev, dir=0, unit='', d=1){
@@ -135,11 +182,11 @@ function ring(val, max, color='var(--peach)'){
 }
 function topbar(p){
   return `<header class="top top-home">
-    <button class="avatar" data-act="go" data-to="profile" aria-label="Perfil">${esc(initials(p.name))}</button>
-    <div class="hello"><small>Olá,</small><b>${esc(firstName(p.name))}!</b></div>
+    <button class="avatar" style="background:${avColor(p.id)}" data-act="go" data-to="patient" data-id="${p.id}" aria-label="Ficha de ${esc(p.name)}">${esc(initials(p.name))}</button>
+    <button class="hello hello-pt" data-act="go" data-to="patients" aria-label="Trocar paciente"><small>Paciente</small><b>${esc(firstName(p.name))} ${ic('down','sm')}</b></button>
     <div class="grow"></div>
     <span class="top-date">${fmtDate(today(),{weekday:'long',day:'numeric',month:'long'})}</span>
-    <button class="icon-btn" data-act="go" data-to="list" aria-label="Avaliações">${ic('cal')}</button>
+    <button class="icon-btn" data-act="go" data-to="patients" aria-label="Pacientes">${ic('users')}</button>
     <button class="icon-btn ${hasDraft()?'dot':''}" data-act="new" aria-label="Nova avaliação">${ic('plus')}</button>
   </header>`;
 }
@@ -170,16 +217,17 @@ const hasDraft = () => !!draft;
 function viewOnboard(editP){
   const p = editP || {name:'',sex:'',birth:'',height:''};
   const isNew = !editP;
+  const back = editP ? `data-to="patient" data-id="${editP.id}"` : 'data-to="patients"';
   return `
-  ${db.profiles.length ? `<header class="top"><button class="icon-btn" data-act="go" data-to="profile">${ic('back')}</button><div class="title-block"><small>Perfil</small><b>${isNew?'Nova pessoa':'Editar dados'}</b></div></header>` : ''}
+  ${db.profiles.length ? `<header class="top"><button class="icon-btn" data-act="go" ${back} aria-label="Voltar">${ic('back')}</button><div class="title-block"><small>Pacientes</small><b>${isNew?'Novo paciente':'Editar paciente'}</b></div></header>` : ''}
   ${!db.profiles.length ? `<div class="onb-hero"><div class="blob"></div><div class="blob b2"></div>
     <div style="position:relative"><span class="tag" style="margin-bottom:14px">${ic('heart','sm')} Avaliação física</span>
-    <h1>Seu corpo, medido com carinho.</h1>
-    <p>Registre dobras, circunferências e peso passo a passo — e acompanhe sua evolução a cada consulta.</p></div></div>` : ''}
-  <h2 class="sec" style="margin-top:6px">${isNew?'Quem será avaliado?':'Dados pessoais'}</h2>
+    <h1>Acompanhe seus pacientes de perto.</h1>
+    <p>Cadastre o primeiro paciente e registre dobras, circunferências e peso passo a passo — a evolução aparece a cada consulta.</p></div></div>` : ''}
+  <h2 class="sec" style="margin-top:6px">${isNew?'Dados do paciente':'Dados pessoais'}</h2>
   <div class="form-grid">
     <label class="field"><div class="f-top"><span class="f-label">Nome</span></div>
-      <div class="f-input text"><input id="pf-name" value="${esc(p.name)}" placeholder="Seu nome" autocomplete="name"></div></label>
+      <div class="f-input text"><input id="pf-name" value="${esc(p.name)}" placeholder="Nome completo" autocomplete="off"></div></label>
     <div class="field"><div class="f-top"><span class="f-label">Sexo biológico</span></div>
       <span class="f-hint">Usado nas equações de composição corporal.</span>
       <div class="seg full" style="margin-top:10px" id="pf-sex">
@@ -193,7 +241,28 @@ function viewOnboard(editP){
         <div class="f-input"><input id="pf-height" inputmode="decimal" value="${esc(p.height??'')}" placeholder="170"><em>cm</em></div></label>
     </div>
   </div>
-  <button class="cta" data-act="saveProfile" data-id="${editP?editP.id:''}"><span class="c-ico">${ic('user')}</span><span>${isNew?'Começar':'Salvar dados'} <span class="arrows">›››</span></span><span class="c-ico">${ic('check')}</span></button>
+
+  <h2 class="sec">Contato <span class="sec-note">opcional</span></h2>
+  <div class="fields two">
+    <label class="field"><div class="f-top"><span class="f-label">Telefone / WhatsApp</span></div>
+      <div class="f-input text"><input id="pf-phone" type="tel" inputmode="tel" value="${esc(p.phone||'')}" placeholder="(11) 99999-9999" autocomplete="off"></div></label>
+    <label class="field"><div class="f-top"><span class="f-label">E-mail</span></div>
+      <div class="f-input text"><input id="pf-email" type="email" inputmode="email" value="${esc(p.email||'')}" placeholder="paciente@email.com" autocomplete="off"></div></label>
+  </div>
+
+  <h2 class="sec">Acompanhamento</h2>
+  <div class="form-grid">
+    <div class="field"><div class="f-top"><span class="f-label">Objetivo</span></div>
+      <div class="pick" id="pf-goal">${GOALS.map(([k,l])=>`<button type="button" class="chip ${p.goal===k?'on':''}" data-act="pick" data-v="${k}">${l}</button>`).join('')}</div></div>
+    <div class="field"><div class="f-top"><span class="f-label">Retorno a cada</span></div>
+      <span class="f-hint">Define quando a próxima avaliação fica “atrasada” na lista de pacientes.</span>
+      <div class="pick" id="pf-ret"><button type="button" class="chip ${!num(p.returnDays)?'on':''}" data-act="pick" data-v="">Padrão (${returnEvery({})} dias)</button>${RETURNS.map(d=>`<button type="button" class="chip ${num(p.returnDays)===d?'on':''}" data-act="pick" data-v="${d}">${d} dias</button>`).join('')}</div></div>
+    <label class="field"><div class="f-top"><span class="f-label">Observações</span><span class="f-prev">só você vê</span></div>
+      <span class="f-hint">Histórico clínico, restrições, rotina de treino, medicamentos…</span>
+      <div class="f-input"><textarea id="pf-notes" placeholder="Anotações sobre o paciente">${esc(p.notes||'')}</textarea></div></label>
+  </div>
+  ${options.fichaCloud ? '' : `<p class="small muted" style="margin:12px 4px 0">Contato, objetivo e observações ficam salvos neste aparelho até o banco de dados receber os novos campos.</p>`}
+  <button class="cta" data-act="saveProfile" data-id="${editP?editP.id:''}"><span class="c-ico">${ic('user')}</span><span>${isNew?(db.profiles.length?'Cadastrar paciente':'Começar'):'Salvar paciente'} <span class="arrows">›››</span></span><span class="c-ico">${ic('check')}</span></button>
   ${!db.profiles.length ? `<p class="small muted" style="text-align:center;margin-top:18px">Seus dados ficam protegidos na sua conta.</p>
   <button class="btn ghost sm" style="margin:12px auto 0;display:flex" data-act="import">${ic('ul','sm')} Restaurar backup</button>` : ''}`;
 }
@@ -448,41 +517,183 @@ function viewCompare(){
   return h;
 }
 
-function viewProfile(){
-  const p = prof(), list = listOf(p.id);
-  return `<header class="top"><button class="icon-btn" data-act="go" data-to="home">${ic('back')}</button><div class="title-block"><small>Configurações</small><b>Perfil</b></div></header>
-  <div class="card blue" style="display:flex;align-items:center;gap:14px">
-    <span class="avatar" style="width:64px;height:64px;font-size:22px;background:var(--surface)">${esc(initials(p.name))}</span>
-    <div class="grow"><b style="font-size:20px;font-weight:600">${esc(p.name)}</b>
-      <div class="small" style="margin-top:2px">${p.sex==='F'?'Feminino':'Masculino'} · ${ageAt(p.birth)??'—'} anos · ${p.height?fmt(num(p.height),0)+' cm':'altura —'}</div>
-      <div class="small muted">${list.length} ${list.length===1?'avaliação':'avaliações'}</div></div>
-    <button class="icon-btn white" data-act="editProfile">${ic('edit')}</button>
+/* ---------- PACIENTES ---------- */
+const norm = t => String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+function kpi(k, label, val, cls, icn, act=true){
+  const tag = act ? 'button' : 'div';
+  return `<${tag} class="kpi ${cls} ${act&&state.route==='patients'&&state.pf===k?'on':''}" ${act?`data-act="pfilter" data-v="${k}"`:''}><span class="chip-ico">${ic(icn,'sm')}</span><b>${val}</b><small>${label}</small></${tag}>`;
+}
+function ptCard({p, st, list}){
+  const last = list.at(-1), r = last ? calc(last,p) : null, on = p.id===db.activeId;
+  const stIco = st.k==='ok' ? ic('check','sm') : (st.k==='late'||st.k==='soon') ? ic('clock','sm') : st.k==='arch' ? ic('archive','sm') : '';
+  return `<div class="pt-cell" data-key="pt-${p.id}"><button class="pt-card ${on?'on':''}" data-act="go" data-to="patient" data-id="${p.id}">
+    <span class="pt-top">${pAvatar(p)}<span class="pt-name"><b>${esc(p.name)}</b><small>${esc(pMeta(p))}</small></span>${ic('right','sm')}</span>
+    <span class="pt-tags"><span class="tag ${st.cls}">${stIco}${st.l}</span>${p.goal?`<span class="tag">${esc(goalLabel(p.goal))}</span>`:''}${on?`<span class="tag dark">Atual</span>`:''}</span>
+    <span class="pt-nums">${last
+      ? `<span><small>Peso</small><b>${fmt(num(last.weight))}<small>kg</small></b></span><span><small>Gordura</small><b>${r.bf!=null?fmt(r.bf)+'<small>%</small>':'—'}</b></span><span><small>${plural(list.length,'avaliação','avaliações')}</small><b class="d">${ago(last.date)}</b></span>`
+      : `<span class="pt-none">Nenhuma avaliação registrada ainda</span>`}</span>
+  </button></div>`;
+}
+function viewPatients(){
+  const s = teamStats();
+  const FILTERS = [['active','Ativos',s.active],['late','Atrasados',s.late],['soon','Próximos 7 dias',s.soon],['none','Sem avaliação',s.none],['arch','Arquivados',s.arch],['all','Todos',s.total]];
+  if (!FILTERS.some(f=>f[0]===state.pf)) state.pf = 'active';
+  const q = norm(state.pq.trim()), qd = phoneDigits(state.pq);
+  const rows = db.profiles.map(p=>({p, st:pStatus(p), list:listOf(p.id)}));
+  let shown = rows.filter(r => state.pf==='all' ? true : state.pf==='active' ? !r.p.archived : state.pf==='arch' ? !!r.p.archived : r.st.k===state.pf);
+  if (q) shown = shown.filter(r => norm(r.p.name).includes(q) || norm(r.p.email).includes(q) || norm(goalLabel(r.p.goal)).includes(q) || (qd.length>2 && phoneDigits(r.p.phone).includes(qd)));
+  const lastD = r => r.list.at(-1)?.date || '';
+  const SORT = {
+    recent:(a,b)=> lastD(b).localeCompare(lastD(a)) || (b.p.createdAt||0)-(a.p.createdAt||0),
+    next:(a,b)=> (a.st.next||'9999').localeCompare(b.st.next||'9999'),
+    name:(a,b)=> a.p.name.localeCompare(b.p.name,'pt-BR'),
+  };
+  shown.sort(SORT[state.ps] || SORT.recent);
+  const emptyMsg = q ? ['Nenhum paciente encontrado', `Nada com “${esc(state.pq.trim())}” em ${FILTERS.find(f=>f[0]===state.pf)[1].toLowerCase()}. Tente outro nome ou veja “Todos”.`]
+    : {late:['Nenhum retorno atrasado','Todos os pacientes ativos estão com a avaliação em dia.'], soon:['Nenhum retorno nos próximos 7 dias','Quando um retorno estiver chegando, ele aparece aqui.'], none:['Todos já foram avaliados','Pacientes cadastrados sem avaliação aparecem aqui.'], arch:['Nenhum paciente arquivado','Arquive quem encerrou o acompanhamento: o histórico fica guardado e a lista principal, limpa.']}[state.pf] || ['Nenhum paciente aqui','Cadastre um paciente para começar.'];
+  return `<header class="top"><button class="icon-btn" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button>
+    <div class="title-block"><small>${esc(nutriName())}</small><b>Pacientes</b></div><div class="grow"></div>
+    <button class="btn dark sm pt-new" data-act="newProfile">${ic('plus','sm')}<span>Novo paciente</span></button></header>
+  <div class="pt-kpis">
+    ${kpi('active','Pacientes ativos',s.active,'blue','users')}
+    ${kpi('late','Retornos atrasados',s.late,'peach','clock')}
+    ${kpi('soon','Retornos em 7 dias',s.soon,'yellow','cal')}
+    ${kpi('month','Avaliações em 30 dias',s.month,'green','clip',false)}
   </div>
+  <div class="pt-tools">
+    <label class="pt-search">${ic('search','sm')}<input id="pt-q" type="search" value="${esc(state.pq)}" placeholder="Buscar paciente…" autocomplete="off" enterkeyhint="search" aria-label="Buscar por nome, telefone, e-mail ou objetivo"></label>
+  </div>
+  <div class="chips pt-filters">${FILTERS.map(([k,l,n])=>`<button class="chip ${state.pf===k?'on':''}" data-act="pfilter" data-v="${k}">${l}<span class="n">${n}</span></button>`).join('')}</div>
+  <div class="pt-count"><span>${plural(shown.length,'paciente','pacientes')}${q&&shown.length?' encontrados':''}</span>
+    <label class="pt-sort">${ic('sort','sm')}<select data-ch="psort" aria-label="Ordenar pacientes">${[['recent','Avaliação mais recente'],['next','Próximo retorno'],['name','Nome (A–Z)']].map(([v,l])=>`<option value="${v}" ${state.ps===v?'selected':''}>${l}</option>`).join('')}</select>${ic('down','sm')}</label></div>
+  ${shown.length
+    ? `<div class="pt-grid">${shown.map(ptCard).join('')}</div>`
+    : `<div class="card empty"><div class="e-ico">${ic(q?'search':'users')}</div><h3>${emptyMsg[0]}</h3><p>${emptyMsg[1]}</p></div>`}`;
+}
 
+/* ---------- FICHA DO PACIENTE ---------- */
+function viewPatient(id){
+  const p = db.profiles.find(x=>x.id===id); if (!p) return viewPatients();
+  const list = listOf(p.id), last = list.at(-1), first = list[0], st = pStatus(p);
+  const r = last ? calc(last,p) : null, r0 = list.length>1 ? calc(first,p) : null;
+  const wa = waLink(p.phone), cont = draft && draft.profileId===p.id;
+  const since = r0 ? `<span class="small muted">desde ${fmtDate(first.date,{day:'2-digit',month:'short'})}</span>` : '';
+  const metric = (label, val, unit, d0, dir, du, icn, cls='') => `<div class="card ${cls}"><div class="card-head"><span class="label">${label}</span><span class="chip-ico right">${ic(icn,'sm')}</span></div>
+    <div class="mid">${val!=null?fmt(val):'—'}<small>${val!=null?unit:''}</small></div>${r0&&val!=null&&d0!=null?`<div class="sub">${deltaChip(val,d0,dir,du)} ${since}</div>`:''}</div>`;
+  let h = `<header class="top"><button class="icon-btn" data-act="go" data-to="patients" aria-label="Pacientes">${ic('back')}</button>
+    <div class="title-block"><small>Pacientes</small><b>Ficha do paciente</b></div><div class="grow"></div>
+    <button class="icon-btn" data-act="go" data-to="onboard" data-id="${p.id}" aria-label="Editar paciente">${ic('edit')}</button></header>
+  <div class="pt-layout"><div class="pt-main">
+  <div class="card blue pt-hero">
+    <div class="pt-id">${pAvatar(p,'xl')}<div class="grow"><h1>${esc(p.name)}</h1><div class="small">${esc(pMeta(p))}</div></div></div>
+    <div class="pt-tags"><span class="tag ${st.cls==='muted'?'':st.cls}">${st.l}</span>${p.goal?`<span class="tag">${ic('target','sm')}${esc(goalLabel(p.goal))}</span>`:''}<span class="tag">${ic('clock','sm')}Retorno a cada ${returnEvery(p)} dias</span></div>
+    ${(p.phone||p.email) ? `<div class="pt-contact">${wa?`<a class="pc wa" href="${wa}" target="_blank" rel="noopener">${ic('chat','sm')}WhatsApp</a>`:''}${p.phone?`<a class="pc" href="tel:${phoneDigits(p.phone)}">${ic('phone','sm')}${esc(p.phone)}</a>`:''}${p.email?`<a class="pc" href="mailto:${esc(p.email)}">${ic('mail','sm')}<span>${esc(p.email)}</span></a>`:''}</div>`
+      : `<div class="pt-contact"><button class="pc" data-act="go" data-to="onboard" data-id="${p.id}">${ic('plus','sm')}Adicionar telefone ou e-mail</button></div>`}
+  </div>
+  <div class="pt-actions">
+    <button class="pa main" data-act="newFor" data-id="${p.id}">${ic(cont?'edit':'plus')}<span>${cont?'Continuar avaliação':'Nova avaliação'}</span></button>
+    <button class="pa" data-act="openAs" data-to="home" data-id="${p.id}">${ic('home')}<span>Painel</span></button>
+    <button class="pa" data-act="openAs" data-to="compare" data-id="${p.id}">${ic('chart')}<span>Evolução</span></button>
+    <button class="pa" data-act="print">${ic('print')}<span>PDF</span></button>
+  </div>`;
+  if (!last){
+    h += `<div class="card empty" style="margin-top:16px"><div class="e-ico">${ic('clip')}</div><h3>Nenhuma avaliação ainda</h3><p>Registre a primeira avaliação de ${esc(firstName(p.name))} para acompanhar peso, gordura e medidas a cada retorno.</p></div>`;
+  } else {
+    h += `<h2 class="sec">Resultados atuais <span class="sec-note">${fmtDate(last.date,{day:'numeric',month:'short',year:'numeric'})}</span></h2>
+    <div class="dash pt-sum">
+      ${metric('Peso', num(last.weight), 'kg', r0&&num(first.weight), 0, 'kg', 'scale')}
+      ${metric('Gordura', r.bf, '%', r0?.bf, -1, 'pp', 'flame', 'blue')}
+      ${metric('Massa magra', r.leanMass, 'kg', r0?.leanMass, 1, 'kg', 'bolt', 'green')}
+      ${metric('Cintura', num(last.circ?.waist), 'cm', r0&&num(first.circ?.waist), -1, 'cm', 'ruler', 'yellow')}
+    </div>
+    <h2 class="sec">Avaliações <button data-act="openAs" data-to="list" data-id="${p.id}">Ver todas (${list.length})</button></h2>
+    <div class="alist">${list.slice(-4).reverse().map((a,i)=>aItem(a,p,i===0)).join('')}</div>`;
+  }
+  h += `</div><aside class="pt-aside">
+    <h2 class="sec">Agenda</h2>
+    <div class="kv">
+      <div class="kv-row"><span class="k">Primeira avaliação</span><span class="t">${first?fmtDate(first.date):'—'}</span></div>
+      <div class="kv-row"><span class="k">Última avaliação</span><span class="t">${last?`${fmtDate(last.date)} <small>${ago(last.date)}</small>`:'—'}</span></div>
+      <div class="kv-row"><span class="k">Próximo retorno</span><span class="t ${st.k}">${st.next?`${fmtDate(st.next)} <small>${st.short||st.l}</small>`:p.archived?'Arquivado':'Após a 1ª avaliação'}</span></div>
+      <div class="kv-row"><span class="k">Cadastro</span><span class="t">${p.createdAt?fmtDate(isoOf(new Date(p.createdAt))):'—'}</span></div>
+    </div>
+    <h2 class="sec">Observações <button data-act="go" data-to="onboard" data-id="${p.id}">editar</button></h2>
+    <div class="notes ${p.notes?'':'muted'}">${p.notes?esc(p.notes):'Sem observações. Registre histórico clínico, restrições e combinados.'}</div>
+    <h2 class="sec">Gerenciar</h2>
+    <div class="actions">
+      <button class="act-row" data-act="go" data-to="onboard" data-id="${p.id}"><span class="chip-ico">${ic('edit','sm')}</span><span class="grow"><b>Editar dados</b><span>Nome, medidas, contato, objetivo e retorno</span></span></button>
+      ${list.length?`<button class="act-row" data-act="csv"><span class="chip-ico">${ic('table','sm')}</span><span class="grow"><b>Exportar planilha (CSV)</b><span>Todas as avaliações, abre no Excel</span></span></button>`:''}
+      <button class="act-row" data-act="archive" data-id="${p.id}"><span class="chip-ico">${ic('archive','sm')}</span><span class="grow"><b>${p.archived?'Reativar paciente':'Arquivar paciente'}</b><span>${p.archived?'Volta para a lista de ativos':'Sai da lista de ativos; o histórico fica guardado'}</span></span></button>
+      <button class="act-row danger" data-act="delProfile" data-id="${p.id}"><span class="chip-ico">${ic('trash','sm')}</span><span class="grow"><b>Excluir paciente</b><span style="color:inherit;opacity:.7">Remove ${esc(firstName(p.name))} e todas as avaliações</span></span></button>
+    </div>
+  </aside></div>`;
+  return h;
+}
+
+/* ---------- PERFIL DO NUTRICIONISTA ---------- */
+function viewProfile(){
+  const s = teamStats(), done = !!((nutri.name||'').trim() && (nutri.crn||'').trim());
+  const row = (k, v) => `<div class="kv-row"><span class="k">${k}</span><span class="t ${v?'':'none'}">${v?esc(v):'Não informado'}</span></div>`;
+  return `<header class="top"><button class="icon-btn" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button><div class="title-block"><small>Sua conta</small><b>Perfil profissional</b></div><div class="grow"></div>
+    <button class="icon-btn" data-act="go" data-to="nutri" aria-label="Editar perfil">${ic('edit')}</button></header>
+  <div class="card yellow nu-hero">
+    <span class="avatar xl">${esc(initials(nutriName()))}</span>
+    <div class="grow"><span class="tag">${ic('steth','sm')}${esc((nutri.specialty||'').trim()||'Nutricionista')}</span><h1>${esc(nutriName())}</h1>
+      <div class="small">${[nutri.crn?'CRN '+esc(nutri.crn):null, esc(options.email||'')].filter(Boolean).join(' · ')}</div></div>
+  </div>
+  ${done?'':`<button class="draft-banner" data-act="go" data-to="nutri">${ic('badge')}<span class="grow">Complete seu perfil: nome e CRN entram como avaliador(a) nas novas avaliações e nos PDFs.</span><b>Completar</b></button>`}
+  <div class="pt-kpis">
+    ${kpi('active','Pacientes ativos',s.active,'blue','users')}
+    ${kpi('late','Retornos atrasados',s.late,'peach','clock')}
+    ${kpi('month','Avaliações em 30 dias',s.month,'green','clip',false)}
+    ${kpi('all','Avaliações no total',s.all,'','chart',false)}
+  </div>
   <div class="two-col">
   <div>
-  <h2 class="sec">Pessoas avaliadas <button data-act="newProfile">+ adicionar</button></h2>
-  <div class="actions">${db.profiles.map(x=>`<button class="prof-row ${x.id===p.id?'on':''}" data-act="switchProfile" data-id="${x.id}">
-    <span class="avatar">${esc(initials(x.name))}</span><span class="grow"><b style="font-weight:600">${esc(x.name)}</b><br><span class="small muted">${listOf(x.id).length} avaliações</span></span>${x.id===p.id?ic('check'):''}</button>`).join('')}</div>
+    <h2 class="sec">Atendimento <button data-act="go" data-to="nutri">editar</button></h2>
+    <div class="kv">
+      ${row('Registro (CRN)', nutri.crn)}${row('Especialidade', nutri.specialty)}${row('Telefone', nutri.phone)}${row('Local de atendimento', nutri.place)}
+      <div class="kv-row"><span class="k">Retorno padrão</span><span class="t">a cada ${returnEvery({})} dias</span></div>
+    </div>
+    <h2 class="sec">Pacientes</h2>
+    <div class="actions">
+      <button class="act-row" data-act="go" data-to="patients"><span class="chip-ico">${ic('users','sm')}</span><span class="grow"><b>Gerenciar pacientes</b><span>${plural(s.active,'ativo','ativos')}${s.arch?` · ${plural(s.arch,'arquivado','arquivados')}`:''} · busca e filtros por retorno</span></span>${ic('right','sm')}</button>
+      <button class="act-row" data-act="newProfile"><span class="chip-ico">${ic('plus','sm')}</span><span class="grow"><b>Cadastrar paciente</b><span>Dados, contato, objetivo e observações</span></span>${ic('right','sm')}</button>
+    </div>
   </div>
   <div>
-  <h2 class="sec">Seus dados</h2>
-  <div class="actions">
-    <button class="act-row" data-act="logout"><span class="chip-ico">${ic('out','sm')}</span><span class="grow"><b>Sair da conta</b><span>${esc(options.email||'')}</span></span></button>
-    ${list.length?`<button class="act-row" data-act="print"><span class="chip-ico">${ic('print','sm')}</span><span class="grow"><b>Exportar relatórios em PDF</b><span>Avaliação, resumo, comparativo, evolução ou histórico completo</span></span></button>`:''}
-    <button class="act-row" data-act="export"><span class="chip-ico">${ic('dl','sm')}</span><span class="grow"><b>Exportar backup</b><span>Arquivo .json com tudo — guarde ou envie para outro aparelho</span></span></button>
-    <button class="act-row" data-act="import"><span class="chip-ico">${ic('ul','sm')}</span><span class="grow"><b>Restaurar backup</b><span>Importa um arquivo .json exportado antes</span></span></button>
-    <button class="act-row" data-act="csv"><span class="chip-ico">${ic('table','sm')}</span><span class="grow"><b>Exportar planilha (CSV)</b><span>Todas as avaliações de ${esc(firstName(p.name))}, abre no Excel</span></span></button>
-    <button class="act-row danger" data-act="delProfile"><span class="chip-ico">${ic('trash','sm')}</span><span class="grow"><b>Excluir ${esc(firstName(p.name))}</b><span style="color:inherit;opacity:.7">Remove a pessoa e todas as avaliações dela</span></span></button>
-  </div>
+    <h2 class="sec">Dados e conta</h2>
+    <div class="actions">
+      <button class="act-row" data-act="export"><span class="chip-ico">${ic('dl','sm')}</span><span class="grow"><b>Exportar backup</b><span>Arquivo .json com todos os pacientes e avaliações</span></span></button>
+      <button class="act-row" data-act="import"><span class="chip-ico">${ic('ul','sm')}</span><span class="grow"><b>Restaurar backup</b><span>Importa um arquivo .json exportado antes, sem duplicar</span></span></button>
+      <button class="act-row" data-act="logout"><span class="chip-ico">${ic('out','sm')}</span><span class="grow"><b>Sair da conta</b><span>${esc(options.email||'')}</span></span></button>
+    </div>
   </div></div>
   <p class="small muted" style="margin-top:20px;text-align:center">Seus dados estão salvos na sua conta.</p>`;
+}
+function viewNutri(){
+  const tf = (id, label, val, ph, hint='', type='text') => `<label class="field"><div class="f-top"><span class="f-label">${label}</span></div>${hint?`<span class="f-hint">${hint}</span>`:''}
+    <div class="f-input text"><input id="${id}" type="${type}" value="${esc(val||'')}" placeholder="${ph}" autocomplete="off"></div></label>`;
+  const rd = num(nutri.returnDays) || 30;
+  return `<header class="top"><button class="icon-btn" data-act="go" data-to="profile" aria-label="Voltar">${ic('back')}</button><div class="title-block"><small>Perfil profissional</small><b>Editar perfil</b></div></header>
+  <h2 class="sec" style="margin-top:6px">Identificação</h2>
+  <div class="form-grid">
+    ${tf('nu-name','Nome completo',nutri.name,'Seu nome','Aparece como avaliador(a) nas avaliações e nos relatórios em PDF.')}
+    <div class="fields two">${tf('nu-crn','CRN',nutri.crn,'CRN-3 12345')}${tf('nu-spec','Especialidade',nutri.specialty,'Ex.: Nutrição esportiva')}</div>
+  </div>
+  <h2 class="sec">Atendimento</h2>
+  <div class="form-grid">
+    <div class="fields two">${tf('nu-phone','Telefone',nutri.phone,'(11) 99999-9999','','tel')}${tf('nu-place','Local de atendimento',nutri.place,'Clínica, cidade ou online')}</div>
+    <div class="field"><div class="f-top"><span class="f-label">Retorno padrão</span></div><span class="f-hint">Vale para os pacientes sem um retorno próprio. Define quem aparece como “atrasado”.</span>
+      <div class="pick" id="nu-ret">${RETURNS.map(d=>`<button type="button" class="chip ${rd===d?'on':''}" data-act="pick" data-v="${d}">${d} dias</button>`).join('')}</div></div>
+  </div>
+  <button class="cta" data-act="saveNutri"><span class="c-ico">${ic('badge')}</span><span>Salvar perfil <span class="arrows">›››</span></span><span class="c-ico">${ic('check')}</span></button>`;
 }
 
 /* ---------- WIZARD ---------- */
 function newDraft(){
   const p = prof(), last = listOf(p.id).at(-1);
-  return {id:null, profileId:p.id, date:today(), weight:'', height: p.height || last?.height || '', protocol: last?.protocol || 'jp7', multi:false, circ:{}, folds:{}, extra:{}};
+  return {id:null, profileId:p.id, date:today(), weight:'', height: p.height || last?.height || '', protocol: last?.protocol || 'jp7', multi:false, circ:{}, folds:{}, extra: nutriSign() ? {evaluator:nutriSign()} : {}};
 }
 function wizPrev(){
   if (!draft) return null;
@@ -650,7 +861,7 @@ function updateLive(){
    RENDER / ROUTER
    ========================================================= */
 let app = options.app;
-const ORDER = {home:0,list:1,detail:2,compare:3,profile:4,onboard:5,wizard:6};
+const ORDER = {home:0,patients:1,patient:2,list:3,detail:4,compare:5,profile:6,nutri:7,onboard:8,wizard:9};
 let lastRoute = null;
 function render(){
   if (!db.profiles.length && state.route!=='onboard') state.route = 'onboard';
@@ -663,19 +874,23 @@ function render(){
     case 'detail': html = viewDetail(state.param); break;
     case 'compare': html = viewCompare(); break;
     case 'profile': html = viewProfile(); break;
+    case 'nutri': html = `<div class="narrow">${viewNutri()}</div>`; break;
+    case 'patients': html = viewPatients(); break;
+    case 'patient': html = viewPatient(state.param); break;
     case 'wizard': html = viewWizard(); break;
     default: html = viewHome();
   }
-  const showNav = !['wizard','onboard'].includes(state.route);
+  const showNav = !['wizard','onboard','nutri'].includes(state.route);
   let navHtml='';
-  if(showNav){ const tabs=[['home','home','Início'],['list','cal','Avaliações'],['compare','chart','Evolução'],['profile','user','Perfil']]; const cur=state.route==='detail'?'list':state.route;
-  // No celular: só os 4 botões (pílula flutuante). No computador vira barra lateral com marca, atalho e pessoa.
-  const p = prof();
+  if(showNav){ const tabs=[['home','home','Início'],['patients','users','Pacientes'],['list','cal','Avaliações'],['compare','chart','Evolução'],['profile','user','Perfil']]; const cur={detail:'list',patient:'patients'}[state.route]||state.route;
+  // No celular: só os botões (pílula flutuante). No computador vira barra lateral com marca, paciente atual, atalho e nutricionista.
+  const p = prof(), n = listOf(p.id).length;
   navHtml=`<nav class="nav">
     <div class="side-brand"><span class="mark">${ic('heart','sm')}</span><span>Avaliação<br>Física</span></div>
     <div class="side-links">${tabs.map(([r,i,l])=>`<button class="${cur===r?'on':''}" data-act="go" data-to="${r}" aria-label="${l}">${ic(i)}<span>${l}</span></button>`).join('')}</div>
+    <button class="side-pt" data-act="go" data-to="patient" data-id="${p.id}"><small>Paciente atual</small><span class="row">${pAvatar(p)}<span class="grow"><b>${esc(p.name)}</b><small>${plural(n,'avaliação','avaliações')}</small></span>${ic('right','sm')}</span></button>
     <button class="side-cta" data-act="new">${ic('plus')}<span>${hasDraft()?'Continuar avaliação':'Nova avaliação'}</span></button>
-    <button class="side-prof" data-act="go" data-to="profile"><span class="avatar">${esc(initials(p.name))}</span><span class="grow"><b>${esc(p.name)}</b><small>${listOf(p.id).length} ${listOf(p.id).length===1?'avaliação':'avaliações'}</small></span>${ic('right','sm')}</button>
+    <button class="side-prof" data-act="go" data-to="profile"><span class="avatar">${esc(initials(nutriName()))}</span><span class="grow"><b>${esc(nutriName())}</b><small>${nutri.crn?'CRN '+esc(nutri.crn):'Perfil profissional'}</small></span>${ic('right','sm')}</button>
   </nav>`; }
   // key muda = tela nova (anima a entrada); dir = indo "para frente" ou voltando
   const key = state.route==='wizard' ? 'wizard' : state.route+':'+(state.param||'');
@@ -683,12 +898,12 @@ function render(){
   lastRoute = state.route;
   options.render(html, navHtml, key, dir);
 }
-function routePath(route,param){const paths={home:'/',list:'/avaliacoes',detail:'/avaliacoes/'+param,compare:'/evolucao',profile:'/perfil',wizard:state.editingId?'/avaliacoes/'+state.editingId+'/editar':'/nova',onboard:param?'/pessoa/'+param+'/editar':'/pessoa/nova'};return paths[route]||'/';}
+function routePath(route,param){const paths={home:'/',patients:'/pacientes',patient:'/pacientes/'+param,nutri:'/perfil/editar',list:'/avaliacoes',detail:'/avaliacoes/'+param,compare:'/evolucao',profile:'/perfil',wizard:state.editingId?'/avaliacoes/'+state.editingId+'/editar':'/nova',onboard:param?'/pessoa/'+param+'/editar':'/pessoa/nova'};return paths[route]||'/';}
 // Muda a URL e deixa o syncPath desenhar a tela nova numa única passada (sem piscar a tela antiga).
 function go(route,param=null,push=true){state.route=route;state.param=param;try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} const to=routePath(route,param); if(push && to!==window.location.pathname) options.navigate(to); else render();}
 function syncPath(path){
  let route='home',param=null;
- if(path==='/avaliacoes') route='list'; else if(path==='/evolucao')route='compare';else if(path==='/perfil')route='profile';else if(path==='/nova')route='wizard';else if(path.startsWith('/pessoa/')){route='onboard';param=path.endsWith('/editar')?path.split('/')[2]:null;}else if(path.startsWith('/avaliacoes/')){param=path.split('/')[2];route=path.endsWith('/editar')?'wizard':'detail';}
+ if(path==='/avaliacoes') route='list'; else if(path==='/evolucao')route='compare';else if(path==='/perfil')route='profile';else if(path==='/perfil/editar')route='nutri';else if(path==='/pacientes')route='patients';else if(path.startsWith('/pacientes/')){route='patient';param=path.split('/')[2];if(db.profiles.some(p=>p.id===param))setActive(param);}else if(path==='/nova')route='wizard';else if(path.startsWith('/pessoa/')){route='onboard';param=path.endsWith('/editar')?path.split('/')[2]:null;}else if(path.startsWith('/avaliacoes/')){param=path.split('/')[2];route=path.endsWith('/editar')?'wizard':'detail';}
  if(route==='wizard' && !draft){if(param&&findA(param)){draft=clone(findA(param));state.editingId=param;db.activeId=draft.profileId;}else if(prof()){draft=newDraft();state.editingId=null;} }
  state.route=route;state.param=param;if(route==='wizard'&&draft){state.step=draft._step||0;state.editingId=draft._editing||state.editingId||null;}render();
 }
@@ -781,15 +996,47 @@ const ACT = {
     if (!name) return toast('Informe o nome');
     if (!sex) return toast('Selecione o sexo');
     if (!birth || birth>today()) return toast('Informe a data de nascimento');
-    if (b.dataset.id){ Object.assign(db.profiles.find(p=>p.id===b.dataset.id), {name,sex,birth,height}); }
-    else { const p = {id:uid(), name, sex, birth, height, createdAt:Date.now()}; db.profiles.push(p); db.activeId = p.id; }
-    await save();  go(b.dataset.id ? 'profile' : 'home'); toast('Perfil salvo');
+    const email = document.getElementById('pf-email').value.trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return toast('E-mail inválido');
+    const ficha = { phone: document.getElementById('pf-phone').value.trim() || null, email: email || null,
+      goal: document.querySelector('#pf-goal .on')?.dataset.v || null, returnDays: num(document.querySelector('#pf-ret .on')?.dataset.v) || null,
+      notes: document.getElementById('pf-notes').value.trim() || null };
+    let id = b.dataset.id;
+    if (id){ Object.assign(db.profiles.find(p=>p.id===id), {name,sex,birth,height}, ficha); }
+    else { const p = {id:uid(), name, sex, birth, height, ...ficha, archived:false, createdAt:Date.now()}; db.profiles.push(p); id = p.id; setActive(id); }
+    const first = db.profiles.length===1 && !b.dataset.id;
+    await save(); go(first ? 'home' : 'patient', first ? null : id); toast(b.dataset.id ? 'Paciente atualizado' : 'Paciente cadastrado ✓');
   },
   editProfile: async () => go('onboard', prof().id),
   newProfile: async () => go('onboard'),
-  switchProfile: async b => { db.activeId = b.dataset.id; await save(); state.cmpA = state.cmpB = null; go('home'); toast('Perfil: '+prof().name); },
-  delProfile: async () => { const p = prof(); sheet(`Excluir ${esc(p.name)}?`, `Isso remove a pessoa e ${listOf(p.id).length} avaliação(ões). Não pode ser desfeito — exporte um backup antes se quiser.`, [
-    {label:'Excluir definitivamente', cls:'danger', fn:async ()=>{ db.assessments = db.assessments.filter(a=>a.profileId!==p.id); db.profiles = db.profiles.filter(x=>x.id!==p.id); db.activeId = db.profiles[0]?.id||null; if (draft?.profileId===p.id){ draft=null; saveDraft(); } await save(); go(db.profiles.length?'home':'onboard'); }},
+  switchProfile: async b => { setActive(b.dataset.id); go('home'); toast('Paciente: '+prof().name); },
+  openAs: async b => { setActive(b.dataset.id); go(b.dataset.to); },
+  // nova avaliação a partir da ficha: se houver rascunho de outro paciente, pergunta antes
+  newFor: async b => {
+    const p = db.profiles.find(x=>x.id===b.dataset.id); if (!p) return;
+    if (draft && draft.profileId!==p.id){
+      const other = db.profiles.find(x=>x.id===draft.profileId);
+      return sheet('Avaliação em andamento', `Existe uma avaliação ${draft._editing?'em edição':'não concluída'} de ${other?other.name:'outro paciente'}. O que deseja fazer?`, [
+        {label:`Começar a de ${firstName(p.name)} (descarta a outra)`, cls:'dark', fn:async()=>{ draft=null; state.editingId=null; setActive(p.id); await ACT.new(); }},
+        other && {label:`Continuar a de ${firstName(other.name)}`, fn:async()=>{ setActive(other.id); await ACT.new(); }},
+        {label:'Cancelar'}].filter(Boolean));
+    }
+    setActive(p.id); await ACT.new();
+  },
+  archive: async b => {
+    const p = db.profiles.find(x=>x.id===b.dataset.id); if (!p) return;
+    p.archived = !p.archived; await save(); render(); toast(p.archived ? `${firstName(p.name)} foi arquivado` : `${firstName(p.name)} voltou para os ativos`);
+  },
+  pick: async b => { b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on', x===b)); },
+  pfilter: async b => { state.pf = b.dataset.v; if (state.route!=='patients') go('patients'); else { try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} render(); } },
+  saveNutri: async () => {
+    const v = id => document.getElementById(id).value.trim();
+    const next = { name:v('nu-name'), crn:v('nu-crn'), specialty:v('nu-spec'), phone:v('nu-phone'), place:v('nu-place'), returnDays: num(document.querySelector('#nu-ret .on')?.dataset.v) || 30 };
+    if (!next.name) return toast('Informe seu nome');
+    await options.saveNutri(next); nutri = next; go('profile'); toast('Perfil salvo ✓');
+  },
+  delProfile: async b => { const p = db.profiles.find(x=>x.id===b.dataset.id) || prof(); sheet(`Excluir ${p.name}?`, `Isso remove o paciente e ${plural(listOf(p.id).length,'avaliação','avaliações')}. Não pode ser desfeito — se quiser só tirar da lista, use “Arquivar”.`, [
+    {label:'Excluir definitivamente', cls:'danger', fn:async ()=>{ db.assessments = db.assessments.filter(a=>a.profileId!==p.id); db.profiles = db.profiles.filter(x=>x.id!==p.id); if (db.activeId===p.id) db.activeId = (db.profiles.find(x=>!x.archived)||db.profiles[0])?.id||null; if (draft?.profileId===p.id){ draft=null; saveDraft(); } await save(); go(db.profiles.length?'patients':'onboard'); toast('Paciente excluído'); }},
     {label:'Cancelar'}]); },
   export: async () => { download(`avaliacao-fisica-backup-${today()}.json`, JSON.stringify({app:'avaliacao-fisica', version:1, exportedAt:new Date().toISOString(), ...db}, null, 2), 'application/json'); toast('Backup exportado'); },
   import: async () => document.getElementById('importFile').click(),
@@ -811,12 +1058,14 @@ const click = async e => {
     finally { clearTimeout(busy); b.removeAttribute('data-busy'); } }
 };
 const input = e => {
+  if (e.target.id==='pt-q'){ state.pq = e.target.value; render(); return; }
   const k = e.target.dataset?.k;
   if (k && draft && state.route==='wizard'){ setPath(draft, k, e.target.value); saveDraft(); updateLive(); }
 };
 const change = e => {
   const c = e.target.dataset?.ch;
   if (c==='cmpA' || c==='cmpB'){ state[c] = e.target.value; render(); }
+  if (c==='psort'){ state.ps = e.target.value; render(); }
   if (e.target.dataset?.k==='date' && state.route==='wizard') render();
 };
 // Enter avança para o próximo campo

@@ -9,9 +9,10 @@ const REVEAL = [
   '.top', 'h1.headline', 'h2.sec', '.card', '.aitem', '.cta', '.draft-banner', '.field', '.proto',
   '.act-row', '.prof-row', '.kv-row', '.cmp-row', '.notes', '.check-row', '.step-intro', '.onb-hero',
   '.empty', '.chips', '.cmp-pick', '.toggle', '.seg.full', '.steps', '.progress', '.auth-mark', '.auth-links',
+  '.pt-cell', '.kpi', '.pt-tools', '.pt-actions',
 ].join(',');
-const COUNT = '.big,.mid,.stat b,.ring-wrap .inner b,.pill .val,.kv-row .v,.cmp-row .vals b';
-const RIPPLE = '.cta,.btn,.aitem,.act-row,.prof-row,.proto,.chip,.step-chip,.nav button,.icon-btn,.seg button,.toggle,.draft-banner,.kv-row[data-act],.card[data-act],.tag[data-act],.vs';
+const COUNT = '.big,.mid,.stat b,.ring-wrap .inner b,.pill .val,.kv-row .v,.cmp-row .vals b,.kpi b';
+const RIPPLE = '.cta,.btn,.aitem,.act-row,.prof-row,.proto,.chip,.step-chip,.nav button,.icon-btn,.seg button,.toggle,.draft-banner,.kv-row[data-act],.card[data-act],.tag[data-act],.vs,.pt-card,.kpi,.pa,.pc';
 
 const STAGGER = 55;
 const MAX_STAGGER = 9;

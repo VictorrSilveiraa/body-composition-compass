@@ -4,7 +4,7 @@ import { useNavigate, useRouter, useRouterState, type AnyRoute } from '@tanstack
 import parse, { domToReact, Element, attributesToProps, type HTMLReactParserOptions, type DOMNode } from 'html-react-parser';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { cloudRepository, loadCloud } from '@/lib/cloud-data';
+import { cloudRepository, loadCloud, saveNutri, type Nutri } from '@/lib/cloud-data';
 import { motivo } from '@/lib/motivo';
 import { mountOriginal } from '@/lib/original-runtime.js';
 import { pageReady, ripple, scan, withPageTransition } from '@/lib/motion';const kids = (node: Element) => (node.children.length ? domToReact(node.children as DOMNode[], parserOptions) : undefined);
@@ -14,6 +14,16 @@ const parserOptions: HTMLReactParserOptions = {
     if (node.name === 'button') {
       const attrs = attributesToProps(node.attribs);
       return <Button variant="original" {...attrs} disabled={'disabled' in node.attribs}>{kids(node)}</Button>;
+    }
+    // <select>: o React quer defaultValue em vez de "selected" na opção; a key troca junto com o valor escolhido
+    if (node.name === 'select') {
+      const chosen = node.children.find((c): c is Element => c instanceof Element && c.name === 'option' && 'selected' in c.attribs);
+      const value = chosen?.attribs['value'];
+      return createElement('select', { ...attributesToProps(node.attribs, 'select'), defaultValue: value, key: (node.attribs['data-ch'] ?? '') + ':' + value }, kids(node));
+    }
+    if (node.name === 'option' && 'selected' in node.attribs) {
+      const { selected: _s, ...rest } = node.attribs;
+      return createElement('option', attributesToProps(rest, 'option'), kids(node));
     }
     // data-key: força o React a recriar o bloco quando o conteúdo muda (ex.: etapa do assistente), para animar a entrada
     if (node.attribs['data-key']) {
@@ -90,9 +100,10 @@ export function AssessmentApp() {
         if (live) { if (live.userId === user.id) return; dropLive(); setFrame(null); }
         const loaded = await queryClient.fetchQuery({ queryKey: ['assessment-data', user.id], queryFn: () => loadCloud(user.id), staleTime: 0 });
         if (cancelled || !host.current || live) return;
-        const repo = cloudRepository(user.id, loaded.db);
+        const repo = cloudRepository(user.id, loaded.db, loaded.fichaCloud);
         const runtime = mountOriginal({
           app: host.current, path: pathRef.current, userId: user.id, email: user.email, db: loaded.db, draft: loaded.draft, ...repo,
+          fichaCloud: loaded.fichaCloud, nutri: (user.user_metadata?.['nutri'] as Nutri | undefined) ?? {}, saveNutri,
           render: (html: string, nav: string, key: string, dir: string) => { lastFrame = { html, nav, key, dir }; bridge.render(lastFrame); },
           sheet: (s: Sheet) => bridge.sheet(s),
           toast: (t: string) => bridge.toast(t),
