@@ -2,7 +2,7 @@
  * Relatório A4 da avaliação (vira PDF pelo "Salvar como PDF" do navegador).
  * Montado só na hora de imprimir, fora da tela do app, com a mesma estética do site.
  */
-import {num,fmt,fmtDate,calc,bmiClass,bfClass,whrRisk,PROTOCOLS,FOLDS,CIRC_TRUNK,CIRC_LIMBS,foldVal,esc,initials,today} from './calculos.js';
+import {num,fmt,fmtDate,calc,bmiClass,bfClass,whrRisk,PROTOCOLS,FOLDS,CIRC_TRUNK,CIRC_LIMBS,foldVal,esc,initials,today,GROUPS} from './calculos.js';
 
 const ICON = {
   heart:'<path d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 8 3.5C20 15.4 12 20 12 20z"/>',
@@ -66,7 +66,8 @@ function miniChart(pts, color, d=1, unit=''){
 
 const BF_REF = { F:[13,20,24,31], M:[5,13,17,24] };
 
-export function buildReport({a, p, list}){
+/** Páginas de UMA avaliação. o.summary = só a 1ª página (resumo); o.guide/o.foot = incluir glossário/rodapé. */
+export function buildReport({a, p, list}, o = {}){
   const sex = p.sex === 'F' ? 'F' : 'M';
   const r = calc(a, p);
   const idx = list.findIndex(x=>x.id===a.id);
@@ -225,25 +226,185 @@ export function buildReport({a, p, list}){
       Classificação de % de gordura segundo o American Council on Exercise (ACE); IMC segundo a OMS.</p>
   </section>`;
 
-  const sign_ = `<footer class="rp-foot">
-    <div class="rp-signature"><span></span><small>${ex.evaluator?esc(ex.evaluator):'Avaliador(a)'}</small></div>
-    <p>Relatório gerado em ${fmtDate(today(),{day:'numeric',month:'long',year:'numeric'})}. Valores estimados por equações de referência; este documento é informativo e não substitui avaliação profissional.</p>
-  </footer>`;
-
-  return `<article class="rp">
-    <div class="rp-page">${header}${person}${hero}${comp}${scales}${indicators}</div>
-    <div class="rp-page">${compare}${evo}${measures}${notes}${guide}${sign_}</div>
-  </article>`;
+  const foot = o.foot === false ? '' : footer(ex.evaluator);
+  if (o.summary) return `<div class="rp-page">${header}${person}${hero}${comp}${scales}${indicators}${foot}</div>`;
+  return `<div class="rp-page">${header}${person}${hero}${comp}${scales}${indicators}</div>
+    <div class="rp-page">${compare}${o.evo === false ? '' : evo}${measures}${notes}${o.guide === false ? '' : guide}${foot}</div>`;
 }
 
-/** Monta o relatório, abre a janela de impressão (Salvar como PDF) e limpa depois. */
-export function printReport(data){
+/* =========================================================
+   Peças comuns dos outros relatórios
+   ========================================================= */
+const longDate = iso => fmtDate(iso,{day:'numeric',month:'long',year:'numeric'});
+const shortDate = iso => fmtDate(iso,{day:'2-digit',month:'2-digit',year:'numeric'});
+const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 864e5);
+
+function footer(evaluator){
+  return `<footer class="rp-foot">
+    <div class="rp-signature"><span></span><small>${evaluator ? esc(evaluator) : 'Avaliador(a)'}</small></div>
+    <p>Relatório gerado em ${longDate(today())}. Valores estimados por equações de referência; este documento é informativo e não substitui avaliação profissional.</p>
+  </footer>`;
+}
+function head(subtitle, rSmall, rBig, rSub){
+  return `<header class="rp-head">
+    <div class="rp-brand"><span class="rp-mark">${ic('heart')}</span><div><b>Avaliação Física</b><small>${subtitle}</small></div></div>
+    <div class="rp-head-r"><small>${rSmall}</small><b>${rBig}</b>${rSub?`<small>${rSub}</small>`:''}</div>
+  </header>`;
+}
+function personCard(p, facts){
+  return `<section class="rp-card rp-blue rp-person"><span class="rp-avatar">${esc(initials(p.name))}</span>
+    <div class="rp-person-main"><b>${esc(p.name)}</b><div class="rp-facts">${facts.filter(Boolean).map(([l,v])=>`<span><small>${l}</small>${v}</span>`).join('')}</div></div></section>`;
+}
+function glossary(){
+  return `<section class="rp-block rp-guide">
+    <div class="rp-sec-h"><h3>${ic('book')} Entenda os indicadores</h3></div>
+    <div class="rp-glossary">
+      <div><b>% de gordura</b><p>Quanto do peso é gordura. Principal indicador de composição corporal — mais importante que o peso sozinho.</p></div>
+      <div><b>Massa magra</b><p>Tudo que não é gordura: músculos, ossos, órgãos e água. Manter ou aumentar indica bom treino e alimentação.</p></div>
+      <div><b>IMC</b><p>Relação entre peso e altura. Triagem rápida, mas não separa músculo de gordura.</p></div>
+      <div><b>RCQ e RCE</b><p>Mostram onde a gordura está. Gordura concentrada na cintura está mais ligada a risco cardiovascular.</p></div>
+      <div><b>Metabolismo basal</b><p>Calorias gastas em repouso total. Base para planejar a dieta.</p></div>
+      <div><b>Dobras cutâneas</b><p>Espessura da gordura sob a pele. A soma das dobras é ótima para acompanhar a evolução.</p></div>
+    </div>
+    <p class="rp-method"><b>Metodologia.</b> % de gordura por dobras cutâneas (Pollock 7 ou 3 dobras, Durnin & Womersley) e equação de Siri; na falta de dobras, bioimpedância ou fórmula da Marinha dos EUA. Metabolismo basal por Katch-McArdle (com massa magra) ou Mifflin-St Jeor. Classificações: ACE (% de gordura) e OMS (IMC). pp = pontos percentuais.</p>
+  </section>`;
+}
+const legendLine = `<p class="rp-legend-s"><span class="rp-delta good">verde</span> evolução favorável · <span class="rp-delta bad">laranja</span> pede atenção · <span class="rp-delta neu">azul</span> variação neutra · pp = pontos percentuais</p>`;
+
+/* métricas usadas nos relatórios de evolução */
+const EVO = [
+  {k:'weight',l:'Peso',u:'kg',dir:0,get:(a)=>num(a.weight),col:'oklch(0.502 0.069 215)'},
+  {k:'bf',l:'% de gordura',u:'%',du:'pp',dir:-1,get:(a,r)=>r.bf,col:'oklch(0.55 0.143 40)'},
+  {k:'lean',l:'Massa magra',u:'kg',dir:1,get:(a,r)=>r.leanMass,col:'oklch(0.55 0.129 134)'},
+  {k:'fat',l:'Massa gorda',u:'kg',dir:-1,get:(a,r)=>r.fatMass,col:'oklch(0.536 0.103 99)'},
+  {k:'bmi',l:'IMC',u:'',dir:-1,get:(a,r)=>r.bmi,col:'oklch(0.45 0.05 260)'},
+  {k:'waist',l:'Cintura',u:'cm',dir:-1,get:(a)=>num(a.circ?.waist),col:'oklch(0.502 0.069 215)'},
+  {k:'abd',l:'Abdômen',u:'cm',dir:-1,get:(a)=>num(a.circ?.abdomen),col:'oklch(0.502 0.069 215)'},
+  {k:'hip',l:'Quadril',u:'cm',dir:-1,get:(a)=>num(a.circ?.hip),col:'oklch(0.502 0.069 215)'},
+  {k:'sum',l:'Soma das dobras',u:'mm',dir:-1,get:(a,r)=>r.sumAll,col:'oklch(0.536 0.103 99)'},
+  {k:'whr',l:'Relação cintura/quadril',u:'',dir:-1,d:2,get:(a,r)=>r.whr,col:'oklch(0.45 0.05 260)'},
+];
+
+/** Relatório de evolução: todas as avaliações da pessoa. */
+export function buildEvolution({p, list}, o = {}){
+  const sex = p.sex === 'F' ? 'F' : 'M';
+  const R = list.map(a => ({a, r: calc(a, p)}));
+  const first = R[0], last = R.at(-1);
+  const days = daysBetween(first.a.date, last.a.date);
+  const val = (m, x) => m.get(x.a, x.r);
+
+  const hd = head('Relatório de evolução', 'Período', `${fmtDate(first.a.date)} → ${fmtDate(last.a.date)}`, `${list.length} avaliações · ${days} dias`);
+  const person = personCard(p, [['Sexo', sex==='F'?'Feminino':'Masculino'], ['Idade atual', `${last.r.age ?? '—'} anos`], num(p.height)!=null && ['Altura', fmt(num(p.height),0)+' cm'], ['Primeira avaliação', longDate(first.a.date)], ['Última avaliação', longDate(last.a.date)]]);
+
+  // frase-resumo
+  const parts = [];
+  const dW = num(last.a.weight) - num(first.a.weight); if (isFinite(dW)) parts.push(`${sign(dW,1)} kg de peso`);
+  if (first.r.bf!=null && last.r.bf!=null) parts.push(`${sign(last.r.bf-first.r.bf,1)} pp de gordura`);
+  if (first.r.leanMass!=null && last.r.leanMass!=null) parts.push(`${sign(last.r.leanMass-first.r.leanMass,1)} kg de massa magra`);
+  const wst = [num(first.a.circ?.waist), num(last.a.circ?.waist)]; if (wst[0]!=null && wst[1]!=null) parts.push(`${sign(wst[1]-wst[0],1)} cm de cintura`);
+  const headline = parts.length ? `<section class="rp-card rp-yellow rp-headline"><small>Em ${days} dias</small><p>${parts.join(' · ')}</p></section>` : '';
+
+  const kpis = `<section class="rp-kpis rp-kpis4">${EVO.slice(0,4).map(m => { const a = val(m, first), b = val(m, last); return `
+    <div class="rp-card rp-kpi ${m.k==='lean'?'rp-green':m.k==='fat'?'rp-yellow':m.k==='bf'?'rp-blue':''}"><div class="rp-label">${m.l}</div>
+      <div class="rp-mid">${fmt(b)}<small>${m.u}</small></div>
+      <small class="rp-muted">início: ${fmt(a)} ${m.u}</small>${delta(b, a, m.dir, 1, m.du ?? m.u)}</div>`; }).join('')}</section>`;
+
+  const charts = EVO.map(m => { const s = R.map(x => ({date:x.a.date, y:val(m,x)})).filter(x=>x.y!=null); if (s.length < 2) return '';
+    return `<div class="rp-card rp-white"><div class="rp-sec-h rp-chart-h"><div class="rp-label">${m.l} ${m.u?`<span class="rp-muted">(${m.u})</span>`:''}</div>${delta(s.at(-1).y, s[0].y, m.dir, m.d ?? 1, m.du ?? m.u)}</div>${miniChart(s, m.col, m.d ?? 1)}</div>`; }).join('');
+
+  const cols = EVO.filter(m => R.some(x => val(m,x)!=null)).slice(0, 8);
+  const table = `<section class="rp-block"><div class="rp-sec-h"><h3>${ic('note')} Todas as avaliações</h3><span class="rp-muted">da mais antiga para a mais recente</span></div>
+    <table class="rp-table rp-all"><thead><tr><th>Data</th>${cols.map(m=>`<th>${m.l}${m.u?` <span>(${m.u})</span>`:''}</th>`).join('')}</tr></thead>
+    <tbody>${R.map((x,i)=>`<tr><td class="rp-v">${shortDate(x.a.date)}</td>${cols.map(m=>{ const v = val(m,x), pv = i ? val(m,R[i-1]) : null; return `<td><b>${fmt(v, m.d ?? 1)}</b>${i && v!=null && pv!=null ? `<em class="${tone(v-pv, m.dir)}">${sign(v-pv, m.d ?? 1)}</em>` : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table></section>`;
+
+  // circunferências e dobras: primeira × última
+  const rowsFL = (items) => items.map(([l, g, dir]) => { const a = g(first.a), b = g(last.a); if (a==null && b==null) return ''; return `<tr><td>${l}</td><td class="rp-muted">${fmt(a)}</td><td class="rp-v">${fmt(b)}</td><td>${delta(b, a, dir, 1, '')}</td></tr>`; }).join('');
+  const circ = rowsFL([...CIRC_TRUNK.map(c=>[c.l, a=>num(a.circ?.[c.k]), c.dir]), ...CIRC_LIMBS.flatMap(c=>[[c.l+' (D)', a=>num(a.circ?.[c.k+'_r']), 0],[c.l+' (E)', a=>num(a.circ?.[c.k+'_l']), 0]])]);
+  const folds = rowsFL(FOLDS.map(f=>[f.l, a=>foldVal(a,f.k), -1]));
+  const th = `<thead><tr><th></th><th>${shortDate(first.a.date)}</th><th>${shortDate(last.a.date)}</th><th>Variação</th></tr></thead>`;
+  const fl = (circ || folds) ? `<section><div class="rp-sec-h"><h3>${ic('ruler')} Medidas: primeira × última avaliação</h3></div>
+    <div class="rp-cols">${circ?`<div class="rp-grp"><h4>Circunferências (cm)</h4><table class="rp-table rp-tight">${th}<tbody>${circ}</tbody></table></div>`:'<div></div>'}
+    ${folds?`<div class="rp-grp"><h4>Dobras cutâneas (mm)</h4><table class="rp-table rp-tight">${th}<tbody>${folds}</tbody></table></div>`:''}</div>${legendLine}</section>` : '';
+
+  return `<div class="rp-page">${hd}${person}${headline}${kpis}<section><div class="rp-sec-h"><h3>${ic('chart')} Gráficos de evolução</h3><span class="rp-muted">valor inicial → atual</span></div><div class="rp-charts rp-charts2">${charts}</div></section></div>
+    <div class="rp-page">${table}${fl}${o.guide === false ? '' : glossary()}${o.foot === false ? '' : footer()}</div>`;
+}
+
+/** Comparativo entre duas avaliações (A = antes, B = depois). */
+export function buildCompare({p, A, B}){
+  const sex = p.sex === 'F' ? 'F' : 'M';
+  const rA = calc(A, p), rB = calc(B, p);
+  const days = daysBetween(A.date, B.date);
+  const hd = head('Comparativo entre avaliações', 'Antes → Depois', `${fmtDate(A.date)} → ${fmtDate(B.date)}`, `${Math.abs(days)} dias entre as avaliações`);
+  const person = personCard(p, [['Sexo', sex==='F'?'Feminino':'Masculino'], ['Idade', `${rB.age ?? '—'} anos`], num(B.height)!=null && ['Altura', fmt(num(B.height),0)+' cm'], ['Antes (A)', longDate(A.date)], ['Depois (B)', longDate(B.date)]]);
+
+  const kpis = `<section class="rp-kpis rp-kpis4">${EVO.slice(0,4).map(m => { const a = m.get(A,rA), b = m.get(B,rB); return `
+    <div class="rp-card rp-kpi ${m.k==='lean'?'rp-green':m.k==='fat'?'rp-yellow':m.k==='bf'?'rp-blue':''}"><div class="rp-label">${m.l}</div>
+      <div class="rp-ab"><span><small>A</small>${fmt(a)}</span><i>→</i><span><small>B</small><b>${fmt(b)}</b></span><em>${m.u}</em></div>${delta(b, a, m.dir, 1, m.du ?? m.u)}</div>`; }).join('')}</section>`;
+
+  const bar = (r, label) => r.fatMass==null ? '' : `<div class="rp-cbar"><small>${label}</small><div class="rp-combar"><span style="width:${100-r.bf}%;background:oklch(0.877 0.093 129)"><b>${fmt(r.leanMass)} kg magra</b></span><span style="width:${r.bf}%;background:oklch(0.838 0.083 49)"><b>${fmt(r.fatMass)} kg</b></span></div></div>`;
+  const comp = (rA.fatMass!=null || rB.fatMass!=null) ? `<section class="rp-card rp-yellow"><div class="rp-sec-h"><h3>Composição corporal</h3><span class="rp-muted">massa magra × massa gorda</span></div>${bar(rA, 'Antes · '+fmtDate(A.date))}${bar(rB, 'Depois · '+fmtDate(B.date))}</section>` : '';
+
+  const groups = GROUPS.map(g => {
+    const rows = g.items.map(m => { const va = m.get(A,rA), vb = m.get(B,rB); if (va==null && vb==null) return ''; const d = m.d ?? 1;
+      const pct = va && vb!=null ? (vb-va)/Math.abs(va)*100 : null;
+      return `<tr><td>${m.l}</td><td class="rp-muted">${fmt(va,d)}</td><td class="rp-v">${fmt(vb,d)}</td><td>${delta(vb, va, m.dir, d, m.k==='bf'?'pp':m.u)}</td><td class="rp-muted">${pct!=null?sign(pct,1)+'%':''}</td></tr>`; }).join('');
+    return rows ? `<div class="rp-grp"><h4>${g.g}</h4><table class="rp-table rp-tight rp-cmp"><thead><tr><th></th><th>A</th><th>B</th><th>Variação</th><th>%</th></tr></thead><tbody>${rows}</tbody></table></div>` : '';
+  }).filter(Boolean);
+  const half = Math.ceil(groups.length / 2);
+  const tables = `<section><div class="rp-sec-h"><h3>${ic('swap')} Todas as medidas</h3><span class="rp-muted">A = ${shortDate(A.date)} · B = ${shortDate(B.date)}</span></div>
+    <div class="rp-cols"><div>${groups.slice(0, half).join('')}</div><div>${groups.slice(half).join('')}</div></div>${legendLine}</section>`;
+
+  return `<div class="rp-page">${hd}${person}${kpis}${comp}${tables}${footer(B.extra?.evaluator)}</div>`;
+}
+
+/** Capa + índice do histórico completo. */
+function buildCover({p, list}){
+  const sex = p.sex === 'F' ? 'F' : 'M';
+  const R = list.map(a => ({a, r: calc(a, p)}));
+  const first = R[0], last = R.at(-1);
+  return `<div class="rp-page rp-cover">
+    ${head('Histórico completo', 'Gerado em', longDate(today()))}
+    <section class="rp-card rp-blue rp-cover-hero"><small>Relatório completo de avaliações físicas</small><h1>${esc(p.name)}</h1>
+      <div class="rp-facts"><span><small>Sexo</small>${sex==='F'?'Feminino':'Masculino'}</span><span><small>Idade atual</small>${last.r.age ?? '—'} anos</span>${num(p.height)!=null?`<span><small>Altura</small>${fmt(num(p.height),0)} cm</span>`:''}<span><small>Avaliações</small>${list.length}</span><span><small>Período</small>${fmtDate(first.a.date)} → ${fmtDate(last.a.date)}</span></div></section>
+    <section class="rp-block"><div class="rp-sec-h"><h3>${ic('note')} Conteúdo</h3></div>
+      <ol class="rp-toc">${list.length>1?'<li><b>Evolução</b><span>gráficos, tabela de todas as avaliações e primeira × última</span></li>':''}${R.map((x,i)=>`<li><b>Avaliação ${i+1} — ${longDate(x.a.date)}</b><span>${fmt(num(x.a.weight))} kg · ${x.r.bf!=null?fmt(x.r.bf)+'% de gordura':'sem % de gordura'} · ${esc(PROTOCOLS[x.a.protocol||'jp7'].name)}</span></li>`).join('')}<li><b>Entenda os indicadores</b><span>glossário e metodologia</span></li></ol></section>
+  </div>`;
+}
+
+/* =========================================================
+   Exportação: monta o documento e abre "Salvar como PDF"
+   ========================================================= */
+export function reportHtml(kind, data){
+  const {p, list = []} = data;
+  switch (kind){
+    case 'summary': return buildReport(data, {summary:true});
+    case 'evolution': return buildEvolution({p, list});
+    case 'compare': return buildCompare(data);
+    case 'full': return buildCover({p, list})
+      + (list.length > 1 ? buildEvolution({p, list}, {guide:false, foot:false}) : '')
+      + list.map(a => buildReport({a, p, list}, {guide:false, foot:false, evo:false})).join('')
+      + `<div class="rp-page">${glossary()}${footer()}</div>`;
+    default: return buildReport(data);
+  }
+}
+export function reportTitle(kind, data){
+  const n = data.p.name, d = iso => shortDate(iso).replace(/\//g,'-');
+  switch (kind){
+    case 'summary': return `Resumo da avaliação - ${n} - ${d(data.a.date)}`;
+    case 'evolution': return `Evolução - ${n} - ${d(data.list[0].date)} a ${d(data.list.at(-1).date)}`;
+    case 'compare': return `Comparativo - ${n} - ${d(data.A.date)} x ${d(data.B.date)}`;
+    case 'full': return `Histórico completo - ${n}`;
+    default: return `Avaliação física - ${n} - ${d(data.a.date)}`;
+  }
+}
+
+export function exportPdf(kind, data){
   let root = document.getElementById('print-root');
   if (!root){ root = document.createElement('div'); root.id = 'print-root'; document.body.appendChild(root); }
-  root.innerHTML = buildReport(data);
+  root.innerHTML = `<article class="rp">${reportHtml(kind, data)}</article>`;
   const oldTitle = document.title;
-  // nome sugerido do arquivo PDF
-  document.title = `Avaliação física - ${data.p.name} - ${fmtDate(data.a.date,{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-')}`;
+  document.title = reportTitle(kind, data); // vira o nome sugerido do arquivo PDF
   document.body.classList.add('printing-report');
   const done = () => { document.body.classList.remove('printing-report'); document.title = oldTitle; window.removeEventListener('afterprint', done); };
   window.addEventListener('afterprint', done);

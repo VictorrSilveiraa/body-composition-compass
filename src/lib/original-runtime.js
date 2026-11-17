@@ -1,7 +1,7 @@
 import {num,fmt,today,toDate,fmtDate,ageAt,foldVal,calc,bmiClass,bfClass,whrRisk,PROTOCOLS,FOLDS,CIRC_TRUNK,CIRC_LIMBS,STEPS,METRICS,GROUPS,MET,esc,getPath,setPath,clone,initials,firstName} from "./calculos.js";
 import {motivo} from "./motivo";
 import {tick} from "./motion";
-import {printReport} from "./report.js";
+import {exportPdf} from "./report.js";
 const FOLD_NAME=Object.fromEntries(FOLDS.map(f=>[f.k,f.l]));
 export function mountOriginal(options){
 
@@ -360,7 +360,7 @@ function viewDetail(id){
 
   <div class="no-print" style="display:grid;gap:8px;margin-top:22px">
     ${pv?`<button class="cta" style="margin-top:0" data-act="cmpWith" data-a="${pv.id}" data-b="${a.id}"><span class="c-ico">${ic('swap')}</span><span>Comparar com a anterior <span class="arrows">›››</span></span><span class="c-ico">${ic('chart')}</span></button>`:''}
-    <button class="btn ghost" data-act="print">${ic('dl','sm')} Exportar relatório em PDF</button>
+    <button class="btn ghost" data-act="print" data-id="${a.id}">${ic('dl','sm')} Exportar em PDF</button>
     <button class="btn danger" style="margin-top:12px" data-act="del" data-id="${a.id}">${ic('trash','sm')} Excluir avaliação</button>
   </div>`;
 }
@@ -368,7 +368,8 @@ function viewDetail(id){
 function viewCompare(){
   const p = prof(), list = listOf(p.id);
   let h = `<header class="top"><button class="icon-btn" data-act="go" data-to="home">${ic('back')}</button>
-    <div class="title-block"><small>${esc(p.name)}</small><b>Evolução</b></div></header>
+    <div class="title-block"><small>${esc(p.name)}</small><b>Evolução</b></div><div class="grow"></div>
+    ${list.length?`<button class="icon-btn" data-act="exportCmp" aria-label="Exportar PDF" title="${state.cmpTab==='ab'?'Exportar comparativo em PDF':'Exportar evolução em PDF'}">${ic('dl')}</button>`:''}</header>
     <div class="seg full" style="margin-bottom:16px">
       <button data-act="cmpTab" data-v="evo" class="${state.cmpTab==='evo'?'on':''}">Linha do tempo</button>
       <button data-act="cmpTab" data-v="ab" class="${state.cmpTab==='ab'?'on':''}">Comparativo A × B</button>
@@ -468,6 +469,7 @@ function viewProfile(){
   <h2 class="sec">Seus dados</h2>
   <div class="actions">
     <button class="act-row" data-act="logout"><span class="chip-ico">${ic('out','sm')}</span><span class="grow"><b>Sair da conta</b><span>${esc(options.email||'')}</span></span></button>
+    ${list.length?`<button class="act-row" data-act="print"><span class="chip-ico">${ic('print','sm')}</span><span class="grow"><b>Exportar relatórios em PDF</b><span>Avaliação, resumo, comparativo, evolução ou histórico completo</span></span></button>`:''}
     <button class="act-row" data-act="export"><span class="chip-ico">${ic('dl','sm')}</span><span class="grow"><b>Exportar backup</b><span>Arquivo .json com tudo — guarde ou envie para outro aparelho</span></span></button>
     <button class="act-row" data-act="import"><span class="chip-ico">${ic('ul','sm')}</span><span class="grow"><b>Restaurar backup</b><span>Importa um arquivo .json exportado antes</span></span></button>
     <button class="act-row" data-act="csv"><span class="chip-ico">${ic('table','sm')}</span><span class="grow"><b>Exportar planilha (CSV)</b><span>Todas as avaliações de ${esc(firstName(p.name))}, abre no Excel</span></span></button>
@@ -743,7 +745,28 @@ const ACT = {
   del: async b => sheet('Excluir avaliação?', 'Esta ação não pode ser desfeita.', [
     {label:'Excluir', cls:'danger', fn:async ()=>{ db.assessments = db.assessments.filter(a=>a.id!==b.dataset.id); await save(); go('list'); toast('Avaliação excluída'); }},
     {label:'Cancelar'}]),
-  print: async b => { const a = findA(b.dataset.id || state.param); if (!a) return; const p = db.profiles.find(x=>x.id===a.profileId) || prof(); printReport({a, p, list: listOf(a.profileId)}); },
+  // menu de PDFs: no detalhe (b.dataset.id/param = avaliação) ou geral (Perfil), usando a última avaliação
+  print: async b => {
+    const a = findA(b.dataset.id || (state.route==='detail' ? state.param : null)) || listOf(prof().id).at(-1);
+    if (!a) return toast('Nenhuma avaliação para exportar');
+    const p = db.profiles.find(x=>x.id===a.profileId) || prof(), list = listOf(p.id), i = list.findIndex(x=>x.id===a.id), prev = i>0 ? list[i-1] : null;
+    const isLast = i === list.length-1, quem = state.route==='detail' ? 'Esta avaliação' : 'Última avaliação';
+    const opts = [
+      {label:`${quem} — relatório completo`, cls:'dark', fn:async()=>exportPdf('assessment',{a,p,list})},
+      {label:`${quem} — resumo em 1 página`, fn:async()=>exportPdf('summary',{a,p,list})},
+      prev && {label:`Comparativo com a anterior (${fmtDate(prev.date,{day:'2-digit',month:'2-digit'})} × ${fmtDate(a.date,{day:'2-digit',month:'2-digit'})})`, fn:async()=>exportPdf('compare',{p,A:prev,B:a})},
+      list.length>1 && {label:`Evolução — todas as ${list.length} avaliações`, fn:async()=>exportPdf('evolution',{p,list})},
+      {label:'Histórico completo — tudo em um PDF', fn:async()=>exportPdf('full',{p,list})},
+      {label:'Cancelar'},
+    ].filter(Boolean);
+    sheet('Exportar PDF', `${p.name} ·${list.length} ${list.length===1?'avaliação':'avaliações'}${isLast||state.route!=='detail'?'':' · avaliação de '+fmtDate(a.date)}. Na janela que abrir, escolha "Salvar como PDF".`, opts);
+  },
+  exportCmp: async () => {
+    const p = prof(), list = listOf(p.id);
+    if (state.cmpTab==='ab'){ const A = findA(state.cmpA), B = findA(state.cmpB); if (A && B) return exportPdf('compare',{p,A,B}); }
+    if (list.length < 2) return toast('A evolução precisa de pelo menos 2 avaliações');
+    exportPdf('evolution',{p,list});
+  },
   evo: async b => { state.evo = b.dataset.m; state.cmpTab = 'evo'; if (state.route!=='compare') go('compare'); else render(); },
   cmpTab: async b => { state.cmpTab = b.dataset.v; render(); },
   cmpWith: async b => { state.cmpA = b.dataset.a; state.cmpB = b.dataset.b; state.cmpTab = 'ab'; go('compare'); },
