@@ -7,8 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cloudRepository, loadCloud } from '@/lib/cloud-data';
 import { motivo } from '@/lib/motivo';
 import { mountOriginal } from '@/lib/original-runtime.js';
-import { pageReady, ripple, scan, withPageTransition } from '@/lib/motion';
-const kids = (node: Element) => (node.children.length ? domToReact(node.children as DOMNode[], parserOptions) : undefined);
+import { pageReady, ripple, scan, withPageTransition } from '@/lib/motion';const kids = (node: Element) => (node.children.length ? domToReact(node.children as DOMNode[], parserOptions) : undefined);
 const parserOptions: HTMLReactParserOptions = {
   replace(node) {
     if (!(node instanceof Element)) return undefined;
@@ -135,7 +134,7 @@ export function AssessmentApp() {
 
   return (
     <>
-      <div className="app" ref={host}>
+      <div className={'app' + (frame?.nav ? ' has-nav' : '')} ref={host}>
         {error ? (
           <div className="empty"><h3>{error}</h3><Button variant="original" className="btn primary" onClick={() => window.location.reload()}>Tentar novamente</Button></div>
         ) : frame ? (

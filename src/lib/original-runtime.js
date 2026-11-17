@@ -133,10 +133,11 @@ function ring(val, max, color='var(--peach)'){
   </svg>`;
 }
 function topbar(p){
-  return `<header class="top">
+  return `<header class="top top-home">
     <button class="avatar" data-act="go" data-to="profile" aria-label="Perfil">${esc(initials(p.name))}</button>
     <div class="hello"><small>Olá,</small><b>${esc(firstName(p.name))}!</b></div>
     <div class="grow"></div>
+    <span class="top-date">${fmtDate(today(),{weekday:'long',day:'numeric',month:'long'})}</span>
     <button class="icon-btn" data-act="go" data-to="list" aria-label="Avaliações">${ic('cal')}</button>
     <button class="icon-btn ${hasDraft()?'dot':''}" data-act="new" aria-label="Nova avaliação">${ic('plus')}</button>
   </header>`;
@@ -261,7 +262,7 @@ function viewHome(){
     ${pills.length ? `<div class="card span2 span2-d">
       <div class="card-head"><span class="label">Medidas (cm)</span><button class="tag right" style="margin-left:auto" data-act="go" data-to="detail" data-id="${last.id}">Ver todas</button></div>
       <div class="pills" style="grid-template-columns:repeat(${pills.length},1fr)">
-        ${pills.map(([l,v])=>{ const pc = 28 + 62*(v/pmax); return `<div class="pill"><div class="tube"><div class="fill" style="height:${pc}%"></div><div class="val" style="bottom:${pc}%">${fmt(v,v>=100?0:1)}</div></div><small>${l}</small></div>`; }).join('')}
+        ${pills.map(([l,v])=>{ const pc = 26 + 48*(v/pmax); /* teto 74%: a bolinha (e o anel verde) cabe inteira no tubo */ return `<div class="pill"><div class="tube"><div class="fill" style="height:${pc}%"></div><div class="val" style="bottom:${pc}%">${fmt(v,v>=100?0:1)}</div></div><small>${l}</small></div>`; }).join('')}
       </div></div>` : ''}
 
     ${list.length>1 ? `<div class="card white span2 span4-d" data-act="go" data-to="compare" style="cursor:pointer">
@@ -278,7 +279,7 @@ function viewHome(){
 }
 function avgLR(c, k){ const v=[num(c[k+'_r']),num(c[k+'_l'])].filter(x=>x!=null); return v.length? v.reduce((s,x)=>s+x,0)/v.length : null; }
 function ctaNew(){
-  return `<button class="cta" data-act="new"><span class="c-ico">${ic('clip')}</span><span>${hasDraft()?'Continuar avaliação':'Nova avaliação'} <span class="arrows">›››</span></span><span class="c-ico">${ic('plus')}</span></button>`;
+  return `<button class="cta cta-new" data-act="new"><span class="c-ico">${ic('clip')}</span><span>${hasDraft()?'Continuar avaliação':'Nova avaliação'} <span class="arrows">›››</span></span><span class="c-ico">${ic('plus')}</span></button>`;
 }
 
 function viewList(){
@@ -312,7 +313,7 @@ function viewDetail(id){
     <button class="icon-btn no-print" data-act="print" aria-label="Imprimir">${ic('print')}</button>
     <button class="icon-btn no-print" data-act="edit" data-id="${a.id}" aria-label="Editar">${ic('edit')}</button></header>
 
-  <div class="dash">
+  <div class="dash detail-dash">
     <div class="card blue span2 span2-d hero">
       <div class="left">
         <div class="card-head"><span class="chip-ico">${ic('flame')}</span><span class="label">Gordura corporal<br><span class="small">${esc(r.bfSource||'sem dados suficientes')}</span></span></div>
@@ -382,6 +383,7 @@ function viewCompare(){
     const color = m.dir===1 ? 'var(--green-ink)' : m.dir===-1 ? 'var(--ink)' : 'var(--blue-ink)';
     const fill = m.dir===1 ? 'var(--green)' : m.dir===-1 ? 'var(--yellow)' : 'var(--blue)';
     h += `<div class="chips">${avail.map(x=>`<button class="chip ${x.k===state.evo?'on':''}" data-act="evo" data-m="${x.k}">${x.l}</button>`).join('')}</div>
+    <div class="evo-grid"><div class="evo-main">
     <div class="card white" data-key="evo-${state.evo}">
       <div class="card-head"><span class="label"><b style="font-size:18px">${m.l}</b><br><span class="small muted">${pts.length} ${pts.length>1?'registros':'registro'}${m.u?' · '+m.u:''}</span></span>
         <span style="margin-left:auto">${pts.length>1?deltaChip(lastv,first,m.dir,m.u,d):''}</span></div>
@@ -392,8 +394,10 @@ function viewCompare(){
         <div class="stat" style="background:var(--card)"><small>Variação</small><b>${pts.length>1?(lastv-first>0?'+':'')+fmt(lastv-first,d):'—'}</b></div>
       </div>
     </div>
+    </div><div class="evo-side">
     <h2 class="sec">Histórico</h2>
-    <div class="kv" data-key="hist-${state.evo}">${pts.slice().reverse().map((x,i,arr)=>`<div class="kv-row" data-act="go" data-to="detail" data-id="${x.id}" style="cursor:pointer"><span class="k">${fmtDate(x.date)}</span><span>${arr[i+1]?deltaChip(x.y,arr[i+1].y,m.dir,'',d):''}</span><span class="v">${fmt(x.y,d)}<small>${m.u}</small></span></div>`).join('')}</div>`;
+    <div class="kv" data-key="hist-${state.evo}">${pts.slice().reverse().map((x,i,arr)=>`<div class="kv-row" data-act="go" data-to="detail" data-id="${x.id}" style="cursor:pointer"><span class="k">${fmtDate(x.date)}</span><span>${arr[i+1]?deltaChip(x.y,arr[i+1].y,m.dir,'',d):''}</span><span class="v">${fmt(x.y,d)}<small>${m.u}</small></span></div>`).join('')}</div>
+    </div></div>`;
     return h;
   }
 
@@ -582,8 +586,8 @@ function viewWizard(){
       break;
     case 'review': {
       const pv = wizPrev(), rp = pv ? calc(pv,p) : null;
-      body = `<div class="dash">
-          <div class="card blue span2 hero" style="min-height:170px"><div class="left">
+      body = `<div class="dash detail-dash">
+          <div class="card blue span2 span2-d hero" style="min-height:170px"><div class="left">
             <div class="card-head"><span class="chip-ico">${ic('flame')}</span><span class="label">Gordura corporal<br><span class="small">${esc(r.bfSource||'sem dados suficientes')}</span></span></div>
             <div><div class="big">${fmt(r.bf)}<small>%</small></div><div class="sub">${esc(bfClass(r.bf,p.sex))} ${rp?deltaChip(r.bf,rp.bf,-1,'pp'):''}</div></div></div>
             <div class="ring-wrap">${ring(r.bf,40)}<div class="center"><div class="inner"><b>${fmt(num(draft.weight))}</b><span>kg</span></div></div></div></div>
@@ -602,16 +606,19 @@ function viewWizard(){
     <header class="top"><button class="icon-btn" data-act="wizExit" aria-label="Sair">${ic('x')}</button>
       <div class="title-block"><small>Passo ${state.step+1} de ${STEPS.length}${state.editingId?' · editando':''}</small><b>${state.editingId?'Editar avaliação':'Nova avaliação'}</b></div>
       <div class="grow"></div><span class="tag yellow">${fmtDate(draft.date,{day:'2-digit',month:'short'})}</span></header>
+    <aside class="wiz-side">
     <div class="steps">${STEPS.map((st,i)=>{ const [f,t] = stepFilled(st.k); const done = f>0 && (i<state.step || f===t) && i!==state.step; return `<button class="step-chip ${i===state.step?'on':''} ${done?'done':''}" data-act="step" data-i="${i}"><span class="n">${done&&i!==state.step?ic('check','sm'):i+1}</span>${st.l}</button>`; }).join('')}</div>
     <div class="progress"><span style="width:${pct}%"></span></div>
+    <div class="wiz-bar"><div class="in">
+      ${state.step>0?`<button class="btn ghost" data-act="prevStep">${ic('back')} <span>Voltar</span></button>`:''}
+      ${state.step<STEPS.length-1
+        ? `<button class="btn primary" data-act="nextStep">Próximo · ${STEPS[state.step+1].l} <span class="arrows" style="letter-spacing:0">›››</span></button>`
+        : `<button class="btn dark" data-act="saveA" ${num(draft.weight)?'':'disabled'}>${ic('check')} Salvar avaliação</button>`}
+    </div></div>
+    <p class="wiz-tip">Dica: <b>Enter</b> pula para o próximo campo.</p>
+    </aside>
     <section class="step-view" data-key="step-${state.step}" data-dir="${state.stepDir||'fwd'}">${intro}${body}</section>
-  </div>
-  <div class="wiz-bar"><div class="in">
-    ${state.step>0?`<button class="btn ghost" data-act="prevStep">${ic('back')} <span>Voltar</span></button>`:''}
-    ${state.step<STEPS.length-1
-      ? `<button class="btn primary" data-act="nextStep">Próximo · ${STEPS[state.step+1].l} <span class="arrows" style="letter-spacing:0">›››</span></button>`
-      : `<button class="btn dark" data-act="saveA" ${num(draft.weight)?'':'disabled'}>${ic('check')} Salvar avaliação</button>`}
-  </div></div>`;
+  </div>`;
 }
 function bmiPos(b){ if (b==null) return 0; return Math.max(0, Math.min(100, (b-15)/(40-15)*100)); }
 
@@ -647,7 +654,7 @@ function render(){
   if (state.route==='wizard' && !draft) state.route = 'home';
   let html = '';
   switch(state.route){
-    case 'onboard': html = viewOnboard(state.param ? db.profiles.find(p=>p.id===state.param) : null); break;
+    case 'onboard': html = `<div class="narrow">${viewOnboard(state.param ? db.profiles.find(p=>p.id===state.param) : null)}</div>`; break;
     case 'list': html = viewList(); break;
     case 'detail': html = viewDetail(state.param); break;
     case 'compare': html = viewCompare(); break;
@@ -658,7 +665,14 @@ function render(){
   const showNav = !['wizard','onboard'].includes(state.route);
   let navHtml='';
   if(showNav){ const tabs=[['home','home','Início'],['list','cal','Avaliações'],['compare','chart','Evolução'],['profile','user','Perfil']]; const cur=state.route==='detail'?'list':state.route;
-  navHtml=`<nav class="nav">${tabs.map(([r,i,l])=>`<button class="${cur===r?'on':''}" data-act="go" data-to="${r}" aria-label="${l}">${ic(i)}<span>${l}</span></button>`).join('')}</nav>`; }
+  // No celular: só os 4 botões (pílula flutuante). No computador vira barra lateral com marca, atalho e pessoa.
+  const p = prof();
+  navHtml=`<nav class="nav">
+    <div class="side-brand"><span class="mark">${ic('heart','sm')}</span><span>Avaliação<br>Física</span></div>
+    <div class="side-links">${tabs.map(([r,i,l])=>`<button class="${cur===r?'on':''}" data-act="go" data-to="${r}" aria-label="${l}">${ic(i)}<span>${l}</span></button>`).join('')}</div>
+    <button class="side-cta" data-act="new">${ic('plus')}<span>${hasDraft()?'Continuar avaliação':'Nova avaliação'}</span></button>
+    <button class="side-prof" data-act="go" data-to="profile"><span class="avatar">${esc(initials(p.name))}</span><span class="grow"><b>${esc(p.name)}</b><small>${listOf(p.id).length} ${listOf(p.id).length===1?'avaliação':'avaliações'}</small></span>${ic('right','sm')}</button>
+  </nav>`; }
   // key muda = tela nova (anima a entrada); dir = indo "para frente" ou voltando
   const key = state.route==='wizard' ? 'wizard' : state.route+':'+(state.param||'');
   const dir = lastRoute==null || (ORDER[state.route]??0) >= (ORDER[lastRoute]??0) ? 'fwd' : 'back';
