@@ -4,6 +4,16 @@ import { Activity, ArrowRight, Mail, LockKeyhole } from 'lucide-react';
 import { Button } from './ui/button';
 import { supabase } from '@/integrations/supabase/client';
 
+function explain(e:unknown):string{
+ const m=e instanceof Error?e.message:String(e??'');
+ if(/known to be weak|weak and easy/i.test(m))return 'Essa senha é fácil de adivinhar. Escolha uma mais forte, com letras e números.';
+ if(/already registered/i.test(m))return 'Este e-mail já tem conta. Entre com a senha ou use "Esqueci minha senha".';
+ if(/invalid login credentials/i.test(m))return 'E-mail ou senha não conferem. Confira ou use "Esqueci minha senha".';
+ if(/email not confirmed/i.test(m))return 'Confirme o e-mail primeiro: abra o link que enviamos para você.';
+ if(/rate limit|too many/i.test(m))return 'Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.';
+ return 'Não foi possível continuar. Confira os dados e tente novamente.';
+}
+
 export function AuthScreen({recovery=false}:{recovery?:boolean}){
  const [mode,setMode]=useState<'login'|'signup'|'forgot'>('login'),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');const navigate=useNavigate();
  async function submit(e:React.FormEvent){e.preventDefault();setBusy(true);setError('');setMessage('');try{
@@ -11,7 +21,7 @@ export function AuthScreen({recovery=false}:{recovery?:boolean}){
   if(mode==='forgot'){const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+'/reset-password'});if(error)throw error;setMessage('Confira seu e-mail para criar uma nova senha.');}
   else if(mode==='signup'){const {data,error}=await supabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin}});if(error)throw error;if(data.session)await navigate({to:'/'});else setMessage('Confira seu e-mail e confirme o cadastro para entrar.');}
   else {const {error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;await navigate({to:'/'});}
- }catch(e){setError(recovery&&e instanceof Error?e.message:'Não foi possível continuar. Confira os dados e tente novamente.');}finally{setBusy(false);}}
+ }catch(e){setError(explain(e));}finally{setBusy(false);}}
  const title=recovery?'Uma nova senha':mode==='signup'?'Comece a se cuidar.':mode==='forgot'?'Vamos recuperar sua conta.':'Que bom ter você aqui.';
  return <main className="app"><div className="auth-wrap"><div className="auth-mark"><span className="avatar"><Activity/></span>Avaliação Física</div><div className="onb-hero"><span className="tag">Seu corpo, medido com carinho.</span><h1 className="auth-title">{title}</h1><p>Seu cuidado continua, uma avaliação de cada vez.</p></div><h2 className="sec">{recovery?'Redefinir senha':mode==='signup'?'Criar conta':mode==='forgot'?'Recuperar senha':'Entrar na sua conta'}</h2>{message?<div className="auth-message" role="status">{message}<Button variant="original" className="btn ghost" onClick={()=>{setMessage('');setMode('login');if(recovery)void navigate({to:'/login'});}}>Voltar para entrar</Button></div>:<form className="auth-form" onSubmit={submit}>{!recovery&&<label className="field"><span className="f-label">E-mail</span><div className="f-input text"><Mail size={18}/><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="voce@exemplo.com" autoComplete="email" required/></div></label>}{(recovery||mode!=='forgot')&&<label className="field"><span className="f-label">{recovery?'Nova senha':'Senha'}</span><div className="f-input text"><LockKeyhole size={18}/><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Pelo menos 8 caracteres" minLength={8} autoComplete={mode==='login'&&!recovery?'current-password':'new-password'} required/></div></label>}{error&&<p className="auth-error" role="alert">{error}</p>}<Button variant="original" type="submit" className="cta" disabled={busy}><span className="c-ico"><Activity size={20}/></span><span>{busy?'Aguarde…':recovery?'Salvar nova senha':mode==='signup'?'Criar conta':mode==='forgot'?'Enviar link':'Entrar'} ›››</span><span className="c-ico"><ArrowRight size={20}/></span></Button></form>}{!recovery&&!message&&<div className="auth-links"><Button variant="original" onClick={()=>{setMode(mode==='signup'?'login':'signup');setError('');}}>{mode==='signup'?'Já tenho conta':'Criar conta'}</Button><Button variant="original" onClick={()=>{setMode(mode==='forgot'?'login':'forgot');setError('');}}>{mode==='forgot'?'Voltar para entrar':'Esqueci minha senha'}</Button></div>}</div></main>;
 }
