@@ -10,33 +10,183 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthenticatedAvaliacoesRouteImport } from './routes/_authenticated/avaliacoes'
+import { Route as AuthenticatedEvolucaoRouteImport } from './routes/_authenticated/evolucao'
+import { Route as AuthenticatedNovaRouteImport } from './routes/_authenticated/nova'
+import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
+import { Route as AuthenticatedAvaliacoesIdRouteImport } from './routes/_authenticated/avaliacoes.$id'
+import { Route as AuthenticatedPessoaNovaRouteImport } from './routes/_authenticated/pessoa.nova'
+import { Route as AuthenticatedAvaliacoesIdEditarRouteImport } from './routes/_authenticated/avaliacoes.$id.editar'
+import { Route as AuthenticatedPessoaIdEditarRouteImport } from './routes/_authenticated/pessoa.$id.editar'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAvaliacoesRoute = AuthenticatedAvaliacoesRouteImport.update({
+  id: '/avaliacoes',
+  path: '/avaliacoes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedEvolucaoRoute = AuthenticatedEvolucaoRouteImport.update({
+  id: '/evolucao',
+  path: '/evolucao',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedNovaRoute = AuthenticatedNovaRouteImport.update({
+  id: '/nova',
+  path: '/nova',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAvaliacoesIdRoute =
+  AuthenticatedAvaliacoesIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAvaliacoesRoute,
+  } as any)
+const AuthenticatedPessoaNovaRoute = AuthenticatedPessoaNovaRouteImport.update({
+  id: '/pessoa/nova',
+  path: '/pessoa/nova',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAvaliacoesIdEditarRoute =
+  AuthenticatedAvaliacoesIdEditarRouteImport.update({
+    id: '/editar',
+    path: '/editar',
+    getParentRoute: () => AuthenticatedAvaliacoesIdRoute,
+  } as any)
+const AuthenticatedPessoaIdEditarRoute =
+  AuthenticatedPessoaIdEditarRouteImport.update({
+    id: '/pessoa/$id/editar',
+    path: '/pessoa/$id/editar',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/avaliacoes': typeof AuthenticatedAvaliacoesRouteWithChildren
+  '/evolucao': typeof AuthenticatedEvolucaoRoute
+  '/nova': typeof AuthenticatedNovaRoute
+  '/perfil': typeof AuthenticatedPerfilRoute
+  '/avaliacoes/$id': typeof AuthenticatedAvaliacoesIdRouteWithChildren
+  '/pessoa/nova': typeof AuthenticatedPessoaNovaRoute
+  '/avaliacoes/$id/editar': typeof AuthenticatedAvaliacoesIdEditarRoute
+  '/pessoa/$id/editar': typeof AuthenticatedPessoaIdEditarRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/avaliacoes': typeof AuthenticatedAvaliacoesRouteWithChildren
+  '/evolucao': typeof AuthenticatedEvolucaoRoute
+  '/nova': typeof AuthenticatedNovaRoute
+  '/perfil': typeof AuthenticatedPerfilRoute
+  '/avaliacoes/$id': typeof AuthenticatedAvaliacoesIdRouteWithChildren
+  '/pessoa/nova': typeof AuthenticatedPessoaNovaRoute
+  '/avaliacoes/$id/editar': typeof AuthenticatedAvaliacoesIdEditarRoute
+  '/pessoa/$id/editar': typeof AuthenticatedPessoaIdEditarRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/avaliacoes': typeof AuthenticatedAvaliacoesRouteWithChildren
+  '/_authenticated/evolucao': typeof AuthenticatedEvolucaoRoute
+  '/_authenticated/nova': typeof AuthenticatedNovaRoute
+  '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
+  '/_authenticated/avaliacoes/$id': typeof AuthenticatedAvaliacoesIdRouteWithChildren
+  '/_authenticated/pessoa/nova': typeof AuthenticatedPessoaNovaRoute
+  '/_authenticated/avaliacoes/$id/editar': typeof AuthenticatedAvaliacoesIdEditarRoute
+  '/_authenticated/pessoa/$id/editar': typeof AuthenticatedPessoaIdEditarRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/login'
+    | '/reset-password'
+    | '/avaliacoes'
+    | '/evolucao'
+    | '/nova'
+    | '/perfil'
+    | '/avaliacoes/$id'
+    | '/pessoa/nova'
+    | '/avaliacoes/$id/editar'
+    | '/pessoa/$id/editar'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/login'
+    | '/reset-password'
+    | '/avaliacoes'
+    | '/evolucao'
+    | '/nova'
+    | '/perfil'
+    | '/avaliacoes/$id'
+    | '/pessoa/nova'
+    | '/avaliacoes/$id/editar'
+    | '/pessoa/$id/editar'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/login'
+    | '/reset-password'
+    | '/_authenticated/avaliacoes'
+    | '/_authenticated/evolucao'
+    | '/_authenticated/nova'
+    | '/_authenticated/perfil'
+    | '/_authenticated/avaliacoes/$id'
+    | '/_authenticated/pessoa/nova'
+    | '/_authenticated/avaliacoes/$id/editar'
+    | '/_authenticated/pessoa/$id/editar'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  LoginRoute: typeof LoginRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +198,148 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/avaliacoes': {
+      id: '/_authenticated/avaliacoes'
+      path: '/avaliacoes'
+      fullPath: '/avaliacoes'
+      preLoaderRoute: typeof AuthenticatedAvaliacoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/evolucao': {
+      id: '/_authenticated/evolucao'
+      path: '/evolucao'
+      fullPath: '/evolucao'
+      preLoaderRoute: typeof AuthenticatedEvolucaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/nova': {
+      id: '/_authenticated/nova'
+      path: '/nova'
+      fullPath: '/nova'
+      preLoaderRoute: typeof AuthenticatedNovaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/perfil': {
+      id: '/_authenticated/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof AuthenticatedPerfilRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/avaliacoes/$id': {
+      id: '/_authenticated/avaliacoes/$id'
+      path: '/$id'
+      fullPath: '/avaliacoes/$id'
+      preLoaderRoute: typeof AuthenticatedAvaliacoesIdRouteImport
+      parentRoute: typeof AuthenticatedAvaliacoesRoute
+    }
+    '/_authenticated/pessoa/nova': {
+      id: '/_authenticated/pessoa/nova'
+      path: '/pessoa/nova'
+      fullPath: '/pessoa/nova'
+      preLoaderRoute: typeof AuthenticatedPessoaNovaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/avaliacoes/$id/editar': {
+      id: '/_authenticated/avaliacoes/$id/editar'
+      path: '/editar'
+      fullPath: '/avaliacoes/$id/editar'
+      preLoaderRoute: typeof AuthenticatedAvaliacoesIdEditarRouteImport
+      parentRoute: typeof AuthenticatedAvaliacoesIdRoute
+    }
+    '/_authenticated/pessoa/$id/editar': {
+      id: '/_authenticated/pessoa/$id/editar'
+      path: '/pessoa/$id/editar'
+      fullPath: '/pessoa/$id/editar'
+      preLoaderRoute: typeof AuthenticatedPessoaIdEditarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
+interface AuthenticatedAvaliacoesIdRouteChildren {
+  AuthenticatedAvaliacoesIdEditarRoute: typeof AuthenticatedAvaliacoesIdEditarRoute
+}
+
+const AuthenticatedAvaliacoesIdRouteChildren: AuthenticatedAvaliacoesIdRouteChildren =
+  {
+    AuthenticatedAvaliacoesIdEditarRoute: AuthenticatedAvaliacoesIdEditarRoute,
+  }
+
+const AuthenticatedAvaliacoesIdRouteWithChildren =
+  AuthenticatedAvaliacoesIdRoute._addFileChildren(
+    AuthenticatedAvaliacoesIdRouteChildren,
+  )
+
+interface AuthenticatedAvaliacoesRouteChildren {
+  AuthenticatedAvaliacoesIdRoute: typeof AuthenticatedAvaliacoesIdRouteWithChildren
+}
+
+const AuthenticatedAvaliacoesRouteChildren: AuthenticatedAvaliacoesRouteChildren =
+  {
+    AuthenticatedAvaliacoesIdRoute: AuthenticatedAvaliacoesIdRouteWithChildren,
+  }
+
+const AuthenticatedAvaliacoesRouteWithChildren =
+  AuthenticatedAvaliacoesRoute._addFileChildren(
+    AuthenticatedAvaliacoesRouteChildren,
+  )
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAvaliacoesRoute: typeof AuthenticatedAvaliacoesRouteWithChildren
+  AuthenticatedEvolucaoRoute: typeof AuthenticatedEvolucaoRoute
+  AuthenticatedNovaRoute: typeof AuthenticatedNovaRoute
+  AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
+  AuthenticatedPessoaNovaRoute: typeof AuthenticatedPessoaNovaRoute
+  AuthenticatedPessoaIdEditarRoute: typeof AuthenticatedPessoaIdEditarRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAvaliacoesRoute: AuthenticatedAvaliacoesRouteWithChildren,
+  AuthenticatedEvolucaoRoute: AuthenticatedEvolucaoRoute,
+  AuthenticatedNovaRoute: AuthenticatedNovaRoute,
+  AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
+  AuthenticatedPessoaNovaRoute: AuthenticatedPessoaNovaRoute,
+  AuthenticatedPessoaIdEditarRoute: AuthenticatedPessoaIdEditarRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  LoginRoute: LoginRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

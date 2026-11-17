@@ -1,23 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-// The home route ships no og:image, so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
-export const Route = createFileRoute("/")({
-  component: Index,
-});
-
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
-}
+import { createFileRoute } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { AssessmentApp } from '@/components/assessment-app';
+import { AuthScreen } from '@/components/auth-screen';
+import { pageHead } from '@/lib/page-head';
+export const Route=createFileRoute('/')({head:()=>pageHead('Seu painel','Acompanhe avaliações físicas, composição corporal e sua evolução em cada consulta.'),component:Home});
+function Home(){const [signed,setSigned]=useState<boolean|null>(null);useEffect(()=>{let alive=true;void supabase.auth.getUser().then(({data})=>{if(alive)setSigned(!!data.user);});return()=>{alive=false;};},[]);if(signed===null)return <main className="app"><div className="skeleton"/></main>;return signed?<AssessmentApp/>:<AuthScreen/>;}

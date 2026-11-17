@@ -1,0 +1,783 @@
+import {num,fmt,today,toDate,fmtDate,ageAt,foldVal,calc,bmiClass,bfClass,whrRisk,PROTOCOLS,FOLDS,CIRC_TRUNK,CIRC_LIMBS,STEPS,METRICS,GROUPS,MET,esc,getPath,setPath,clone,initials,firstName} from "./calculos.js";
+const FOLD_NAME=Object.fromEntries(FOLDS.map(f=>[f.k,f.l]));
+export function mountOriginal(options){
+
+/* =========================================================
+   Avaliação Física — app estático (localStorage)
+   ========================================================= */
+const uid = () => crypto.randomUUID(); const DRAFT_KEY = 'avf.draft.'+options.userId;
+
+/* ---------- ícones ---------- */
+const I = {
+  back:'<path d="M15 18l-6-6 6-6"/>',
+  right:'<path d="M9 18l6-6-6-6"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  home:'<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  cal:'<rect x="3" y="4.5" width="18" height="16.5" rx="4"/><path d="M8 2.5v4M16 2.5v4M3 10h18"/><circle cx="8" cy="14.5" r=".6" fill="currentColor"/><circle cx="12" cy="14.5" r=".6" fill="currentColor"/><circle cx="16" cy="14.5" r=".6" fill="currentColor"/>',
+  chart:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.7c2.2.6 3.5 2.4 3.5 5.3"/>',
+  scale:'<rect x="3" y="3" width="18" height="18" rx="6"/><path d="M8 10a5 5 0 0 1 8 0"/><path d="M12 10l1.5-2"/>',
+  ruler:'<path d="M4 16 16 4l4 4L8 20z"/><path d="M8 12l2 2M11 9l1.5 1.5M14 6l2 2"/>',
+  arm:'<path d="M5 20c0-6 2-9 5-10l2-5c1-2 4-1 3.5 1L14 10c4 0 6 3 5 6-1 3-5 4-9 4z"/>',
+  pinch:'<path d="M7 3v5a5 5 0 0 0 10 0V3"/><path d="M4 21c2-3 5-4 8-4s6 1 8 4"/>',
+  bolt:'<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  clip:'<rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 4V3h6v1M9 11h6M9 15h4"/>',
+  edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  drop:'<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+  flame:'<path d="M12 21a7 7 0 0 0 7-7c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-4-2 2-5 5-5 8a7 7 0 0 0 7 7z"/>',
+  up:'<path d="M12 19V5M6 11l6-6 6 6"/>',
+  down:'<path d="M12 5v14M6 13l6 6 6-6"/>',
+  eq:'<path d="M6 10h12M6 14h12"/>',
+  dl:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  ul:'<path d="M12 20V9M7 14l5-5 5 5M5 4h14"/>',
+  table:'<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 10h18M9 10v10"/>',
+  print:'<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
+  swap:'<path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
+  heart:'<path d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 8 3.5C20 15.4 12 20 12 20z"/>',
+};
+const ic = (n, cls='') => `<svg class="ico ${cls}" viewBox="0 0 24 24">${I[n]||''}</svg>`;
+
+/* ---------- estado / storage ---------- */
+let db = options.db;
+let draft = loadDraft();
+const state = { route:'home', param:null, step:0, editingId:null, evo:'weight', cmpA:null, cmpB:null, cmpTab:'evo', onlyFilled:true };
+try { Object.assign(state,JSON.parse(sessionStorage.getItem('avf.view.'+options.userId)||'{}')); } catch {}
+
+let draftTimer; let draftPending = Promise.resolve();
+async function save(){ await options.save(db); }
+function loadDraft(){
+ const cloud = options.draft;
+ try { const local=JSON.parse(localStorage.getItem(DRAFT_KEY)); if(local && (!cloud || local._savedAt > (cloud._savedAt||0))) return local; } catch {}
+ return cloud;
+}
+function saveDraft(){
+ const copy=draft ? {...draft,_step:state.step,_editing:state.editingId,_savedAt:Date.now()} : null;
+ draft=copy;
+ try { copy ? localStorage.setItem(DRAFT_KEY,JSON.stringify(copy)) : localStorage.removeItem(DRAFT_KEY); } catch {}
+ clearTimeout(draftTimer);
+ draftTimer=setTimeout(()=> { draftPending=draftPending.catch(()=>{}).then(()=>options.saveDraft(copy)).catch(()=>toast('Sem conexão. Rascunho guardado neste aparelho.')); },800);
+}
+const prof = () => db.profiles.find(p => p.id===db.activeId) || db.profiles[0];
+const listOf = pid => db.assessments.filter(a => a.profileId===pid).sort((x,y)=> x.date===y.date ? (x.createdAt||0)-(y.createdAt||0) : x.date<y.date ? -1 : 1);
+const findA = id => db.assessments.find(a => a.id===id);
+function prevOf(a){ const l = listOf(a.profileId).filter(x=>x.id!==a.id && (x.date<a.date || (x.date===a.date && (x.createdAt||0)<(a.createdAt||Infinity)))); return l.at(-1) || null; }
+
+/* ---------- componentes ---------- */
+function deltaChip(cur, prev, dir=0, unit='', d=1){
+  if (cur==null || prev==null) return '';
+  const diff = cur - prev;
+  if (Math.abs(diff) < Math.pow(10,-d)/2) return `<span class="delta flat">${ic('eq')} igual</span>`;
+  const cls = dir===0 ? 'neu' : (diff*dir>0 ? 'good' : 'bad');
+  return `<span class="delta ${cls}">${ic(diff>0?'up':'down')}${fmt(Math.abs(diff),d)}${unit?' '+unit:''}</span>`;
+}
+function smoothPath(P){
+  if (P.length<2) return '';
+  const f = p => p.map(n=>n.toFixed(1)).join(',');
+  let d = `M${f(P[0])}`;
+  for (let i=0;i<P.length-1;i++){
+    const p0=P[i-1]||P[i], p1=P[i], p2=P[i+1], p3=P[i+2]||p2;
+    const c1=[p1[0]+(p2[0]-p0[0])/6, p1[1]+(p2[1]-p0[1])/6], c2=[p2[0]-(p3[0]-p1[0])/6, p2[1]-(p3[1]-p1[1])/6];
+    d += ` C${f(c1)} ${f(c2)} ${f(p2)}`;
+  }
+  return d;
+}
+function sparkline(vals, color='var(--blue-ink)'){
+  const v = vals.filter(x=>x!=null);
+  if (v.length<2) return '';
+  const W=140,H=44; let mn=Math.min(...v), mx=Math.max(...v); if (mn===mx){mn-=1;mx+=1}
+  const P = v.map((y,i)=>[4+i*(W-8)/(v.length-1), 6+(1-(y-mn)/(mx-mn))*(H-12)]);
+  const L = P.at(-1);
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:44px;margin-top:8px" preserveAspectRatio="none"><path d="${smoothPath(P)}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg><div style="position:relative;height:0"><span style="position:absolute;right:${(W-L[0])/W*100}%;bottom:${(H-L[1])/H*44 - 6}px;transform:translateX(50%);width:12px;height:12px;border-radius:50%;background:var(--green-2);box-shadow:0 0 0 3px var(--surface)"></span></div>`;
+}
+function lineChart(pts, {unit='', d=1, color='var(--ink)', fill='var(--blue)'}={}){
+  if (!pts.length) return `<div class="empty"><p>Sem dados para esta medida ainda.</p></div>`;
+  const W=400,H=220,pl=22,pr=22,pt=34,pb=34;
+  const ys = pts.map(p=>p.y); let mn=Math.min(...ys), mx=Math.max(...ys);
+  if (mn===mx){ mn-=1; mx+=1; } const pad=(mx-mn)*.18; mn-=pad; mx+=pad;
+  const X = i => pts.length===1 ? W/2 : pl + i*(W-pl-pr)/(pts.length-1);
+  const Y = v => pt + (1-(v-mn)/(mx-mn))*(H-pt-pb);
+  const P = pts.map((p,i)=>[X(i),Y(p.y)]);
+  const line = smoothPath(P);
+  const area = line ? `${line} L${P.at(-1)[0]},${H-pb} L${P[0][0]},${H-pb} Z` : '';
+  const many = pts.length > 8;
+  const iMin = ys.indexOf(Math.min(...ys)), iMax = ys.indexOf(Math.max(...ys));
+  const showLabel = i => !many || i===0 || i===pts.length-1 || i===iMin || i===iMax;
+  const step = Math.ceil(pts.length/6);
+  const gid = 'g'+Math.random().toString(36).slice(2,7);
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${fill}" stop-opacity=".95"/><stop offset="1" stop-color="${fill}" stop-opacity="0"/></linearGradient></defs>
+    ${[0,.5,1].map(t=>`<line x1="${pl}" x2="${W-pr}" y1="${pt+t*(H-pt-pb)}" y2="${pt+t*(H-pt-pb)}" stroke="var(--line)" stroke-dasharray="3 6"/>`).join('')}
+    ${area?`<path d="${area}" fill="url(#${gid})"/>`:''}
+    ${line?`<path d="${line}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`:''}
+    ${P.map((p,i)=>`
+      <circle cx="${p[0]}" cy="${p[1]}" r="${i===P.length-1?7:5}" fill="${i===P.length-1?'var(--yellow-2)':'var(--surface)'}" stroke="${color}" stroke-width="2.5"/>
+      ${showLabel(i)?`<text x="${p[0]}" y="${p[1]-14}" text-anchor="middle" font-size="17" font-weight="600" fill="var(--ink)">${fmt(pts[i].y,d)}</text>`:''}
+      ${(i%step===0 || i===P.length-1)?`<text x="${p[0]}" y="${H-8}" text-anchor="${i===0&&P.length>1?'start':i===P.length-1&&P.length>1?'end':'middle'}" font-size="14" fill="var(--muted)">${fmtDate(pts[i].date,{day:'2-digit',month:'short'}).replace(' de ',' ')}</text>`:''}
+    `).join('')}
+  </svg>`;
+}
+function ring(val, max, color='var(--peach)'){
+  const size=150, sw=14, r=(size-sw)/2, C=2*Math.PI*r, arc=.75;
+  const v = Math.max(0, Math.min(1, (val||0)/max));
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="transform:rotate(135deg)">
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--ring-track)" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${C*arc} ${C}"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${C*arc*v} ${C}" style="transition:stroke-dasharray .8s ease"/>
+  </svg>`;
+}
+function topbar(p){
+  return `<header class="top">
+    <button class="avatar" data-act="go" data-to="profile" aria-label="Perfil">${esc(initials(p.name))}</button>
+    <div class="hello"><small>Olá,</small><b>${esc(firstName(p.name))}!</b></div>
+    <div class="grow"></div>
+    <button class="icon-btn" data-act="go" data-to="list" aria-label="Avaliações">${ic('cal')}</button>
+    <button class="icon-btn ${hasDraft()?'dot':''}" data-act="new" aria-label="Nova avaliação">${ic('plus')}</button>
+  </header>`;
+}
+function dpill(iso, on){
+  const d = toDate(iso);
+  return `<div class="dpill ${on?'on':''}"><small>${d.toLocaleDateString('pt-BR',{month:'short'}).replace('.','')}</small><b>${String(d.getDate()).padStart(2,'0')}</b><small>${String(d.getFullYear()).slice(2)}</small></div>`;
+}
+function aItem(a, p, on){
+  const r = calc(a,p), pv = prevOf(a), rp = pv ? calc(pv,p) : null;
+  return `<button class="aitem" data-act="go" data-to="detail" data-id="${a.id}">
+    ${dpill(a.date, on)}
+    <div class="info">
+      <b>${fmtDate(a.date,{weekday:'long',day:'numeric',month:'long'})}</b>
+      <div class="stats">
+        <span><em>${fmt(num(a.weight))}</em> kg</span>
+        ${r.bf!=null?`<span><em>${fmt(r.bf)}</em>% gordura</span>`:''}
+        ${pv?deltaChip(num(a.weight), num(pv.weight), 0, 'kg'):''}
+      </div>
+    </div>
+    ${ic('right','sm')}
+  </button>`;
+}
+const hasDraft = () => !!draft;
+
+/* =========================================================
+   VIEWS
+   ========================================================= */
+function viewOnboard(editP){
+  const p = editP || {name:'',sex:'',birth:'',height:''};
+  const isNew = !editP;
+  return `
+  ${db.profiles.length ? `<header class="top"><button class="icon-btn" data-act="go" data-to="profile">${ic('back')}</button><div class="title-block"><small>Perfil</small><b>${isNew?'Nova pessoa':'Editar dados'}</b></div></header>` : ''}
+  ${!db.profiles.length ? `<div class="onb-hero"><div class="blob"></div><div class="blob b2"></div>
+    <div style="position:relative"><span class="tag" style="margin-bottom:14px">${ic('heart','sm')} Avaliação física</span>
+    <h1>Seu corpo, medido com carinho.</h1>
+    <p>Registre dobras, circunferências e peso passo a passo — e acompanhe sua evolução a cada consulta.</p></div></div>` : ''}
+  <h2 class="sec" style="margin-top:6px">${isNew?'Quem será avaliado?':'Dados pessoais'}</h2>
+  <div class="form-grid">
+    <label class="field"><div class="f-top"><span class="f-label">Nome</span></div>
+      <div class="f-input text"><input id="pf-name" value="${esc(p.name)}" placeholder="Seu nome" autocomplete="name"></div></label>
+    <div class="field"><div class="f-top"><span class="f-label">Sexo biológico</span></div>
+      <span class="f-hint">Usado nas equações de composição corporal.</span>
+      <div class="seg full" style="margin-top:10px" id="pf-sex">
+        <button type="button" data-act="pfsex" data-v="F" class="${p.sex==='F'?'on':''}">Feminino</button>
+        <button type="button" data-act="pfsex" data-v="M" class="${p.sex==='M'?'on':''}">Masculino</button>
+      </div></div>
+    <div class="fields two">
+      <label class="field"><div class="f-top"><span class="f-label">Nascimento</span></div>
+        <div class="f-input text"><input id="pf-birth" type="date" value="${esc(p.birth)}" max="${today()}"></div></label>
+      <label class="field"><div class="f-top"><span class="f-label">Altura</span></div>
+        <div class="f-input"><input id="pf-height" inputmode="decimal" value="${esc(p.height??'')}" placeholder="170"><em>cm</em></div></label>
+    </div>
+  </div>
+  <button class="cta" data-act="saveProfile" data-id="${editP?editP.id:''}"><span class="c-ico">${ic('user')}</span><span>${isNew?'Começar':'Salvar dados'} <span class="arrows">›››</span></span><span class="c-ico">${ic('check')}</span></button>
+  ${!db.profiles.length ? `<p class="small muted" style="text-align:center;margin-top:18px">Seus dados ficam protegidos na sua conta.</p>
+  <button class="btn ghost sm" style="margin:12px auto 0;display:flex" data-act="import">${ic('ul','sm')} Restaurar backup</button>` : ''}`;
+}
+
+function viewHome(){
+  const p = prof(), list = listOf(p.id);
+  let h = topbar(p);
+  if (hasDraft()) h += `<button class="draft-banner" data-act="resume">${ic('edit')}<span class="grow">Você tem uma avaliação ${draft._editing?'em edição':'em andamento'} — ${fmtDate(draft.date)}</span><b>Continuar</b></button>`;
+  if (!list.length){
+    h += `<h1 class="headline">${esc(firstName(p.name))}, vamos registrar sua primeira avaliação.</h1>
+    <div class="card blue empty"><div class="e-ico">${ic('clip')}</div><h3>Nenhuma avaliação ainda</h3>
+    <p>Em poucos passos você registra peso, circunferências e dobras cutâneas. Depois é só comparar.</p></div>
+    <div class="dash" style="margin-top:12px">
+      ${STEPS.slice(1,5).map(s=>`<div class="card ${s.c}"><div class="card-head"><span class="chip-ico">${ic(s.i)}</span><span class="label">${s.l}</span></div><span class="small">${s.d}</span></div>`).join('')}
+    </div>
+    ${ctaNew()}`;
+    return h;
+  }
+  const last = list.at(-1), prev = list.at(-2), r = calc(last,p), rp = prev ? calc(prev,p) : null;
+  const improving = rp && r.bf!=null && rp.bf!=null && r.bf < rp.bf;
+  const head = improving ? `${firstName(p.name)}, sua evolução está ficando ótima!` : list.length>1 ? `${firstName(p.name)}, seu painel está em dia.` : `${firstName(p.name)}, sua primeira avaliação está registrada!`;
+  const weights = list.map(a=>num(a.weight));
+  const c = last.circ || {};
+  const pills = [['Braço',avgLR(c,'biceps')??avgLR(c,'arm')],['Cintura',num(c.waist)],['Abdôm.',num(c.abdomen)],['Quadril',num(c.hip)],['Coxa',avgLR(c,'thighm')??avgLR(c,'thighp')],['Pantur.',avgLR(c,'calf')]].filter(x=>x[1]!=null);
+  const pmax = Math.max(...pills.map(x=>x[1]), 1);
+
+  h += `<h1 class="headline">${esc(head)}</h1>
+  <div class="dash">
+    <div class="card blue span2 span2-d hero" data-act="go" data-to="detail" data-id="${last.id}" style="cursor:pointer">
+      <div class="left">
+        <div class="card-head"><span class="chip-ico">${ic(r.bf!=null?'flame':'scale')}</span><span class="label">${r.bf!=null?'Gordura corporal':'Peso atual'}</span></div>
+        <div>
+          <div class="big xl">${r.bf!=null?fmt(r.bf):fmt(num(last.weight))}<small>${r.bf!=null?'%':'kg'}</small></div>
+          <div class="sub">${r.bf!=null ? `${esc(bfClass(r.bf,p.sex))} ${rp?deltaChip(r.bf,rp.bf,-1,'pp'):''}` : esc(bmiClass(r.bmi))}</div>
+        </div>
+        <div class="sub small">${ic('cal','sm')} ${fmtDate(last.date,{day:'numeric',month:'long',year:'numeric'})}</div>
+      </div>
+      <div class="ring-wrap">${ring(r.bf!=null?r.bf:r.bmi, r.bf!=null?40:40)}<div class="center"><div class="inner"><b>${r.leanMass?fmt(r.leanMass):fmt(r.bmi)}</b><span>${r.leanMass?'kg magra':'IMC'}</span></div></div></div>
+    </div>
+
+    <div class="card" data-act="evo" data-m="weight" style="cursor:pointer">
+      <div class="card-head"><span class="label">Peso<br>atual</span><span class="chip-ico right">${ic('scale','sm')}</span></div>
+      <div class="mid">${fmt(num(last.weight))}<small>kg</small></div>
+      ${prev?`<div class="sub">${deltaChip(num(last.weight),num(prev.weight),0,'kg')}</div>`:''}
+      ${sparkline(weights)}
+    </div>
+    <div class="card green" data-act="evo" data-m="leanMass" style="cursor:pointer">
+      <div class="card-head"><span class="label">Massa<br>magra</span><span class="chip-ico right">${ic('bolt','sm')}</span></div>
+      <div class="mid">${fmt(r.leanMass)}<small>kg</small></div>
+      ${rp?`<div class="sub">${deltaChip(r.leanMass,rp.leanMass,1,'kg')}</div>`:''}
+      ${sparkline(list.map(a=>calc(a,p).leanMass),'var(--green-ink)')}
+    </div>
+
+    <div class="card yellow span2 span2-d">
+      <div class="card-head"><span class="label">Composição corporal</span><span class="tag right" style="margin-left:auto">${esc(r.bfSource||'—')}</span></div>
+      ${r.fatMass!=null ? `
+      <div class="combar"><span style="width:${100-r.bf}%;background:var(--green-2)"></span><span style="width:${r.bf}%;background:var(--peach)"></span></div>
+      <div class="legend"><span><i style="background:var(--green-2)"></i>Magra <b>${fmt(r.leanMass)} kg</b></span><span><i style="background:var(--peach)"></i>Gorda <b>${fmt(r.fatMass)} kg</b></span></div>
+      ` : `<p class="small" style="margin-top:6px">Preencha as dobras do protocolo (ou % da bioimpedância) para ver a composição.</p>`}
+      <div class="dash" style="margin-top:14px;grid-template-columns:repeat(3,1fr);gap:8px">
+        <div class="stat"><small>IMC</small><b>${fmt(r.bmi)}</b></div>
+        <div class="stat"><small>RCQ</small><b>${fmt(r.whr,2)}</b></div>
+        <div class="stat"><small>TMB</small><b>${fmt(r.bmr,0)}</b></div>
+      </div>
+    </div>
+
+    ${pills.length ? `<div class="card span2 span2-d">
+      <div class="card-head"><span class="label">Medidas (cm)</span><button class="tag right" style="margin-left:auto" data-act="go" data-to="detail" data-id="${last.id}">Ver todas</button></div>
+      <div class="pills" style="grid-template-columns:repeat(${pills.length},1fr)">
+        ${pills.map(([l,v])=>{ const pc = 28 + 62*(v/pmax); return `<div class="pill"><div class="tube"><div class="fill" style="height:${pc}%"></div><div class="val" style="bottom:${pc}%">${fmt(v,v>=100?0:1)}</div></div><small>${l}</small></div>`; }).join('')}
+      </div></div>` : ''}
+
+    ${list.length>1 ? `<div class="card white span2 span4-d" data-act="go" data-to="compare" style="cursor:pointer">
+      <div class="card-head"><span class="chip-ico" style="background:var(--blue)">${ic('swap','sm')}</span><span class="label"><b>Comparar avaliações</b><br><span class="small muted">${fmtDate(prev.date)} → ${fmtDate(last.date)}</span></span><span class="right" style="margin-left:auto">${ic('right')}</span></div>
+      <div class="dash" style="grid-template-columns:repeat(3,1fr);gap:8px">
+        ${[['Peso',num(last.weight),num(prev.weight),0,'kg'],['Gordura',r.bf,rp.bf,-1,'pp'],['Cintura',num(c.waist),num(prev.circ?.waist),-1,'cm']].map(([l,a,b,dir,u])=>`<div class="stat" style="background:var(--card)"><small>${l}</small>${a!=null&&b!=null?deltaChip(a,b,dir,u):'<b>—</b>'}</div>`).join('')}
+      </div></div>` : ''}
+  </div>
+
+  <h2 class="sec">Últimas avaliações <button data-act="go" data-to="list">Ver todas</button></h2>
+  <div class="alist">${list.slice(-3).reverse().map((a,i)=>aItem(a,p,i===0)).join('')}</div>
+  ${ctaNew()}`;
+  return h;
+}
+function avgLR(c, k){ const v=[num(c[k+'_r']),num(c[k+'_l'])].filter(x=>x!=null); return v.length? v.reduce((s,x)=>s+x,0)/v.length : null; }
+function ctaNew(){
+  return `<button class="cta" data-act="new"><span class="c-ico">${ic('clip')}</span><span>${hasDraft()?'Continuar avaliação':'Nova avaliação'} <span class="arrows">›››</span></span><span class="c-ico">${ic('plus')}</span></button>`;
+}
+
+function viewList(){
+  const p = prof(), list = listOf(p.id).reverse();
+  return `<header class="top"><button class="icon-btn" data-act="go" data-to="home">${ic('back')}</button>
+    <div class="title-block"><small>${esc(p.name)}</small><b>Avaliações</b></div><div class="grow"></div>
+    <button class="icon-btn" data-act="new">${ic('plus')}</button></header>
+  ${list.length ? `<p class="muted small" style="margin:-8px 2px 14px">${list.length} ${list.length>1?'avaliações registradas':'avaliação registrada'}</p>
+  <div class="alist">${list.map((a,i)=>aItem(a,p,i===0)).join('')}</div>` :
+  `<div class="card empty"><div class="e-ico">${ic('cal')}</div><h3>Nada por aqui</h3><p>Suas avaliações aparecem aqui, da mais recente para a mais antiga.</p></div>`}
+  ${ctaNew()}`;
+}
+
+function viewDetail(id){
+  const a = findA(id); if (!a) return viewHome();
+  const p = db.profiles.find(x=>x.id===a.profileId) || prof();
+  const r = calc(a,p), pv = prevOf(a), rp = pv ? calc(pv,p) : null;
+  const row = (l, v, u, d=1, pvv=null, dir=0) => v==null ? '' : `<div class="kv-row"><span class="k">${l}</span><span>${pvv!=null?deltaChip(v,pvv,dir,'',d):''}</span><span class="v">${fmt(v,d)}<small>${u}</small></span></div>`;
+  const c = a.circ||{}, pc = pv?.circ||{};
+  const trunk = CIRC_TRUNK.map(x=>row(x.l, num(c[x.k]), 'cm', 1, num(pc[x.k]), x.dir)).join('');
+  const limbs = CIRC_LIMBS.map(x=>{
+    const R=num(c[x.k+'_r']), L=num(c[x.k+'_l']); if (R==null&&L==null) return '';
+    return `<div class="kv-row" style="grid-template-columns:1fr 70px 70px"><span class="k">${x.l}</span><span class="v">${fmt(R)}<small>D</small></span><span class="v">${fmt(L)}<small>E</small></span></div>`;
+  }).join('');
+  const need = PROTOCOLS[a.protocol||'jp7'].folds(p.sex);
+  const folds = FOLDS.map(f=>{ const v = foldVal(a,f.k); if (v==null) return ''; return `<div class="kv-row"><span class="k">${f.l} ${need.includes(f.k)?'<span class="tag blue" style="padding:2px 7px;font-size:10px">'+PROTOCOLS[a.protocol||'jp7'].short+'</span>':''}</span><span>${pv?deltaChip(v,foldVal(pv,f.k),-1,''):''}</span><span class="v">${fmt(v)}<small>mm</small></span></div>`; }).join('');
+  const ex = a.extra || {};
+  const bio = [['% Gordura',num(ex.bf),'%'],['Massa muscular',num(ex.muscle),'kg'],['Gordura visceral',num(ex.visceral),''],['Água corporal',num(ex.water),'%']].map(([l,v,u])=>row(l,v,u)).join('');
+  return `<header class="top no-print-sm"><button class="icon-btn no-print" data-act="back">${ic('back')}</button>
+    <div class="title-block"><small>Avaliação · ${esc(p.name)}</small><b>${fmtDate(a.date,{day:'numeric',month:'long',year:'numeric'})}</b></div><div class="grow"></div>
+    <button class="icon-btn no-print" data-act="print" aria-label="Imprimir">${ic('print')}</button>
+    <button class="icon-btn no-print" data-act="edit" data-id="${a.id}" aria-label="Editar">${ic('edit')}</button></header>
+
+  <div class="dash">
+    <div class="card blue span2 span2-d hero">
+      <div class="left">
+        <div class="card-head"><span class="chip-ico">${ic('flame')}</span><span class="label">Gordura corporal<br><span class="small">${esc(r.bfSource||'sem dados suficientes')}</span></span></div>
+        <div><div class="big xl">${fmt(r.bf)}<small>%</small></div>
+        <div class="sub">${esc(bfClass(r.bf,p.sex))} ${rp?deltaChip(r.bf,rp.bf,-1,'pp'):''}</div></div>
+      </div>
+      <div class="ring-wrap">${ring(r.bf,40)}<div class="center"><div class="inner"><b>${r.age??'—'}</b><span>anos</span></div></div></div>
+    </div>
+    <div class="card"><div class="card-head"><span class="label">Peso</span><span class="chip-ico right">${ic('scale','sm')}</span></div>
+      <div class="mid">${fmt(num(a.weight))}<small>kg</small></div><div class="sub">${pv?deltaChip(num(a.weight),num(pv.weight),0,'kg'):`<span class="small">Altura ${fmt(num(a.height),0)} cm</span>`}</div></div>
+    <div class="card green"><div class="card-head"><span class="label">Massa magra</span><span class="chip-ico right">${ic('bolt','sm')}</span></div>
+      <div class="mid">${fmt(r.leanMass)}<small>kg</small></div><div class="sub">${rp?deltaChip(r.leanMass,rp.leanMass,1,'kg'):''}</div></div>
+    <div class="card yellow"><div class="card-head"><span class="label">Massa gorda</span><span class="chip-ico right">${ic('drop','sm')}</span></div>
+      <div class="mid">${fmt(r.fatMass)}<small>kg</small></div><div class="sub">${rp?deltaChip(r.fatMass,rp.fatMass,-1,'kg'):''}</div></div>
+    <div class="card"><div class="card-head"><span class="label">IMC</span><span class="chip-ico right">${ic('target','sm')}</span></div>
+      <div class="mid">${fmt(r.bmi)}</div><div class="sub small">${esc(bmiClass(r.bmi))}</div></div>
+  </div>
+
+  <div class="two-col">
+  <div>
+    <h2 class="sec">Índices</h2>
+    <div class="kv">
+      ${row('Relação cintura/quadril', r.whr, '', 2, rp?.whr, -1)}
+      ${r.whr!=null?`<div class="kv-row"><span class="k muted small">Classificação RCQ</span><span></span><span class="v small">${whrRisk(r.whr,p.sex)}</span></div>`:''}
+      ${row('Relação cintura/altura', r.whtr, '', 2, rp?.whtr, -1)}
+      ${row('Soma das dobras ('+(PROTOCOLS[a.protocol||'jp7'].short)+')', r.sumProto, 'mm', 1, rp?.sumProto, -1)}
+      ${row('Soma de todas as dobras', r.sumAll, 'mm', 1, rp?.sumAll, -1)}
+      ${row('Densidade corporal', r.density, 'g/ml', 4)}
+      ${r.navy!=null && r.bfSource!=='Marinha (circ.)' ? row('% Gordura (Marinha, circ.)', r.navy, '%') : ''}
+      ${row('Metabolismo basal', r.bmr, 'kcal', 0)}
+      ${row('Altura', num(a.height), 'cm', 0)}
+    </div>
+    ${trunk?`<h2 class="sec">Circunferências — tronco</h2><div class="kv">${trunk}</div>`:''}
+    ${limbs?`<h2 class="sec">Circunferências — membros</h2><div class="kv">${limbs}</div>`:''}
+  </div>
+  <div>
+    ${folds?`<h2 class="sec">Dobras cutâneas <span class="tag">${PROTOCOLS[a.protocol||'jp7'].name}</span></h2><div class="kv">${folds}</div>`:''}
+    ${bio?`<h2 class="sec">Bioimpedância</h2><div class="kv">${bio}</div>`:''}
+    ${ex.evaluator?`<h2 class="sec">Avaliador(a)</h2><div class="notes">${esc(ex.evaluator)}</div>`:''}
+    ${ex.notes?`<h2 class="sec">Observações</h2><div class="notes">${esc(ex.notes)}</div>`:''}
+  </div>
+  </div>
+
+  <div class="no-print" style="display:grid;gap:8px;margin-top:22px">
+    ${pv?`<button class="cta" style="margin-top:0" data-act="cmpWith" data-a="${pv.id}" data-b="${a.id}"><span class="c-ico">${ic('swap')}</span><span>Comparar com a anterior <span class="arrows">›››</span></span><span class="c-ico">${ic('chart')}</span></button>`:''}
+    <button class="btn danger" style="margin-top:12px" data-act="del" data-id="${a.id}">${ic('trash','sm')} Excluir avaliação</button>
+  </div>`;
+}
+
+function viewCompare(){
+  const p = prof(), list = listOf(p.id);
+  let h = `<header class="top"><button class="icon-btn" data-act="go" data-to="home">${ic('back')}</button>
+    <div class="title-block"><small>${esc(p.name)}</small><b>Evolução</b></div></header>
+    <div class="seg full" style="margin-bottom:16px">
+      <button data-act="cmpTab" data-v="evo" class="${state.cmpTab==='evo'?'on':''}">Linha do tempo</button>
+      <button data-act="cmpTab" data-v="ab" class="${state.cmpTab==='ab'?'on':''}">Comparativo A × B</button>
+    </div>`;
+  if (list.length < 1) return h + `<div class="card empty"><div class="e-ico">${ic('chart')}</div><h3>Sem avaliações</h3><p>Registre sua primeira avaliação para começar a acompanhar.</p></div>${ctaNew()}`;
+  const R = list.map(a=>({a, r:calc(a,p)}));
+
+  if (state.cmpTab==='evo'){
+    const avail = METRICS.filter(m => R.some(x => m.get(x.a,x.r)!=null));
+    if (!avail.find(m=>m.k===state.evo)) state.evo = avail[0]?.k || 'weight';
+    const m = MET[state.evo];
+    const pts = R.map(x=>({date:x.a.date, y:m.get(x.a,x.r), id:x.a.id})).filter(x=>x.y!=null);
+    const first = pts[0]?.y, lastv = pts.at(-1)?.y, d = m.d ?? 1;
+    const color = m.dir===1 ? 'var(--green-ink)' : m.dir===-1 ? 'var(--ink)' : 'var(--blue-ink)';
+    const fill = m.dir===1 ? 'var(--green)' : m.dir===-1 ? 'var(--yellow)' : 'var(--blue)';
+    h += `<div class="chips">${avail.map(x=>`<button class="chip ${x.k===state.evo?'on':''}" data-act="evo" data-m="${x.k}">${x.l}</button>`).join('')}</div>
+    <div class="card white">
+      <div class="card-head"><span class="label"><b style="font-size:18px">${m.l}</b><br><span class="small muted">${pts.length} ${pts.length>1?'registros':'registro'}${m.u?' · '+m.u:''}</span></span>
+        <span style="margin-left:auto">${pts.length>1?deltaChip(lastv,first,m.dir,m.u,d):''}</span></div>
+      ${lineChart(pts,{d,color,fill})}
+      <div class="stat-row">
+        <div class="stat" style="background:var(--card)"><small>Inicial</small><b>${fmt(first,d)}</b></div>
+        <div class="stat" style="background:var(--card)"><small>Atual</small><b>${fmt(lastv,d)}</b></div>
+        <div class="stat" style="background:var(--card)"><small>Variação</small><b>${pts.length>1?(lastv-first>0?'+':'')+fmt(lastv-first,d):'—'}</b></div>
+      </div>
+    </div>
+    <h2 class="sec">Histórico</h2>
+    <div class="kv">${pts.slice().reverse().map((x,i,arr)=>`<div class="kv-row" data-act="go" data-to="detail" data-id="${x.id}" style="cursor:pointer"><span class="k">${fmtDate(x.date)}</span><span>${arr[i+1]?deltaChip(x.y,arr[i+1].y,m.dir,'',d):''}</span><span class="v">${fmt(x.y,d)}<small>${m.u}</small></span></div>`).join('')}</div>`;
+    return h;
+  }
+
+  // ---- A × B
+  if (list.length < 2) return h + `<div class="card blue empty"><div class="e-ico">${ic('swap')}</div><h3>Falta só mais uma</h3><p>Com duas avaliações você vê o comparativo lado a lado de cada medida.</p></div>${ctaNew()}`;
+  if (!findA(state.cmpA) || findA(state.cmpA).profileId!==p.id) state.cmpA = list.at(-2).id;
+  if (!findA(state.cmpB) || findA(state.cmpB).profileId!==p.id) state.cmpB = list.at(-1).id;
+  const A = findA(state.cmpA), B = findA(state.cmpB), rA = calc(A,p), rB = calc(B,p);
+  const opts = sel => list.slice().reverse().map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${fmtDate(a.date,{day:'2-digit',month:'2-digit',year:'2-digit'})}</option>`).join('');
+  const days = Math.round((toDate(B.date)-toDate(A.date))/864e5);
+  const big = [['Peso',num(B.weight),num(A.weight),0,'kg','',''],['Gordura',rB.bf,rA.bf,-1,'pp','blue','%'],['Massa magra',rB.leanMass,rA.leanMass,1,'kg','green','kg'],['Massa gorda',rB.fatMass,rA.fatMass,-1,'kg','yellow','kg']];
+  h += `<div class="cmp-pick">
+      <label class="sel a"><small>Antes (A)</small><select data-ch="cmpA">${opts(A.id)}</select></label>
+      <button class="vs" data-act="swapAB" aria-label="Inverter">${ic('swap','sm')}</button>
+      <label class="sel b"><small>Depois (B)</small><select data-ch="cmpB">${opts(B.id)}</select></label>
+    </div>
+    <p class="small muted" style="margin:-4px 2px 14px">${Math.abs(days)} dias entre as avaliações${days<0?' (A é mais recente que B)':''}</p>
+    <div class="dash">
+      ${big.map(([l,b,a,dir,u,col,uu])=>`<div class="card ${col}"><div class="card-head"><span class="label">${l}</span></div>
+        <div class="mid">${fmt(b)}<small>${uu||u}</small></div>
+        <div class="sub">${a!=null&&b!=null?deltaChip(b,a,dir,u):'<span class="small muted">sem dados</span>'}</div>
+        <div class="small muted" style="margin-top:6px">antes: ${fmt(a)}</div></div>`).join('')}
+    </div>
+    <button class="toggle" style="margin-top:16px" data-act="onlyFilled"><span>Mostrar só medidas preenchidas nas duas</span><span class="switch ${state.onlyFilled?'on':''}"></span></button>
+    <div class="two-col">`;
+  const cols = [[],[]];
+  GROUPS.forEach((g,gi)=>{
+    const rows = g.items.map(m=>{
+      const va = m.get(A,rA), vb = m.get(B,rB);
+      if (state.onlyFilled ? (va==null||vb==null) : (va==null&&vb==null)) return '';
+      const d = m.d ?? 1;
+      let bar = '';
+      if (va!=null && vb!=null && va!==0){
+        const pct = (vb-va)/Math.abs(va)*100, w = Math.min(50, Math.abs(pct)*2.5);
+        const cls = Math.abs(vb-va)<1e-9 ? 'var(--line)' : m.dir===0 ? 'var(--blue-2)' : ((vb-va)*m.dir>0 ? 'var(--green-2)' : 'var(--peach)');
+        bar = `<div class="bar-d"><i style="left:${pct<0?50-w:50}%;width:${Math.max(w,1)}%;background:${cls}"></i><i style="left:calc(50% - 1px);width:2px;background:var(--muted)"></i></div>`;
+      }
+      return `<div class="cmp-row"><span class="k">${m.l}</span><span>${va!=null&&vb!=null?deltaChip(vb,va,m.dir,'',d):''}</span>
+        <span class="vals">${fmt(va,d)} → <b>${fmt(vb,d)}</b> ${m.u}</span><span class="vals">${va&&vb?((vb-va)/Math.abs(va)*100>0?'+':'')+fmt((vb-va)/Math.abs(va)*100,1)+'%':''}</span>${bar}</div>`;
+    }).join('');
+    if (rows) cols[gi<2?0:1].push(`<h2 class="sec">${g.g}</h2><div class="kv">${rows}</div>`);
+  });
+  h += `<div>${cols[0].join('')}</div><div>${cols[1].join('')}</div></div>
+    <p class="small muted" style="margin-top:16px;display:flex;gap:14px;flex-wrap:wrap"><span><span class="delta good" style="background:var(--card)">${ic('down')}</span> evolução favorável</span><span><span class="delta bad" style="background:var(--card)">${ic('up')}</span> desfavorável</span><span><span class="delta neu" style="background:var(--card)">${ic('up')}</span> neutro</span></p>`;
+  return h;
+}
+
+function viewProfile(){
+  const p = prof(), list = listOf(p.id);
+  return `<header class="top"><button class="icon-btn" data-act="go" data-to="home">${ic('back')}</button><div class="title-block"><small>Configurações</small><b>Perfil</b></div></header>
+  <div class="card blue" style="display:flex;align-items:center;gap:14px">
+    <span class="avatar" style="width:64px;height:64px;font-size:22px;background:var(--surface)">${esc(initials(p.name))}</span>
+    <div class="grow"><b style="font-size:20px;font-weight:600">${esc(p.name)}</b>
+      <div class="small" style="margin-top:2px">${p.sex==='F'?'Feminino':'Masculino'} · ${ageAt(p.birth)??'—'} anos · ${p.height?fmt(num(p.height),0)+' cm':'altura —'}</div>
+      <div class="small muted">${list.length} ${list.length===1?'avaliação':'avaliações'}</div></div>
+    <button class="icon-btn white" data-act="editProfile">${ic('edit')}</button>
+  </div>
+
+  <div class="two-col">
+  <div>
+  <h2 class="sec">Pessoas avaliadas <button data-act="newProfile">+ adicionar</button></h2>
+  <div class="actions">${db.profiles.map(x=>`<button class="prof-row ${x.id===p.id?'on':''}" data-act="switchProfile" data-id="${x.id}">
+    <span class="avatar">${esc(initials(x.name))}</span><span class="grow"><b style="font-weight:600">${esc(x.name)}</b><br><span class="small muted">${listOf(x.id).length} avaliações</span></span>${x.id===p.id?ic('check'):''}</button>`).join('')}</div>
+  </div>
+  <div>
+  <h2 class="sec">Seus dados</h2><button class="act-row" data-act="logout"><span class="grow"><b>Sair da conta</b><span>${esc(options.email)}</span></span>${ic("right")}</button>
+  <div class="actions">
+    <button class="act-row" data-act="export"><span class="chip-ico">${ic('dl','sm')}</span><span class="grow"><b>Exportar backup</b><span>Arquivo .json com tudo — guarde ou envie para outro aparelho</span></span></button>
+    <button class="act-row" data-act="import"><span class="chip-ico">${ic('ul','sm')}</span><span class="grow"><b>Restaurar backup</b><span>Importa um arquivo .json exportado antes</span></span></button>
+    <button class="act-row" data-act="csv"><span class="chip-ico">${ic('table','sm')}</span><span class="grow"><b>Exportar planilha (CSV)</b><span>Todas as avaliações de ${esc(firstName(p.name))}, abre no Excel</span></span></button>
+    <button class="act-row danger" data-act="delProfile"><span class="chip-ico">${ic('trash','sm')}</span><span class="grow"><b>Excluir ${esc(firstName(p.name))}</b><span style="color:inherit;opacity:.7">Remove a pessoa e todas as avaliações dela</span></span></button>
+  </div>
+  </div></div>
+  <p class="small muted" style="margin-top:20px;text-align:center">Seus dados estão salvos na sua conta.</p>`;
+}
+
+/* ---------- WIZARD ---------- */
+function newDraft(){
+  const p = prof(), last = listOf(p.id).at(-1);
+  return {id:null, profileId:p.id, date:today(), weight:'', height: p.height || last?.height || '', protocol: last?.protocol || 'jp7', multi:false, circ:{}, folds:{}, extra:{}};
+}
+function wizPrev(){
+  if (!draft) return null;
+  const list = listOf(draft.profileId).filter(a=>a.id!==state.editingId && a.date<=draft.date);
+  return list.at(-1) || null;
+}
+function field(key, label, unit, hint, o={}){
+  const v = getPath(draft, key) ?? '';
+  const pv = wizPrev(); const pvv = pv ? num(getPath(pv, key)) : null;
+  return `<label class="field ${o.req?'req':''}"><div class="f-top"><span class="f-label">${label}${o.tag||''}</span>${pvv!=null?`<span class="f-prev">anterior ${fmt(pvv)}</span>`:''}</div>
+    ${hint?`<span class="f-hint">${hint}</span>`:''}
+    <div class="f-input"><input inputmode="decimal" enterkeyhint="next" data-k="${key}" value="${esc(v)}" placeholder="0,0" autocomplete="off"><em>${unit}</em></div></label>`;
+}
+function pairField(c){
+  const pv = wizPrev();
+  const pr = pv ? num(pv.circ?.[c.k+'_r']) : null, pl = pv ? num(pv.circ?.[c.k+'_l']) : null;
+  return `<div class="field"><div class="f-top"><span class="f-label">${c.l}</span>${pr!=null||pl!=null?`<span class="f-prev">ant. ${fmt(pr)} / ${fmt(pl)}</span>`:''}</div>
+    <span class="f-hint">${c.h}</span>
+    <div class="pair">
+      <div><label>Direito</label><div class="f-input"><input inputmode="decimal" enterkeyhint="next" data-k="circ.${c.k}_r" value="${esc(draft.circ?.[c.k+'_r']??'')}" placeholder="0,0" autocomplete="off"><em>cm</em></div></div>
+      <div><label>Esquerdo</label><div class="f-input"><input inputmode="decimal" enterkeyhint="next" data-k="circ.${c.k}_l" value="${esc(draft.circ?.[c.k+'_l']??'')}" placeholder="0,0" autocomplete="off"><em>cm</em></div></div>
+    </div></div>`;
+}
+function foldField(f, req){
+  const pv = wizPrev(); const pvv = pv ? foldVal(pv, f.k) : null;
+  const arr = Array.isArray(draft.folds?.[f.k]) ? draft.folds[f.k] : [draft.folds?.[f.k]];
+  const tag = req ? ` <span class="tag blue" style="padding:2px 8px;font-size:11px;vertical-align:2px">${PROTOCOLS[draft.protocol].short}</span>` : '';
+  const inp = i => `<div class="f-input"><input inputmode="decimal" enterkeyhint="next" data-k="folds.${f.k}.${i}" value="${esc(arr[i]??'')}" placeholder="${draft.multi?(i+1)+'ª':'0,0'}" autocomplete="off"><em>mm</em></div>`;
+  return `<div class="field ${req?'req':''}"><div class="f-top"><span class="f-label">${f.l}${tag}</span>${pvv!=null?`<span class="f-prev">anterior ${fmt(pvv)}</span>`:''}</div>
+    <span class="f-hint">${f.h}</span>
+    ${draft.multi ? `<div class="triple">${inp(0)}${inp(1)}${inp(2)}</div><div class="avg-line"><span>Média</span><b data-live="avg-${f.k}">${fmt(foldVal(draft,f.k))} mm</b></div>` : inp(0)}
+  </div>`;
+}
+function stepFilled(k){
+  const d = draft, p = prof();
+  const cnt = arr => arr.filter(v=>num(v)!=null).length;
+  switch(k){
+    case 'start': return [1,1];
+    case 'body': return [cnt([d.weight,d.height]),2];
+    case 'trunk': return [cnt(CIRC_TRUNK.map(c=>d.circ?.[c.k])), CIRC_TRUNK.length];
+    case 'limbs': return [cnt(CIRC_LIMBS.flatMap(c=>[d.circ?.[c.k+'_r'],d.circ?.[c.k+'_l']])), CIRC_LIMBS.length*2];
+    case 'folds': { const need = PROTOCOLS[d.protocol].folds(p.sex); return [need.filter(f=>foldVal(d,f)!=null).length, need.length]; }
+    case 'extra': return [cnt([d.extra?.bf,d.extra?.muscle,d.extra?.visceral,d.extra?.water]) + (d.extra?.notes?1:0), 5];
+    default: return [0,0];
+  }
+}
+function viewWizard(){
+  const p = prof(), s = STEPS[state.step], r = calc(draft, p);
+  let body = '';
+  const intro = `<div class="step-intro"><span class="s-ico" style="background:var(--${s.c})">${ic(s.i)}</span><div><h2>${s.t}</h2><p>${s.d}</p></div></div>`;
+  switch(s.k){
+    case 'start':
+      body = `<div class="card blue" style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+          <span class="avatar" style="background:var(--surface)">${esc(initials(p.name))}</span>
+          <div class="grow"><b style="font-weight:600">${esc(p.name)}</b><div class="small">${p.sex==='F'?'Feminino':'Masculino'} · <span data-live="age">${r.age??'—'}</span> anos na data</div></div>
+          <button class="tag" data-act="go" data-to="profile">Trocar</button></div>
+        <div class="fields two">
+          <label class="field"><div class="f-top"><span class="f-label">Data da avaliação</span></div>
+            <div class="f-input text"><input type="date" data-k="date" value="${esc(draft.date)}" max="${today()}"></div></label>
+          <label class="field"><div class="f-top"><span class="f-label">Avaliador(a)</span><span class="f-prev">opcional</span></div>
+            <div class="f-input text"><input data-k="extra.evaluator" value="${esc(draft.extra?.evaluator??'')}" placeholder="Nome do nutricionista"></div></label>
+        </div>
+        <h2 class="sec">Protocolo de dobras</h2>
+        <div class="proto-grid">${Object.entries(PROTOCOLS).map(([k,pr])=>`<button class="proto ${draft.protocol===k?'on':''}" data-act="proto" data-v="${k}">
+          <span class="radio"></span><span><b>${pr.name}</b><span>${pr.desc}<br>${pr.folds(p.sex).map(f=>FOLD_NAME[f]).join(', ')}</span></span></button>`).join('')}</div>`;
+      break;
+    case 'body':
+      body = `<div class="fields two">${field('weight','Peso','kg','Com roupas leves, sem calçados.')}${field('height','Altura','cm','Em pé, descalço, olhando para frente.')}</div>
+        <div class="card yellow" style="margin-top:12px">
+          <div class="card-head"><span class="chip-ico">${ic('target','sm')}</span><span class="label">Índice de Massa Corporal</span></div>
+          <div class="big"><span data-live="bmi">${fmt(r.bmi)}</span><small>kg/m²</small></div>
+          <div class="sub" data-live="bmiClass">${esc(bmiClass(r.bmi))}</div>
+          <div class="bmi-scale"><i data-live="bmiPos" style="left:${bmiPos(r.bmi)}%"></i></div>
+          <div class="bmi-legend"><span>15</span><span>18,5</span><span>25</span><span>30</span><span>35</span><span>40</span></div>
+        </div>`;
+      break;
+    case 'trunk':
+      body = `<div class="card green live"><div class="lv"><small>RCQ</small><b data-live="whr">${fmt(r.whr,2)}</b></div><div class="lv"><small>Cintura/altura</small><b data-live="whtr">${fmt(r.whtr,2)}</b></div><div class="lv"><small>% G (Marinha)</small><b><span data-live="navy">${fmt(r.navy)}</span><small>%</small></b></div></div>
+        <div class="fields two">${CIRC_TRUNK.map(c=>field('circ.'+c.k,c.l,'cm',c.h)).join('')}</div>`;
+      break;
+    case 'limbs':
+      body = `<div class="fields two">${CIRC_LIMBS.map(pairField).join('')}</div>`;
+      break;
+    case 'folds': {
+      const need = PROTOCOLS[draft.protocol].folds(p.sex);
+      body = `<div class="card yellow live">
+          <div class="lv"><small>Protocolo</small><b style="font-size:18px">${PROTOCOLS[draft.protocol].short} <span class="small" data-live="protoHave">${r.protoHave}/${r.protoNeed}</span></b></div>
+          <div class="lv"><small>Soma</small><b><span data-live="sumProto">${fmt(r.sumProto)}</span><small>mm</small></b></div>
+          <div class="lv"><small>% Gordura</small><b><span data-live="bfProto">${r.bfSource===PROTOCOLS[draft.protocol].short?fmt(r.bf):'—'}</span><small>%</small></b></div></div>
+        <button class="toggle" data-act="multi"><span><b style="font-weight:600">Medir 3 vezes cada dobra</b><br><span class="small muted">Usa a média das leituras — mais precisão</span></span><span class="switch ${draft.multi?'on':''}"></span></button>
+        <div class="fields two">${FOLDS.filter(f=>need.includes(f.k)).map(f=>foldField(f,true)).join('')}</div>
+        <h2 class="sec">Outras dobras <span class="tag">opcional</span></h2>
+        <div class="fields two">${FOLDS.filter(f=>!need.includes(f.k)).map(f=>foldField(f,false)).join('')}</div>`;
+      break; }
+    case 'extra':
+      body = `<div class="fields two">
+          ${field('extra.bf','% Gordura (bio)','%','Valor da balança de bioimpedância.')}
+          ${field('extra.muscle','Massa muscular','kg','Massa muscular esquelética.')}
+          ${field('extra.visceral','Gordura visceral','nível','Nível indicado pelo aparelho.')}
+          ${field('extra.water','Água corporal','%','Percentual de água total.')}
+        </div>
+        <label class="field" style="margin-top:10px"><div class="f-top"><span class="f-label">Observações</span></div>
+          <span class="f-hint">Objetivos, rotina, alimentação, sensações, orientações do nutricionista…</span>
+          <div class="f-input"><textarea data-k="extra.notes" placeholder="Escreva aqui…">${esc(draft.extra?.notes??'')}</textarea></div></label>`;
+      break;
+    case 'review': {
+      const pv = wizPrev(), rp = pv ? calc(pv,p) : null;
+      body = `<div class="dash">
+          <div class="card blue span2 hero" style="min-height:170px"><div class="left">
+            <div class="card-head"><span class="chip-ico">${ic('flame')}</span><span class="label">Gordura corporal<br><span class="small">${esc(r.bfSource||'sem dados suficientes')}</span></span></div>
+            <div><div class="big">${fmt(r.bf)}<small>%</small></div><div class="sub">${esc(bfClass(r.bf,p.sex))} ${rp?deltaChip(r.bf,rp.bf,-1,'pp'):''}</div></div></div>
+            <div class="ring-wrap">${ring(r.bf,40)}<div class="center"><div class="inner"><b>${fmt(num(draft.weight))}</b><span>kg</span></div></div></div></div>
+          <div class="card green"><div class="card-head"><span class="label">Massa magra</span></div><div class="mid">${fmt(r.leanMass)}<small>kg</small></div><div class="sub">${rp?deltaChip(r.leanMass,rp.leanMass,1,'kg'):''}</div></div>
+          <div class="card yellow"><div class="card-head"><span class="label">Massa gorda</span></div><div class="mid">${fmt(r.fatMass)}<small>kg</small></div><div class="sub">${rp?deltaChip(r.fatMass,rp.fatMass,-1,'kg'):''}</div></div>
+          <div class="card"><div class="card-head"><span class="label">IMC</span></div><div class="mid">${fmt(r.bmi)}</div><div class="sub small">${esc(bmiClass(r.bmi))}</div></div>
+          <div class="card"><div class="card-head"><span class="label">RCQ</span></div><div class="mid">${fmt(r.whr,2)}</div><div class="sub small">${esc(whrRisk(r.whr,p.sex))}</div></div>
+        </div>
+        <h2 class="sec">O que foi preenchido</h2>
+        <div class="check-list">${STEPS.slice(1,6).map((st,i)=>{ const [f,t] = stepFilled(st.k); const ok = st.k==='extra' ? f>0 : f===t; return `<div class="check-row"><span class="ok ${ok?'yes':''}">${ok?ic('check','sm'):ic(st.i,'sm')}</span><span class="grow"><b>${st.l}</b><span class="small muted">${f} de ${t} ${st.k==='folds'?'dobras do protocolo':'campos'}</span></span><button data-act="step" data-i="${i+1}">Editar</button></div>`; }).join('')}</div>
+        ${!num(draft.weight)?`<p class="small" style="color:var(--red-ink);margin-top:12px">Informe pelo menos o peso para salvar.</p>`:''}`;
+      break; }
+  }
+  const pct = (state.step)/(STEPS.length-1)*100;
+  return `<div class="wiz">
+    <header class="top"><button class="icon-btn" data-act="wizExit" aria-label="Sair">${ic('x')}</button>
+      <div class="title-block"><small>Passo ${state.step+1} de ${STEPS.length}${state.editingId?' · editando':''}</small><b>${state.editingId?'Editar avaliação':'Nova avaliação'}</b></div>
+      <div class="grow"></div><span class="tag yellow">${fmtDate(draft.date,{day:'2-digit',month:'short'})}</span></header>
+    <div class="steps">${STEPS.map((st,i)=>{ const [f,t] = stepFilled(st.k); const done = f>0 && (i<state.step || f===t) && i!==state.step; return `<button class="step-chip ${i===state.step?'on':''} ${done?'done':''}" data-act="step" data-i="${i}"><span class="n">${done&&i!==state.step?ic('check','sm'):i+1}</span>${st.l}</button>`; }).join('')}</div>
+    <div class="progress"><span style="width:${pct}%"></span></div>
+    <section class="view" key="${state.step}">${intro}${body}</section>
+  </div>
+  <div class="wiz-bar"><div class="in">
+    ${state.step>0?`<button class="btn ghost" data-act="prevStep">${ic('back')} <span>Voltar</span></button>`:''}
+    ${state.step<STEPS.length-1
+      ? `<button class="btn primary" data-act="nextStep">Próximo · ${STEPS[state.step+1].l} <span class="arrows" style="letter-spacing:0">›››</span></button>`
+      : `<button class="btn dark" data-act="saveA" ${num(draft.weight)?'':'disabled'}>${ic('check')} Salvar avaliação</button>`}
+  </div></div>`;
+}
+function bmiPos(b){ if (b==null) return 0; return Math.max(0, Math.min(100, (b-15)/(40-15)*100)); }
+
+function updateLive(){
+  const p = prof(), r = calc(draft, p);
+  const set = (k, v) => document.querySelectorAll(`[data-live="${k}"]`).forEach(el => el.textContent = v);
+  set('age', r.age ?? '—');
+  set('bmi', fmt(r.bmi)); set('bmiClass', bmiClass(r.bmi));
+  const bp = document.querySelector('[data-live="bmiPos"]'); if (bp) bp.style.left = bmiPos(r.bmi)+'%';
+  set('whr', fmt(r.whr,2)); set('whtr', fmt(r.whtr,2)); set('navy', fmt(r.navy));
+  set('protoHave', `${r.protoHave}/${r.protoNeed}`); set('sumProto', fmt(r.sumProto));
+  set('bfProto', r.bfSource===PROTOCOLS[draft.protocol].short ? fmt(r.bf) : '—');
+  FOLDS.forEach(f => set('avg-'+f.k, fmt(foldVal(draft,f.k))+' mm'));
+  // chips de passo
+  document.querySelectorAll('.step-chip').forEach((el,i)=>{
+    if (i===state.step) return;
+    const [f,t] = stepFilled(STEPS[i].k); const done = f>0 && (i<state.step || f===t);
+    el.classList.toggle('done', !!done);
+    el.querySelector('.n').innerHTML = done ? ic('check','sm') : i+1;
+  });
+}
+
+/* =========================================================
+   RENDER / ROUTER
+   ========================================================= */
+const app = options.app;
+function render(){
+  if (!db.profiles.length && state.route!=='onboard') state.route = 'onboard';
+  if (db.profiles.length && !db.profiles.find(p=>p.id===db.activeId)) { db.activeId = db.profiles[0].id; }
+  if (state.route==='wizard' && !draft) state.route = 'home';
+  let html = '';
+  switch(state.route){
+    case 'onboard': html = viewOnboard(state.param ? db.profiles.find(p=>p.id===state.param) : null); break;
+    case 'list': html = viewList(); break;
+    case 'detail': html = viewDetail(state.param); break;
+    case 'compare': html = viewCompare(); break;
+    case 'profile': html = viewProfile(); break;
+    case 'wizard': html = viewWizard(); break;
+    default: html = viewHome();
+  }
+  const showNav = !['wizard','onboard'].includes(state.route);
+  let navHtml='';
+  if(showNav){ const tabs=[['home','home','Início'],['list','cal','Avaliações'],['compare','chart','Evolução'],['profile','user','Perfil']]; const cur=state.route==='detail'?'list':state.route;
+  navHtml=`<nav class="nav">${tabs.map(([r,i,l])=>`<button class="${cur===r?'on':''}" data-act="go" data-to="${r}" aria-label="${l}">${ic(i)}<span>${l}</span></button>`).join('')}</nav>`; }
+  options.render(`<div class="view">${html}</div>${navHtml}`);
+
+}
+function routePath(route,param){const paths={home:'/',list:'/avaliacoes',detail:'/avaliacoes/'+param,compare:'/evolucao',profile:'/perfil',wizard:state.editingId?'/avaliacoes/'+state.editingId+'/editar':'/nova',onboard:param?'/pessoa/'+param+'/editar':'/pessoa/nova'};return paths[route]||'/';}
+function go(route,param=null,push=true){state.route=route;state.param=param;try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} if(push) options.navigate(routePath(route,param)); render();window.scrollTo({top:0});}
+function syncPath(path){
+ let route='home',param=null;
+ if(path==='/avaliacoes') route='list'; else if(path==='/evolucao')route='compare';else if(path==='/perfil')route='profile';else if(path==='/nova')route='wizard';else if(path.startsWith('/pessoa/')){route='onboard';param=path.endsWith('/editar')?path.split('/')[2]:null;}else if(path.startsWith('/avaliacoes/')){param=path.split('/')[2];route=path.endsWith('/editar')?'wizard':'detail';}
+ if(route==='wizard' && !draft){if(param&&findA(param)){draft=clone(findA(param));state.editingId=param;db.activeId=draft.profileId;}else if(prof()){draft=newDraft();state.editingId=null;} }
+ state.route=route;state.param=param;if(route==='wizard'&&draft){state.step=draft._step||0;state.editingId=draft._editing||state.editingId||null;}render();
+}
+/* ---------- sheet & toast ---------- */
+function sheet(title,text,buttons){options.sheet({title,text,buttons});}
+function toast(msg){ options.toast(msg); }
+function download(name, content, type){
+  const blob = new Blob([content], {type}); const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+/* ---------- ações ---------- */
+const ACT = {
+ logout: async () => {await options.logout();},
+  go: async b => { if (b.dataset.to==='compare' && !b.dataset.keep) {} go(b.dataset.to, b.dataset.id||null); },
+  back: async () => go('home'),
+  new: async () => {
+    if (!draft){ draft = newDraft(); state.step = 0; state.editingId = null; }
+    else { state.step = draft._step||0; state.editingId = draft._editing||null; }
+    saveDraft(); go('wizard');
+  },
+  resume: async () => ACT.new(),
+  edit: async b => {
+    const a = findA(b.dataset.id); if (!a) return;
+    const start = async () => { draft = clone(a); draft.circ ||= {}; draft.folds ||= {}; draft.extra ||= {}; state.editingId = a.id; state.step = 1; db.activeId = a.profileId; saveDraft(); go('wizard'); };
+    if (draft && draft._editing!==a.id) sheet('Substituir rascunho?', 'Há uma avaliação em andamento. Editar esta vai descartar o rascunho atual.', [{label:'Descartar e editar',cls:'dark',fn:start},{label:'Cancelar'}]);
+    else start();
+  },
+  step: async b => { state.step = +b.dataset.i; saveDraft(); render(); window.scrollTo({top:0}); },
+  nextStep: async () => { state.step = Math.min(STEPS.length-1, state.step+1); saveDraft(); render(); window.scrollTo({top:0}); },
+  prevStep: async () => { state.step = Math.max(0, state.step-1); saveDraft(); render(); window.scrollTo({top:0}); },
+  proto: async b => { draft.protocol = b.dataset.v; saveDraft(); render(); },
+  multi: async () => { draft.multi = !draft.multi; saveDraft(); render(); },
+  wizExit: async () => sheet('Sair da avaliação?', 'O que você já preencheu fica salvo como rascunho para continuar depois.', [
+    {label:'Sair e manter rascunho', cls:'dark', fn:async ()=>{ saveDraft(); go('home'); }},
+    {label:'Descartar alterações', cls:'danger', fn:async ()=>{ draft=null; state.editingId=null; saveDraft(); go('home'); toast('Rascunho descartado'); }},
+    {label:'Continuar preenchendo'}]),
+  saveA: async () => {
+    if (!num(draft.weight) || num(draft.weight)<=0){ toast('Informe o peso'); return; }
+    if(draft.date>today()) return toast("A data não pode ser futura");
+    const {_step, _editing, _savedAt, ...data} = draft;
+    if (state.editingId){
+      const i = db.assessments.findIndex(a=>a.id===state.editingId);
+      data.id = state.editingId; data.updatedAt = Date.now();
+      if (i>=0) db.assessments[i] = data; else db.assessments.push(data);
+    } else {
+      data.id = uid(); data.createdAt = Date.now(); db.assessments.push(data);
+    }
+    const p = prof(); if (num(data.height) && !p.height){ p.height = data.height; }
+    await save(); const id = data.id; draft = null; state.editingId = null; saveDraft(); clearTimeout(draftTimer); await draftPending; await options.saveDraft(null);
+     go('detail', id); toast('Avaliação salva ✓');
+  },
+  del: async b => sheet('Excluir avaliação?', 'Esta ação não pode ser desfeita.', [
+    {label:'Excluir', cls:'danger', fn:async ()=>{ db.assessments = db.assessments.filter(a=>a.id!==b.dataset.id); await save(); go('list'); toast('Avaliação excluída'); }},
+    {label:'Cancelar'}]),
+  print: async () => window.print(),
+  evo: async b => { state.evo = b.dataset.m; state.cmpTab = 'evo'; if (state.route!=='compare') go('compare'); else render(); },
+  cmpTab: async b => { state.cmpTab = b.dataset.v; render(); },
+  cmpWith: async b => { state.cmpA = b.dataset.a; state.cmpB = b.dataset.b; state.cmpTab = 'ab'; go('compare'); },
+  swapAB: async () => { [state.cmpA, state.cmpB] = [state.cmpB, state.cmpA]; render(); },
+  onlyFilled: async () => { state.onlyFilled = !state.onlyFilled; render(); },
+  pfsex: async b => { document.querySelectorAll('#pf-sex button').forEach(x=>x.classList.toggle('on', x===b)); },
+  saveProfile: async b => {
+    const name = document.getElementById('pf-name').value.trim();
+    const sex = document.querySelector('#pf-sex .on')?.dataset.v;
+    const birth = document.getElementById('pf-birth').value;
+    const height = document.getElementById('pf-height').value.trim();
+    if (!name) return toast('Informe o nome');
+    if (!sex) return toast('Selecione o sexo');
+    if (!birth || birth>today()) return toast('Informe a data de nascimento');
+    if (b.dataset.id){ Object.assign(db.profiles.find(p=>p.id===b.dataset.id), {name,sex,birth,height}); }
+    else { const p = {id:uid(), name, sex, birth, height, createdAt:Date.now()}; db.profiles.push(p); db.activeId = p.id; }
+    await save();  go(b.dataset.id ? 'profile' : 'home'); toast('Perfil salvo');
+  },
+  editProfile: async () => go('onboard', prof().id),
+  newProfile: async () => go('onboard'),
+  switchProfile: async b => { db.activeId = b.dataset.id; await save(); state.cmpA = state.cmpB = null; go('home'); toast('Perfil: '+prof().name); },
+  delProfile: async () => { const p = prof(); sheet(`Excluir ${esc(p.name)}?`, `Isso remove a pessoa e ${listOf(p.id).length} avaliação(ões). Não pode ser desfeito — exporte um backup antes se quiser.`, [
+    {label:'Excluir definitivamente', cls:'danger', fn:async ()=>{ db.assessments = db.assessments.filter(a=>a.profileId!==p.id); db.profiles = db.profiles.filter(x=>x.id!==p.id); db.activeId = db.profiles[0]?.id||null; if (draft?.profileId===p.id){ draft=null; saveDraft(); } await save(); go(db.profiles.length?'home':'onboard'); }},
+    {label:'Cancelar'}]); },
+  export: async () => { download(`avaliacao-fisica-backup-${today()}.json`, JSON.stringify({app:'avaliacao-fisica', version:1, exportedAt:new Date().toISOString(), ...db}, null, 2), 'application/json'); toast('Backup exportado'); },
+  import: async () => document.getElementById('importFile').click(),
+  csv: async () => {
+    const p = prof(), list = listOf(p.id);
+    if (!list.length) return toast('Nenhuma avaliação para exportar');
+    const cols = [{l:'Data',get:a=>a.date},{l:'Protocolo',get:a=>PROTOCOLS[a.protocol||'jp7'].short},{l:'Altura (cm)',get:a=>num(a.height)}, ...METRICS.map(m=>({l:m.l+(m.u?` (${m.u})`:''), get:(a,r)=>m.get(a,r), d:m.d??2}))];
+    const cell = v => v==null ? '' : typeof v==='number' ? v.toFixed(2).replace('.',',') : `"${String(v).replace(/"/g,'""')}"`;
+    const rows = [cols.map(c=>cell(c.l)).join(';'), ...list.map(a=>{ const r = calc(a,p); return cols.map(c=>cell(c.get(a,r))).join(';'); })];
+    download(`avaliacoes-${firstName(p.name).toLowerCase()}-${today()}.csv`, '﻿'+rows.join('\n'), 'text/csv;charset=utf-8'); toast('Planilha exportada');
+  },
+};
+const click = async e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const fn = ACT[b.dataset.act]; if (fn){ e.preventDefault(); try { await fn(b,e); } catch { toast('Não foi possível salvar. Tente novamente.'); } }
+};
+const input = e => {
+  const k = e.target.dataset?.k;
+  if (k && draft && state.route==='wizard'){ setPath(draft, k, e.target.value); saveDraft(); updateLive(); }
+};
+const change = e => {
+  const c = e.target.dataset?.ch;
+  if (c==='cmpA' || c==='cmpB'){ state[c] = e.target.value; render(); }
+  if (e.target.dataset?.k==='date' && state.route==='wizard') render();
+};
+// Enter avança para o próximo campo
+const keydown = e => {
+  if (e.key!=='Enter' || !e.target.matches('input[data-k]')) return;
+  e.preventDefault();
+  const ins = [...document.querySelectorAll('input[data-k]')]; const i = ins.indexOf(e.target);
+  if (ins[i+1]) ins[i+1].focus(); else { e.target.blur(); ACT.nextStep(); }
+};
+
+const importChange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const data=JSON.parse(await f.text());const preview=options.previewImport(data);sheet('Importar backup',`${preview.profiles.length} pessoas e ${preview.assessments.length} avaliações.`,[{label:'Importar sem duplicar',cls:'dark',fn:async()=>{try{db=await options.importBackup(preview);go('home');toast('Backup importado');}catch{toast('Não foi possível importar o backup');}}},{label:'Cancelar'}]);}catch{toast('Arquivo de backup inválido');}e.target.value='';};
+const file=document.getElementById('importFile');
+file?.addEventListener('change',importChange);
+app.addEventListener('click',click); app.addEventListener('input',input);app.addEventListener('change',change);app.addEventListener('keydown',keydown);
+syncPath(options.path);
+return {syncPath,destroy(){clearTimeout(draftTimer); draftPending.catch(()=>{}).then(()=>options.saveDraft(draft)).catch(()=>{});file?.removeEventListener('change',importChange);app.removeEventListener('click',click);app.removeEventListener('input',input);app.removeEventListener('change',change);app.removeEventListener('keydown',keydown);}};
+
+}
