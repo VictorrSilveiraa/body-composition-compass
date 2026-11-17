@@ -1,6 +1,6 @@
 import { createElement, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useRouterState } from '@tanstack/react-router';
+import { useNavigate, useRouter, useRouterState, type AnyRoute } from '@tanstack/react-router';
 import parse, { domToReact, Element, attributesToProps, type HTMLReactParserOptions, type DOMNode } from 'html-react-parser';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -66,6 +66,9 @@ export function AssessmentApp() {
   const [error, setError] = useState('');
   const navigate = useNavigate(), queryClient = useQueryClient();
   const path = useRouterState({ select: (s) => s.location.pathname });
+  // enquanto a próxima página carrega, esta tela não deve desenhar a página nova (senão anima duas vezes)
+  const pending = useRouterState({ select: (s) => s.status === 'pending' });
+  const router = useRouter();
   const pathRef = useRef(path); pathRef.current = path;
 
   // liga este componente ao app (antes da pintura, para nunca mostrar a tela anterior)
@@ -105,7 +108,17 @@ export function AssessmentApp() {
     return () => { cancelled = true; };
   }, [queryClient]);
 
-  useEffect(() => { live?.runtime.syncPath(path); }, [path]);
+  useEffect(() => { if (!pending) live?.runtime.syncPath(path); }, [path, pending]);
+
+  // baixa antes o código de todas as páginas: a primeira visita a cada tela já abre na hora
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      for (const route of Object.values(router.routesById) as AnyRoute[]) {
+        try { void router.loadRouteChunk(route)?.catch(() => {}); } catch { /* ignora */ }
+      }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [router]);
 
   // tela nova: volta ao topo e prepara as animações de entrada
   useIsoLayoutEffect(() => {
