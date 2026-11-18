@@ -7,6 +7,7 @@ import { AppTour, type TourSpec } from '@/components/app-tour';
 import { PoseCamera, type CameraSpec } from '@/components/pose-camera';
 import { PhotoViewer, type ViewerSpec } from '@/components/photo-viewer';
 import { composeComparison, loadPhotos, photoStore } from '@/lib/photos';
+import { getAccess, issueCode, updateAccess } from '@/lib/portal-access';
 import { supabase } from '@/integrations/supabase/client';
 import { cloudRepository, loadCloud, saveNutri, type Nutri } from '@/lib/cloud-data';
 import { motivo } from '@/lib/motivo';
@@ -127,6 +128,7 @@ export function AssessmentApp() {
           navigate: (to: string) => bridge.navigate(to),
           tour: (t: TourSpec) => bridge.tour(t),
           photos: photoStore(user.id, pics.cloud, pics.metas), composeComparison,
+          portalAccess: { get: getAccess, issue: issueCode, update: updateAccess },
           camera: (c: CameraSpec) => bridge.camera(c),
           viewer: (v: ViewerSpec) => bridge.viewer(v),
           logout: async () => { dropLive(); await queryClient.cancelQueries(); queryClient.clear(); await supabase.auth.signOut(); await navigate({ to: '/login', replace: true }); },

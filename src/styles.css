@@ -1536,3 +1536,136 @@ button.kpi:active{scale:.97}
 .pv-zoomtag{position:absolute;top:10px;left:50%;translate:-50% 0;padding:6px 12px;border-radius:99px;background:rgba(0,0,0,.6);color:#fff;font-size:12.5px;font-weight:600;pointer-events:none}
 .pv-stage{display:flex;align-items:center;justify-content:center}
 .pv-stage img{max-height:100%;max-width:100%;min-height:0}
+
+
+/* =========================================================
+   ACESSO DO PACIENTE (ficha) E PORTAL DO PACIENTE
+   ========================================================= */
+/* login: atalho "Sou paciente" */
+.auth-patient{display:flex;align-items:center;gap:12px;margin-top:22px;padding:12px 16px 12px 12px;border-radius:var(--r-lg);background:var(--blue);color:var(--ink);text-decoration:none;transition:filter .2s}
+.auth-patient:hover{filter:brightness(.97)}
+.auth-patient .chip-ico{width:40px;height:40px;border-radius:50%;background:var(--surface);display:grid;place-items:center;flex:none}
+.auth-patient .grow b{display:block;font-weight:600}
+.auth-patient .grow span{font-size:13px;color:var(--ink-2)}
+
+/* ficha: cartão de acesso */
+.pa-card{background:var(--card);border-radius:var(--r-lg);padding:16px}
+.pa-card.muted p{color:var(--muted)}
+.pa-empty{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.pa-empty b{font-size:16px;font-weight:600}
+.pa-empty p{color:var(--ink-2);font-size:14px;margin-bottom:8px}
+.pa-ico{width:42px;height:42px;border-radius:50%;background:var(--blue);display:grid;place-items:center;margin-bottom:4px}
+.pa-code{display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 10px;padding:14px 16px;border-radius:20px;background:var(--surface)}
+.pa-code small{grid-column:1;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.pa-code b{grid-column:1;font-size:28px;font-weight:600;letter-spacing:.08em;font-variant-numeric:tabular-nums}
+.pa-code .tag{grid-column:2;grid-row:1 / span 2}
+.pa-card.paused .pa-code b{color:var(--muted);text-decoration:line-through;text-decoration-thickness:2px}
+.pa-seen{display:flex;align-items:center;gap:6px;margin:10px 4px 12px;font-size:13px;color:var(--muted)}
+.pa-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
+.pa-b{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 6px;border-radius:18px;background:var(--surface);font-size:12.5px;font-weight:600;text-align:center;transition:background .2s}
+.pa-b:hover{background:var(--line)}
+.pa-b:first-child{background:var(--ink);color:var(--surface)}
+.pa-h{font-size:14px;font-weight:600;margin:16px 4px 8px}
+.pa-t{background:var(--surface)}
+.pa-t:disabled{opacity:.6}
+.pa-foot{display:flex;justify-content:space-between;gap:10px;margin-top:6px;padding:0 4px}
+.pa-foot button{font-size:13.5px;font-weight:600;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+.pa-foot button:hover{color:var(--ink)}
+.pa-foot button:last-child{color:var(--red-ink)}
+
+/* portal: entrada */
+.pp-code-in input{font-size:22px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+.pp-code-in input::placeholder{letter-spacing:.12em;font-weight:500}
+.pp-safe{display:flex;align-items:center;gap:8px;margin:18px 4px 0;font-size:13px;color:var(--muted)}
+.pp-entry .auth-links{justify-content:center}
+.pp-entry .auth-links a{font-size:14px;font-weight:600;color:var(--ink-2)}
+.pp-loading{min-height:70dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--muted)}
+.pp-spin{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--ink);animation:camSpin .8s linear infinite}
+
+/* portal: painel */
+.pp .pp-top{margin-bottom:16px}
+.pp .pp-top .avatar{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;font-weight:600;flex:none}
+.pp-hero{padding:22px 22px 24px;margin-bottom:6px}
+.pp-hero h1{font-size:24px;font-weight:600;line-height:1.2;margin-top:12px;max-width:30ch}
+.pp-hero .tag{gap:6px}
+.pp-sec{margin-top:4px}
+.pp-nums .card .sub{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px}
+.pp-bf .big{margin-top:6px}
+.pp-note{margin:10px 4px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pp-note .delta{padding:2px 4px;background:var(--card)}
+.pp-evo{padding:14px 14px 16px}
+.pp-chart{display:block;width:100%;height:auto}
+.pp-photos{max-width:none}
+.pp-hist{display:grid;gap:8px}
+.pp-ai{background:var(--card);border-radius:var(--r-lg);overflow:hidden}
+.pp-ai-h{display:flex;align-items:center;gap:12px;width:100%;padding:10px 16px 10px 10px;text-align:left}
+.pp-ai-h .grow{min-width:0}
+.pp-ai-h .grow b{display:block;font-weight:600;text-transform:capitalize}
+.pp-ai-h .stats{display:flex;gap:14px;margin-top:4px;flex-wrap:wrap}
+.pp-ai-h .stats span{font-size:14px;color:var(--ink-2)}
+.pp-ai-h .stats em{font-style:normal;font-weight:600;color:var(--ink)}
+.pp-chev{flex:none;transition:rotate .3s var(--ease);color:var(--muted)}
+.pp-ai.open .pp-chev{rotate:180deg}
+.pp-ai-b{padding:0 12px 14px}
+.pp-ai-b .kv{background:var(--surface);border-radius:var(--r-md)}
+.pp-meta{margin:8px 6px 0}
+.pp-notes{margin-top:10px;background:var(--surface)}
+.pp-notes b{display:block;font-size:13px;margin-bottom:4px}
+.pp-nutri{display:flex;align-items:center;gap:12px;padding:16px}
+.pp-nutri .avatar{width:48px;height:48px;border-radius:50%;background:var(--peach);display:grid;place-items:center;font-weight:600;flex:none}
+.pp-nutri small{display:block;font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.pp-nutri b{display:block;font-size:17px;font-weight:600}
+.pp-nutri .grow span{font-size:13.5px;color:var(--ink-2)}
+.pp-contact{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.pp-contact .pc{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;border-radius:99px;background:var(--card);font-size:13.5px;font-weight:600;color:var(--ink);text-decoration:none}
+.pp-contact .pc.wa{background:var(--green-2)}
+.pp-next{display:flex;align-items:center;gap:14px;padding:16px;margin-top:10px;background:var(--yellow)}
+.pp-next.soon{background:var(--blue)}
+.pp-next.late{background:var(--peach)}
+.pp-next svg{flex:none}
+.pp-next small{display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2)}
+.pp-next b{display:block;font-size:17px;font-weight:600}
+.pp-next span{font-size:13.5px;color:var(--ink-2)}
+.pp-learn{display:grid;gap:8px}
+.pp-learn details{background:var(--card);border-radius:var(--r-md);padding:0 16px}
+.pp-learn summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:52px;font-weight:600;cursor:pointer;list-style:none}
+.pp-learn summary::-webkit-details-marker{display:none}
+.pp-learn summary svg{transition:rotate .3s var(--ease);color:var(--muted);flex:none}
+.pp-learn details[open] summary svg{rotate:180deg}
+.pp-learn details p{color:var(--ink-2);font-size:14.5px;line-height:1.45;margin-bottom:12px}
+.pp-learn details p.small{font-size:12.5px}
+.pp-ranges{display:grid;gap:4px;margin-bottom:12px}
+.pp-range{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;border-radius:12px;background:var(--surface);font-size:13.5px}
+.pp-range b{font-weight:600}
+.pp-range.on{background:var(--ink);color:var(--surface)}
+.pp-range em{margin-left:8px;font-style:normal;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:99px;background:var(--yellow-2);color:var(--ink)}
+.pp-foot{margin-top:34px;padding-top:20px;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.pp-foot p{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;font-size:13.5px;color:var(--ink-2)}
+.pp-foot .btn{margin-top:6px}
+/* celular: uma coluna (cartão do nutricionista logo depois do resumo) */
+.pp-grid{display:flex;flex-direction:column}
+.pp-main,.pp-side{display:contents}
+.pp-side-card{order:-1;margin-top:16px}
+@media (min-width:1024px){
+  .app.pp{max-width:1180px;margin:0 auto}
+  .pp-hero{padding:30px 32px}
+  .pp-hero h1{font-size:30px}
+  .pp-grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:32px;align-items:start}
+  .pp-main,.pp-side{display:block}
+  .pp-side{position:sticky;top:24px}
+  .pp-side-card{margin-top:26px}
+  .pp-nums{grid-template-columns:repeat(4,1fr)}
+  .pp-nums .pp-bf{grid-column:span 2;grid-row:span 2}
+}
+.pp-evo .stat b{white-space:nowrap}
+@media (min-width:1024px){ .pp-chart{max-height:300px} }
+.pp-ai-h .grow b{text-transform:none}
+.pp-ai-h .grow b::first-letter{text-transform:uppercase}
+@media (min-width:1024px){ .pp-photos.phc-side{max-width:560px;margin:0} }
+@media (min-width:1024px){
+  /* login: uma linha a mais na grade para o atalho "Sou paciente" e para o aviso da entrada do paciente */
+  .auth-wrap{grid-template-rows:1fr repeat(5,auto) 1fr}
+  .auth-wrap>.auth-patient{grid-row:6}
+  .pp-entry>.pp-safe{grid-row:5}
+  .pp-entry>.auth-links{grid-row:6}
+}

@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as PacienteRouteImport } from './routes/paciente'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedAvaliacoesRouteImport } from './routes/_authenticated/avaliacoes'
 import { Route as AuthenticatedEvolucaoRouteImport } from './routes/_authenticated/evolucao'
@@ -43,6 +44,11 @@ const AuthRoute = AuthRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PacienteRoute = PacienteRouteImport.update({
+  id: '/paciente',
+  path: '/paciente',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/login': typeof LoginRoute
+  '/paciente': typeof PacienteRoute
   '/reset-password': typeof ResetPasswordRoute
   '/avaliacoes': typeof AuthenticatedAvaliacoesRouteWithChildren
   '/evolucao': typeof AuthenticatedEvolucaoRoute
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/login': typeof LoginRoute
+  '/paciente': typeof PacienteRoute
   '/reset-password': typeof ResetPasswordRoute
   '/avaliacoes': typeof AuthenticatedAvaliacoesRouteWithChildren
   '/evolucao': typeof AuthenticatedEvolucaoRoute
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/login': typeof LoginRoute
+  '/paciente': typeof PacienteRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/avaliacoes': typeof AuthenticatedAvaliacoesRouteWithChildren
   '/_authenticated/evolucao': typeof AuthenticatedEvolucaoRoute
@@ -170,6 +179,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/login'
+    | '/paciente'
     | '/reset-password'
     | '/avaliacoes'
     | '/evolucao'
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/login'
+    | '/paciente'
     | '/reset-password'
     | '/avaliacoes'
     | '/evolucao'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/login'
+    | '/paciente'
     | '/reset-password'
     | '/_authenticated/avaliacoes'
     | '/_authenticated/evolucao'
@@ -224,6 +236,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   LoginRoute: typeof LoginRoute
+  PacienteRoute: typeof PacienteRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
@@ -255,6 +268,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/paciente': {
+      id: '/paciente'
+      path: '/paciente'
+      fullPath: '/paciente'
+      preLoaderRoute: typeof PacienteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -425,6 +445,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   LoginRoute: LoginRoute,
+  PacienteRoute: PacienteRoute,
   ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport

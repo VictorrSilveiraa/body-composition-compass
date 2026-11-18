@@ -865,6 +865,56 @@ function viewPatients(){
     : `<div class="card empty"><div class="e-ico">${ic(q?'search':'users')}</div><h3>${emptyMsg[0]}</h3><p>${emptyMsg[1]}</p></div>`}`;
 }
 
+/* ---------- ACESSO DO PACIENTE (portal somente leitura) ---------- */
+const PA = {}; // por paciente: {loaded, available, access}
+const fmtAccessCode = c => c.length > 4 ? c.slice(0,4)+'-'+c.slice(4) : c;
+const portalLink = c => `${location.origin}/paciente#${c}`;
+function paLoad(pid){
+  if (!options.portalAccess || PA[pid]) return;
+  PA[pid] = {loaded:false};
+  options.portalAccess.get(pid).then(r=>{ PA[pid] = {loaded:true, ...r}; render(); }).catch(()=>{ PA[pid] = {loaded:true, available:false, access:null}; render(); });
+}
+function paSection(p){
+  if (!options.portalAccess) return '';
+  paLoad(p.id);
+  const s = PA[p.id], fn = esc(firstName(p.name));
+  let body;
+  if (!s?.loaded) body = `<div class="pa-card"><span class="ph-load" style="position:static;display:block;height:96px;border-radius:18px"></span></div>`;
+  else if (!s.available) body = `<div class="pa-card muted"><p class="small">O portal do paciente está sendo ativado. Assim que estiver pronto, você cria aqui o código de acesso de ${fn}.</p></div>`;
+  else if (!s.access) body = `<div class="pa-card pa-empty">
+      <span class="pa-ico">${ic('lock')}</span>
+      <b>Compartilhe a evolução com ${fn}</b>
+      <p>Com um código, ${fn} vê avaliações, medidas, gráficos e fotos — só para visualizar, sem poder alterar nada.</p>
+      <button class="btn dark sm" data-act="paCreate" data-id="${p.id}">${ic('plus','sm')} Criar código de acesso</button></div>`;
+  else {
+    const a = s.access;
+    const seen = a.lastAccess ? `Último acesso ${ago(a.lastAccess.slice(0,10))}` : 'Ainda não acessou';
+    body = `<div class="pa-card ${a.active?'':'paused'}">
+      <div class="pa-code"><small>Código de acesso</small><b>${fmtAccessCode(a.code)}</b>
+        <span class="tag ${a.active?'green':''}">${a.active ? ic('check','sm')+'Ativo' : 'Pausado'}</span></div>
+      <p class="pa-seen">${ic('clock','sm')}${seen}</p>
+      <div class="pa-btns">
+        <button class="pa-b" data-act="paSend" data-id="${p.id}">${ic('chat','sm')}<span>${p.phone ? 'WhatsApp' : 'Enviar'}</span></button>
+        <button class="pa-b" data-act="paCopy" data-id="${p.id}" data-what="code">${ic('clip','sm')}<span>Copiar código</span></button>
+        <button class="pa-b" data-act="paCopy" data-id="${p.id}" data-what="link">${ic('swap','sm')}<span>Copiar link</span></button>
+      </div>
+      <h3 class="pa-h">O que ${fn} pode ver</h3>
+      <button class="toggle pa-t on" disabled><span><b>Avaliações, medidas e gráficos</b><br><span class="small muted">Sempre visível</span></span><span class="switch on"></span></button>
+      <button class="toggle pa-t" data-act="paTog" data-id="${p.id}" data-k="photos"><span><b>Fotos</b><br><span class="small muted">Antes e depois de cada pose</span></span><span class="switch ${a.photos?'on':''}"></span></button>
+      <button class="toggle pa-t" data-act="paTog" data-id="${p.id}" data-k="notes"><span><b>Observações das avaliações</b><br><span class="small muted">As notas da ficha continuam só suas</span></span><span class="switch ${a.notes?'on':''}"></span></button>
+      <div class="pa-foot">
+        <button data-act="paTog" data-id="${p.id}" data-k="active">${a.active ? 'Pausar acesso' : 'Reativar acesso'}</button>
+        <button data-act="paNew" data-id="${p.id}">Gerar novo código</button>
+      </div>
+    </div>`;
+  }
+  return `<h2 class="sec">Acesso do paciente</h2>${body}`;
+}
+async function paCopyText(text, ok){
+  try { await navigator.clipboard.writeText(text); toast(ok); }
+  catch { sheet('Copie o texto abaixo', text, [{label:'Fechar'}]); }
+}
+
 /* ---------- FICHA DO PACIENTE ---------- */
 function viewPatient(id){
   const p = db.profiles.find(x=>x.id===id); if (!p) return viewPatients();
@@ -913,6 +963,7 @@ function viewPatient(id){
     </div>
     <h2 class="sec">Observações <button data-act="go" data-to="onboard" data-id="${p.id}">editar</button></h2>
     <div class="notes ${p.notes?'':'muted'}">${p.notes?esc(p.notes):'Sem observações. Registre histórico clínico, restrições e combinados.'}</div>
+    ${paSection(p)}
     <h2 class="sec">Gerenciar</h2>
     <div class="actions">
       <button class="act-row" data-act="go" data-to="onboard" data-id="${p.id}"><span class="chip-ico">${ic('edit','sm')}</span><span class="grow"><b>Editar dados</b><span>Nome, medidas, contato, objetivo e retorno</span></span></button>
@@ -1251,6 +1302,37 @@ const ACT = {
     saveDraft(); go('wizard');
   },
   resume: async () => ACT.new(),
+  /* ---------- acesso do paciente ---------- */
+  paCreate: async b => {
+    const pid = b.dataset.id; const access = await options.portalAccess.issue(pid);
+    PA[pid] = {loaded:true, available:true, access}; render(); toast('Código criado ✓ Agora é só enviar para o paciente');
+  },
+  paCopy: async b => {
+    const a = PA[b.dataset.id]?.access; if (!a) return;
+    if (b.dataset.what==='link') await paCopyText(portalLink(a.code), 'Link copiado ✓');
+    else await paCopyText(fmtAccessCode(a.code), 'Código copiado ✓');
+  },
+  paSend: async b => {
+    const p = db.profiles.find(x=>x.id===b.dataset.id), a = PA[b.dataset.id]?.access; if (!p || !a) return;
+    const msg = `Olá, ${firstName(p.name)}! Agora você pode acompanhar suas avaliações, medidas e evolução online.\n\nAcesse: ${portalLink(a.code)}\nSeu código: ${fmtAccessCode(a.code)}\n\n${nutriName()}`;
+    const wa = waLink(p.phone);
+    if (wa) { window.open(wa + '?text=' + encodeURIComponent(msg), '_blank', 'noopener'); return; }
+    if (navigator.share && matchMedia('(pointer: coarse)').matches){ try { await navigator.share({text:msg}); return; } catch (e) { if (e?.name==='AbortError') return; } }
+    await paCopyText(msg, 'Mensagem copiada ✓ Cole no WhatsApp ou e-mail do paciente');
+  },
+  paTog: async b => {
+    const pid = b.dataset.id, a = PA[pid]?.access; if (!a) return;
+    const k = b.dataset.k, patch = {[k]: !a[k]};
+    const access = await options.portalAccess.update(pid, patch);
+    PA[pid] = {...PA[pid], access}; render();
+    toast(k==='active' ? (access.active ? 'Acesso reativado' : 'Acesso pausado — o código não funciona até reativar') : k==='photos' ? (access.photos ? 'Fotos visíveis para o paciente' : 'Fotos ocultas do paciente') : (access.notes ? 'Observações visíveis para o paciente' : 'Observações ocultas do paciente'));
+  },
+  paNew: async b => {
+    const pid = b.dataset.id, a = PA[pid]?.access; if (!a) return;
+    sheet('Gerar novo código?', 'O código atual para de funcionar na hora. Envie o novo código para o paciente.', [
+      {label:'Gerar novo código', cls:'dark', fn:async()=>{ const access = await options.portalAccess.issue(pid, {photos:a.photos, notes:a.notes}); PA[pid] = {loaded:true, available:true, access}; render(); toast('Novo código criado ✓'); }},
+      {label:'Cancelar'}]);
+  },
   /* ---------- fotos ---------- */
   phCam: async b => openCamera(b.dataset.aid, b.dataset.pose || null, !!b.dataset.file),
   phView: async b => openViewer(b.dataset.aid, b.dataset.pose),
