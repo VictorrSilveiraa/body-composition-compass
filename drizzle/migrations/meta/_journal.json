@@ -22,6 +22,20 @@
       "when": 1794984737756,
       "tag": "0002_fotos_avaliacao_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794987150083,
+      "tag": "0003_acessos_paciente_portal",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794987207712,
+      "tag": "0004_acessos_paciente_restrict_anon",
+      "breakpoints": true
     }
   ]
 }

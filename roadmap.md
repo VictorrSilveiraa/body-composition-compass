@@ -1,4 +1,5 @@
 # Avaliação Física
+- [x] Criar acessos_paciente com código único e proteção por proprietário; portal publicado consultou código inexistente e respondeu inválido, confirmando acesso administrativo sem alterar o front-end.
 - [x] Criar fotos_avaliacao, índices, acesso por proprietário, bucket privado fotos-avaliacoes com 10 MB e rascunhos de 0 a 7.
 - [ ] Restringir o bucket a image/jpeg, image/png e image/webp — ferramenta de configuração do storage não oferece allowed_mime_types.
 - [x] Preservar telas, campos, fórmulas e navegação do original.

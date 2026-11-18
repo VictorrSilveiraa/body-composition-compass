@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      acessos_paciente: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          compartilhar_fotos: boolean
+          compartilhar_notas: boolean
+          criado_em: string
+          owner_id: string
+          paciente_id: string
+          ultimo_acesso: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          compartilhar_fotos?: boolean
+          compartilhar_notas?: boolean
+          criado_em?: string
+          owner_id?: string
+          paciente_id: string
+          ultimo_acesso?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          compartilhar_fotos?: boolean
+          compartilhar_notas?: boolean
+          criado_em?: string
+          owner_id?: string
+          paciente_id?: string
+          ultimo_acesso?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acessos_paciente_paciente_id_owner_id_fkey"
+            columns: ["paciente_id", "owner_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id", "owner_id"]
+          },
+        ]
+      }
       avaliacoes: {
         Row: {
           altura_cm: number | null

@@ -1,0 +1,1 @@
+REVOKE ALL ON public.acessos_paciente FROM anon;
