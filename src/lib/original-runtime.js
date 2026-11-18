@@ -1565,7 +1565,7 @@ const click = async e => {
   const fn = ACT[b.dataset.act]; if (fn){ e.preventDefault();
     // ação demorada (salvar na nuvem): o botão "respira" e bloqueia clique duplo
     const busy = setTimeout(()=>b.setAttribute('data-busy',''), 180);
-    try { await fn(b,e); } catch (e2) { toast(motivo(e2,'Não foi possível salvar. Tente novamente.')); }
+    try { await fn(b,e); } catch (e2) { console.error('[ação '+b.dataset.act+']', e2); toast(motivo(e2,'Não foi possível salvar. Tente novamente.')); }
     finally { clearTimeout(busy); b.removeAttribute('data-busy'); } }
 };
 const input = e => {

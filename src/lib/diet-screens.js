@@ -18,6 +18,7 @@ const UI = {};                    // estado de cada tela de plano (aba, opção,
 const uiOf = id => (UI[id] ||= (() => { const u = newDietUi(); try { u.checked = JSON.parse(localStorage.getItem('avf.dtshop.'+id)||'{}'); } catch {} return u; })());
 let imp = null;                   // importação/edição em andamento
 let justSaved = null;
+const db = () => ctx.db();
 const P = id => db().profiles.find(p=>p.id===id);
 const dietsOf = pid => S ? S.ofPatient(pid) : [];
 const consultLabel = aid => { const a = aid && ctx.findA(aid); return a ? 'Consulta de '+fmtDate(a.date,{day:'2-digit',month:'short',year:'numeric'}) : ''; };
