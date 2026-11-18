@@ -97,6 +97,41 @@ const inSetup = () => !db.profiles.length && (!!state.setup || needsSetup());
 const setupSteps = n => `<ol class="setup-steps" aria-label="Primeiros passos">${['Seu perfil','Primeiro paciente'].map((l,i)=>{ const done = i+1<n && !!(nutri.name||'').trim(), back = i+1<n;
   const inner = `<span class="n">${done?ic('check','sm'):i+1}</span>${l}`;
   return `<li class="${i+1===n?'on':done?'done':''}"${i+1===n?' aria-current="step"':''}>${back?`<button type="button" data-act="go" data-to="nutri" aria-label="Voltar para ${l}">${inner}</button>`:inner}</li>`; }).join('')}</ol>`;
+/* ---------- tour de apresentação (1º acesso; dá para rever pelo Perfil) ---------- */
+const TOUR_KEY = 'avf.tour.'+options.userId;
+let tourOn = false, tourTimer = 0;
+const tourSeen = () => { if (nutri.tourSeen) return true; try { return localStorage.getItem(TOUR_KEY)==='1'; } catch { return false; } };
+function tourSteps(){
+  const has = db.profiles.length>0, nm = (nutri.name||'').trim() ? firstName(nutri.name) : '';
+  return [
+    {art:'hello', title: nm ? `Boas-vindas, ${nm}!` : 'Boas-vindas!', text:'Em menos de um minuto você conhece o essencial: onde ficam seus pacientes, como registrar uma avaliação e acompanhar a evolução.', cta:'Começar tour'},
+    {sel:['.nav [data-to="patients"]'], icon:ic('users'), title:'Pacientes', text:'Sua lista de atendimento. Busque por nome ou telefone, filtre quem está com retorno atrasado e abra a ficha de cada um.'},
+    has
+      ? {sel:['.side-cta','.top-home [data-act="new"]','.cta-new'], icon:ic('plus'), title:'Nova avaliação', text:'Quando o paciente chegar, comece por aqui. Se precisar parar no meio, o rascunho fica salvo para continuar depois.'}
+      : {sel:['.cta-first','.side-pt'], icon:ic('plus'), title:'Cadastre o primeiro paciente', text:'Tudo começa aqui. Nome, sexo, nascimento e altura bastam — contato, objetivo e retorno você completa quando quiser.'},
+    {sel:['.nav [data-to="list"]'], icon:ic('clip'), title:'Avaliações', text:'Peso, circunferências e dobras cutâneas em 7 etapas, com o % de gordura calculado na hora. O histórico de cada paciente fica aqui.'},
+    {sel:['.nav [data-to="compare"]'], icon:ic('chart'), title:'Evolução', text:'Gráficos de cada medida ao longo do tempo e comparativo lado a lado entre duas consultas. Tudo pode virar PDF para entregar.'},
+    {sel:['.nav [data-to="profile"]'], icon:ic('user'), title:'Seu perfil', text:'Nome e CRN que assinam as avaliações, retorno padrão e backup dos dados. Quer rever este tour? Ele fica aqui também.'},
+    has
+      ? {art:'done', title:'Tudo pronto!', text:'Bom atendimento! Seus pacientes e avaliações estão a um toque de distância.', cta:'Começar a usar'}
+      : {art:'done', title:'Tudo pronto!', text:'Que tal cadastrar seu primeiro paciente agora? Leva menos de um minuto.', cta:'Cadastrar paciente', alt:'Explorar sozinho', action:'newProfile'},
+  ];
+}
+function startTour(){
+  if (tourOn || !options.tour) return;
+  clearTimeout(tourTimer); tourOn = true; state.dd = null;
+  options.tour({ steps: tourSteps(), onClose: action => {
+    tourOn = false;
+    try { localStorage.setItem(TOUR_KEY,'1'); } catch {}
+    if (!nutri.tourSeen){ nutri = {...nutri, tourSeen:true}; Promise.resolve(options.saveNutri?.(nutri)).catch(()=>{}); }
+    if (action==='newProfile') go('onboard');
+  }});
+}
+// abre sozinho na primeira visita ao painel (depois do perfil), com a tela já desenhada
+function maybeTour(){
+  if (tourOn || tourTimer || state.route!=='home' || inSetup() || tourSeen()) return;
+  tourTimer = setTimeout(()=>{ tourTimer = 0; if (state.route==='home' && !tourSeen() && !document.querySelector('.scrim')) startTour(); }, 900);
+}
 const GOALS = [['emagrecimento','Emagrecimento'],['hipertrofia','Hipertrofia'],['saude','Saúde e bem-estar'],['performance','Performance esportiva'],['reeducacao','Reeducação alimentar'],['clinico','Acompanhamento clínico']];
 const goalLabel = k => GOALS.find(g=>g[0]===k)?.[1] || '';
 const RETURNS = [15,30,45,60,90];
@@ -339,7 +374,7 @@ function viewWelcome(){
   return `${nutriTopbar()}
   <h1 class="headline">${hasName ? `${esc(firstName(nutriName()))}, seu espaço de atendimento está pronto.` : 'Seu espaço de atendimento está pronto.'}</h1>
   <div class="card white welcome-card">
-    <div class="card-head"><span class="chip-ico" style="background:var(--yellow-2)">${ic('target','sm')}</span><span class="label"><b>Primeiros passos</b><br><span class="small muted">${hasName?1:0} de 3 concluídos</span></span></div>
+    <div class="card-head"><span class="chip-ico" style="background:var(--yellow-2)">${ic('target','sm')}</span><span class="label"><b>Primeiros passos</b><br><span class="small muted">${hasName?1:0} de 3 concluídos</span></span><button class="tag right" style="margin-left:auto" data-act="tour">${ic('target','sm')} Como funciona</button></div>
     <div class="check-list">
       ${step(hasName,'badge','Perfil profissional', hasName ? `${esc(nutriSign())}` : 'Nome e CRN nas avaliações e nos PDFs', hasName ? '' : `<button data-act="go" data-to="nutri">Completar</button>`)}
       ${step(false,'users','Cadastrar o primeiro paciente','Dados, contato, objetivo e retorno', `<button data-act="newProfile">Cadastrar</button>`)}
@@ -771,6 +806,7 @@ function viewProfile(){
   <div>
     <h2 class="sec">Dados e conta</h2>
     <div class="actions">
+      <button class="act-row" data-act="tour"><span class="chip-ico">${ic('target','sm')}</span><span class="grow"><b>Tour de apresentação</b><span>Reveja em 1 minuto como usar o sistema</span></span>${ic('right','sm')}</button>
       <button class="act-row" data-act="export"><span class="chip-ico">${ic('dl','sm')}</span><span class="grow"><b>Exportar backup</b><span>Arquivo .json com todos os pacientes e avaliações</span></span></button>
       <button class="act-row" data-act="import"><span class="chip-ico">${ic('ul','sm')}</span><span class="grow"><b>Restaurar backup</b><span>Importa um arquivo .json exportado antes, sem duplicar</span></span></button>
       <button class="act-row" data-act="logout"><span class="chip-ico">${ic('out','sm')}</span><span class="grow"><b>Sair da conta</b><span>${esc(options.email||'')}</span></span></button>
@@ -1017,6 +1053,7 @@ function render(){
   const dir = lastRoute==null || (ORDER[state.route]??0) >= (ORDER[lastRoute]??0) ? 'fwd' : 'back';
   lastRoute = state.route;
   options.render(html, navHtml, key, dir);
+  maybeTour();
 }
 function routePath(route,param){const paths={home:'/',patients:'/pacientes',patient:'/pacientes/'+param,nutri:'/perfil/editar',list:'/avaliacoes',detail:'/avaliacoes/'+param,compare:'/evolucao',profile:'/perfil',wizard:state.editingId?'/avaliacoes/'+state.editingId+'/editar':'/nova',onboard:param?'/pessoa/'+param+'/editar':'/pessoa/nova'};return paths[route]||'/';}
 // Muda a URL e deixa o syncPath desenhar a tela nova numa única passada (sem piscar a tela antiga).
@@ -1158,7 +1195,7 @@ const ACT = {
   pfilter: async b => { state.pf = b.dataset.v; if (state.route!=='patients') go('patients'); else { try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} render(); } },
   saveNutri: async () => {
     const v = id => document.getElementById(id).value.trim();
-    const next = { name:v('nu-name'), crn:v('nu-crn'), specialty:v('nu-spec'), phone:fmtPhone(v('nu-phone')), place:v('nu-place'), returnDays: num(state.form.nret) || 30 };
+    const next = { name:v('nu-name'), crn:v('nu-crn'), specialty:v('nu-spec'), phone:fmtPhone(v('nu-phone')), place:v('nu-place'), returnDays: num(state.form.nret) || 30, ...(nutri.tourSeen ? {tourSeen:true} : {}) };
     if (!next.name) return toast('Informe seu nome');
     if (next.phone && phoneDigits(next.phone).length < 10) return toast('Telefone incompleto: use DDD + número');
     const setup = inSetup();
@@ -1166,6 +1203,7 @@ const ACT = {
     if (setup){ state.setup = true; go('onboard'); toast('Perfil salvo ✓'); return; }
     go('profile'); toast('Perfil salvo ✓');
   },
+  tour: async () => { if (state.route!=='home'){ go('home'); setTimeout(startTour, 650); } else startTour(); },
   skipSetup: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} state.setup = true; go('onboard'); },
   setupLater: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} state.setup = false; go('home'); toast('Tudo pronto! Cadastre o paciente quando quiser.'); },
   delProfile: async b => { const p = db.profiles.find(x=>x.id===b.dataset.id) || prof(); sheet(`Excluir ${p.name}?`, `Isso remove o paciente e ${plural(listOf(p.id).length,'avaliação','avaliações')}. Não pode ser desfeito — se quiser só tirar da lista, use “Arquivar”.`, [

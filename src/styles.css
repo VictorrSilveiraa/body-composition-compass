@@ -1121,3 +1121,69 @@ button.kpi:active{scale:.97}
   .detail-actions .btn{flex:none;padding:0 26px}
   .detail-actions .btn.danger{margin:0 0 0 auto}
 }
+
+/* =========================================================
+   TOUR DE APRESENTAÇÃO — destaque que desliza entre os elementos + mão tocando
+   ========================================================= */
+.tour{position:fixed;inset:0;z-index:300;animation:tourIn .35s ease both}
+.tour.out{animation:tourOut .26s ease forwards}
+@keyframes tourIn{from{opacity:0}}
+@keyframes tourOut{to{opacity:0}}
+.tour-hole{position:fixed;border-radius:24px;box-shadow:0 0 0 200vmax rgba(14,16,12,.64);transition:top .55s var(--spring),left .55s var(--spring),width .55s var(--spring),height .55s var(--spring);cursor:pointer}
+.tour.no-target .tour-hole{cursor:default;border-radius:50%}
+.tour-hole::after{content:"";position:absolute;inset:-5px;border-radius:inherit;border:2.5px solid var(--yellow-2);animation:tourPulse 1.8s ease-out infinite}
+.tour.no-target .tour-hole::after{display:none}
+@keyframes tourPulse{0%{opacity:1;transform:scale(1)}70%,100%{opacity:0;transform:scale(1.12)}}
+
+/* mão "tocando" o destaque */
+.tour-tap{position:fixed;width:0;height:0;pointer-events:none;z-index:2}
+.tour-tap i{position:absolute;left:-24px;top:-24px;width:48px;height:48px;border-radius:50%;background:var(--yellow-2);opacity:0;animation:tapRing 2.4s ease-out .35s infinite}
+.tour-tap svg{position:absolute;left:-9px;top:-3px;fill:var(--surface);color:var(--ink);filter:drop-shadow(0 6px 10px rgba(0,0,0,.35));animation:tapHand 2.4s var(--ease) .35s infinite both}
+@keyframes tapHand{0%{transform:translate(56px,64px) rotate(-12deg);opacity:0}24%{transform:translate(0,0) rotate(0);opacity:1}34%{transform:scale(.8)}44%{transform:scale(1)}82%{opacity:1;transform:scale(1)}100%{opacity:0;transform:translate(10px,14px)}}
+@keyframes tapRing{0%,32%{opacity:0;transform:scale(.25)}36%{opacity:.8;transform:scale(.4)}75%,100%{opacity:0;transform:scale(1.7)}}
+
+/* cartão */
+.tour-card{position:fixed;z-index:3;width:350px;background:var(--surface);color:var(--ink);border-radius:28px;padding:22px 22px 18px;box-shadow:0 24px 70px rgba(0,0,0,.32);animation:tourCard .5s var(--spring) both}
+.tour-card.measuring{visibility:hidden;top:0;left:0}
+.tour-card.center{left:50%;top:50%;translate:-50% -50%;width:min(410px,calc(100vw - 28px));text-align:center;padding-top:26px}
+.tour-card.below{transform-origin:top center}.tour-card.above{transform-origin:bottom center}.tour-card.right{transform-origin:left center}.tour-card.left{transform-origin:right center}
+@keyframes tourCard{from{opacity:0;transform:scale(.88) translateY(10px)}}
+.tour-card h3{font-size:22px;font-weight:600;line-height:1.15;margin:12px 0 6px;padding-right:20px}
+.tour-card.center h3{font-size:26px;padding:0}
+.tour-card p{color:var(--ink-2);font-size:15px;line-height:1.45}
+.tour-card .tour-hint{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:13px;color:var(--muted)}
+.tour-ico{width:46px;height:46px;border-radius:15px;background:var(--yellow-2);display:grid;place-items:center;animation:pop .6s var(--spring) .12s backwards}
+.tour-x{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--card);color:var(--ink-2);transition:background .2s}
+.tour-x:hover{background:var(--line)}
+.tour-prog{display:flex;gap:5px;margin-top:14px}
+.tour-card.center .tour-prog{justify-content:center}
+.tour-prog i{width:7px;height:7px;border-radius:9px;background:var(--line);transition:width .4s var(--spring),background .3s}
+.tour-prog i.done{background:var(--ink-2)}
+.tour-prog i.on{width:22px;background:var(--ink)}
+.tour-btns{display:flex;gap:8px;margin-top:18px}
+.tour-btns .btn{flex:1}
+.tour-btns .btn.dark{flex:1.4}
+
+/* ilustrações: abertura e conclusão */
+.tour-art{position:relative;height:110px;display:flex;align-items:center;justify-content:center;gap:12px}
+.tour-art .ta{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;color:var(--ink);animation:taIn .7s var(--spring) backwards,taFloat 3.4s ease-in-out infinite}
+.tour-art .ta.blue{background:var(--blue);animation-delay:.1s,.8s}
+.tour-art .ta.yellow{background:var(--yellow-2);margin-top:-22px;animation-delay:.22s,1.2s}
+.tour-art .ta.green{background:var(--green-2);animation-delay:.34s,1.6s}
+@keyframes taIn{from{opacity:0;transform:translateY(26px) scale(.5) rotate(-10deg)}}
+@keyframes taFloat{50%{transform:translateY(-8px)}}
+.tour-art.done .ok{position:relative;width:80px;height:80px;border-radius:50%;background:var(--green-2);display:grid;place-items:center;animation:pop .7s var(--spring) .1s backwards}
+.tour-art.done .ok::before,.tour-art.done .ok::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--green-2);animation:okRing 1.8s ease-out .3s infinite}
+.tour-art.done .ok::after{animation-delay:1.2s}
+@keyframes okRing{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(1.7)}}
+.tour-art.done .cf{position:absolute;left:calc(50% - 4px);top:calc(50% - 4px);width:8px;height:8px;border-radius:2px;animation:cf 1.2s var(--ease) .25s both}
+@keyframes cf{0%{opacity:0;transform:rotate(var(--a)) translateY(0) scale(.3)}15%{opacity:1}100%{opacity:0;transform:rotate(var(--a)) translateY(-78px) rotate(200deg) scale(1)}}
+
+@media (max-width:639px){
+  .tour-card:not(.center){width:calc(100vw - 28px);padding:20px 18px 16px}
+  .tour-card h3{font-size:20px}
+}
+@media (prefers-reduced-motion:reduce){
+  .tour,.tour *,.tour *::before,.tour *::after{animation:none!important;transition:none!important}
+  .tour-tap i{display:none}
+}

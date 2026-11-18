@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useRouter, useRouterState, type AnyRoute } from '@tanstack/react-router';
 import parse, { domToReact, Element, attributesToProps, type HTMLReactParserOptions, type DOMNode } from 'html-react-parser';
 import { Button } from '@/components/ui/button';
+import { AppTour, type TourSpec } from '@/components/app-tour';
 import { supabase } from '@/integrations/supabase/client';
 import { cloudRepository, loadCloud, saveNutri, type Nutri } from '@/lib/cloud-data';
 import { motivo } from '@/lib/motivo';
@@ -46,6 +47,7 @@ const bridge = {
   sheet: (_s: Sheet) => {},
   toast: (_t: string) => {},
   navigate: (_to: string) => {},
+  tour: (_t: TourSpec) => {},
 };
 let live: { runtime: Runtime; userId: string } | null = null;
 let lastFrame: Frame | null = null;
@@ -74,6 +76,7 @@ export function AssessmentApp() {
   const [sheet, setSheet] = useState<Sheet | null>(null), [sheetOut, setSheetOut] = useState(false);
   const [toast, setToast] = useState(''), [toastOut, setToastOut] = useState(false);
   const [error, setError] = useState('');
+  const [tour, setTour] = useState<TourSpec | null>(null);
   const navigate = useNavigate(), queryClient = useQueryClient();
   const path = useRouterState({ select: (s) => s.location.pathname });
   // enquanto a próxima página carrega, esta tela não deve desenhar a página nova (senão anima duas vezes)
@@ -87,6 +90,7 @@ export function AssessmentApp() {
     bridge.sheet = (s) => { setSheetOut(false); setSheet(s); };
     bridge.toast = (t) => { setToastOut(false); setToast(t); };
     bridge.navigate = (to) => withPageTransition(() => { void navigate({ to }); });
+    bridge.tour = setTour;
     if (live && host.current) live.runtime.attach(host.current, pathRef.current);
   }, []);
 
@@ -108,6 +112,7 @@ export function AssessmentApp() {
           sheet: (s: Sheet) => bridge.sheet(s),
           toast: (t: string) => bridge.toast(t),
           navigate: (to: string) => bridge.navigate(to),
+          tour: (t: TourSpec) => bridge.tour(t),
           logout: async () => { dropLive(); await queryClient.cancelQueries(); queryClient.clear(); await supabase.auth.signOut(); await navigate({ to: '/login', replace: true }); },
         });
         live = { runtime, userId: user.id };
@@ -187,6 +192,7 @@ export function AssessmentApp() {
         </div>
       )}
       {toast && <div className={'toast' + (toastOut ? ' out' : '')} role="status">{toast}</div>}
+      {tour && <AppTour spec={tour} onEnd={() => setTour(null)} />}
     </>
   );
 }
