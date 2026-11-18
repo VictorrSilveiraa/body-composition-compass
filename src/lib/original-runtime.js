@@ -46,6 +46,7 @@ const I = {
   phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
   mail:'<rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/>',
   chat:'<path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 10h6M9 13.5h4"/>',
+  chev:'<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>',
   search:'<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>',
   archive:'<rect x="3" y="4" width="18" height="5" rx="2"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/>',
   badge:'<rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="11" r="2"/><path d="M6 16c.6-1.4 1.7-2 3-2s2.4.6 3 2M14.5 10h3.5M14.5 13.5h3"/>',
@@ -59,7 +60,7 @@ const ic = (n, cls='') => `<svg class="ico ${cls}" viewBox="0 0 24 24">${I[n]||'
 /* ---------- estado / storage ---------- */
 let db = options.db;
 let draft = loadDraft();
-const state = { route:'home', param:null, step:0, editingId:null, evo:'weight', cmpA:null, cmpB:null, cmpTab:'evo', onlyFilled:true, pq:'', pf:'active', ps:'recent' };
+const state = { route:'home', param:null, step:0, editingId:null, evo:'weight', cmpA:null, cmpB:null, cmpTab:'evo', onlyFilled:true, pq:'', pf:'active', ps:'recent', dd:null, form:{} };
 let nutri = { returnDays:30, ...(options.nutri||{}) };
 try { Object.assign(state,JSON.parse(sessionStorage.getItem('avf.view.'+options.userId)||'{}')); } catch {}
 
@@ -110,6 +111,32 @@ function setActive(id){ if (db.activeId===id) return; db.activeId = id; state.cm
 function pAvatar(p, cls=''){ return `<span class="avatar ${cls}" style="background:${avColor(p.id)}">${esc(initials(p.name))}</span>`; }
 function pMeta(p){ return [p.sex==='F'?'Feminino':'Masculino', ageAt(p.birth)!=null?ageAt(p.birth)+' anos':null, num(p.height)?fmt(num(p.height),0)+' cm':null].filter(Boolean).join(' · '); }
 const phoneDigits = s => String(s||'').replace(/\D/g,'');
+// telefone sempre no padrão (11) 98765-4321 — fixo com 8 dígitos: (11) 3456-7890
+function fmtPhone(s){
+  let d = phoneDigits(s); if (d.length>11 && d.startsWith('55')) d = d.slice(2); d = d.slice(0,11);
+  if (!d) return ''; if (d.length<=2) return `(${d}`;
+  const ddd = d.slice(0,2), r = d.slice(2); if (r.length<=4) return `(${ddd}) ${r}`;
+  const cut = d.length===11 ? 5 : 4; return `(${ddd}) ${r.slice(0,cut)}${r.length>cut?'-'+r.slice(cut):''}`;
+}
+// menu suspenso no estilo do site (substitui o <select> do navegador). Valor e abertura vivem no state.
+function dropdown(id, opts, value, {icon='', cls='', label=''}={}){
+  const same = v => String(v)===String(value ?? '');
+  const cur = opts.find(o=>same(o[0])) || opts[0], open = state.dd===id;
+  return `<div class="dd ${cls} ${open?'open':''}">
+    <button type="button" class="dd-btn" data-act="ddToggle" data-dd="${id}" aria-haspopup="listbox" aria-expanded="${open}"${label?` aria-label="${label}"`:''}>${icon?ic(icon,'sm'):''}<span class="dd-val">${esc(cur[1])}</span>${ic('chev','sm dd-chev')}</button>
+    ${open?`<div class="dd-menu" role="listbox">${opts.map(([v,l,sub])=>`<button type="button" role="option" aria-selected="${same(v)}" class="dd-opt ${same(v)?'on':''}" data-act="ddPick" data-dd="${id}" data-v="${v}"><span class="grow">${esc(l)}${sub?`<small>${esc(sub)}</small>`:''}</span>${same(v)?ic('check','sm'):''}</button>`).join('')}</div>`:''}
+  </div>`;
+}
+const DD_PICK = {
+  psort: v => { state.ps = v; },
+  goal: v => { state.form.goal = v; },
+  ret: v => { state.form.ret = v; },
+  nret: v => { state.form.nret = v; },
+};
+function initForm(route, param){
+  if (route==='onboard'){ const p = param ? db.profiles.find(x=>x.id===param) : null; state.form = { goal:p?.goal||'', ret:num(p?.returnDays)?String(num(p.returnDays)):'' }; }
+  if (route==='nutri') state.form = { nret:String(num(nutri.returnDays)||30) };
+}
 const waLink = s => { const d = phoneDigits(s); return d ? 'https://wa.me/' + (d.length<=11 ? '55'+d : d) : ''; };
 function teamStats(){
   const act = db.profiles.filter(p=>!p.archived), st = act.map(pStatus);
@@ -183,7 +210,7 @@ function ring(val, max, color='var(--peach)'){
 function topbar(p){
   return `<header class="top top-home">
     <button class="avatar" style="background:${avColor(p.id)}" data-act="go" data-to="patient" data-id="${p.id}" aria-label="Ficha de ${esc(p.name)}">${esc(initials(p.name))}</button>
-    <button class="hello hello-pt" data-act="go" data-to="patients" aria-label="Trocar paciente"><small>Paciente</small><b>${esc(firstName(p.name))} ${ic('down','sm')}</b></button>
+    <button class="hello hello-pt" data-act="go" data-to="patients" aria-label="Trocar paciente"><small>Paciente</small><b>${esc(firstName(p.name))} ${ic('chev','sm')}</b></button>
     <div class="grow"></div>
     <span class="top-date">${fmtDate(today(),{weekday:'long',day:'numeric',month:'long'})}</span>
     <button class="icon-btn" data-act="go" data-to="patients" aria-label="Pacientes">${ic('users')}</button>
@@ -245,26 +272,35 @@ function viewOnboard(editP){
   <h2 class="sec">Contato <span class="sec-note">opcional</span></h2>
   <div class="fields two">
     <label class="field"><div class="f-top"><span class="f-label">Telefone / WhatsApp</span></div>
-      <div class="f-input text"><input id="pf-phone" type="tel" inputmode="tel" value="${esc(p.phone||'')}" placeholder="(11) 99999-9999" autocomplete="off"></div></label>
+      <div class="f-input text"><input id="pf-phone" type="tel" inputmode="tel" data-mask="phone" maxlength="15" value="${esc(fmtPhone(p.phone))}" placeholder="(11) 99999-9999" autocomplete="off"></div></label>
     <label class="field"><div class="f-top"><span class="f-label">E-mail</span></div>
       <div class="f-input text"><input id="pf-email" type="email" inputmode="email" value="${esc(p.email||'')}" placeholder="paciente@email.com" autocomplete="off"></div></label>
   </div>
 
   <h2 class="sec">Acompanhamento</h2>
   <div class="form-grid">
-    <div class="field"><div class="f-top"><span class="f-label">Objetivo</span></div>
-      <div class="pick" id="pf-goal">${GOALS.map(([k,l])=>`<button type="button" class="chip ${p.goal===k?'on':''}" data-act="pick" data-v="${k}">${l}</button>`).join('')}</div></div>
-    <div class="field"><div class="f-top"><span class="f-label">Retorno a cada</span></div>
-      <span class="f-hint">Define quando a próxima avaliação fica “atrasada” na lista de pacientes.</span>
-      <div class="pick" id="pf-ret"><button type="button" class="chip ${!num(p.returnDays)?'on':''}" data-act="pick" data-v="">Padrão (${returnEvery({})} dias)</button>${RETURNS.map(d=>`<button type="button" class="chip ${num(p.returnDays)===d?'on':''}" data-act="pick" data-v="${d}">${d} dias</button>`).join('')}</div></div>
+    <div class="fields two">
+      <div class="field"><div class="f-top"><span class="f-label">Objetivo</span></div>
+        ${dropdown('goal', [['','Não definido'], ...GOALS], state.form.goal, {label:'Objetivo do paciente'})}</div>
+      <div class="field"><div class="f-top"><span class="f-label">Retorno a cada</span></div>
+        ${dropdown('ret', [['',`Padrão do perfil · ${num(nutri.returnDays)||30} dias`,'Usa o retorno definido no seu perfil'], ...RETURNS.map(d=>[String(d),`${d} dias`])], state.form.ret, {label:'Intervalo de retorno'})}</div>
+    </div>
+    <p class="f-hint" style="margin:-2px 6px 0">O retorno define quando a próxima avaliação aparece como “atrasada” na lista de pacientes.</p>
     <label class="field"><div class="f-top"><span class="f-label">Observações</span><span class="f-prev">só você vê</span></div>
       <span class="f-hint">Histórico clínico, restrições, rotina de treino, medicamentos…</span>
       <div class="f-input"><textarea id="pf-notes" placeholder="Anotações sobre o paciente">${esc(p.notes||'')}</textarea></div></label>
   </div>
   ${options.fichaCloud ? '' : `<p class="small muted" style="margin:12px 4px 0">Contato, objetivo e observações ficam salvos neste aparelho até o banco de dados receber os novos campos.</p>`}
-  <button class="cta" data-act="saveProfile" data-id="${editP?editP.id:''}"><span class="c-ico">${ic('user')}</span><span>${isNew?(db.profiles.length?'Cadastrar paciente':'Começar'):'Salvar paciente'} <span class="arrows">›››</span></span><span class="c-ico">${ic('check')}</span></button>
-  ${!db.profiles.length ? `<p class="small muted" style="text-align:center;margin-top:18px">Seus dados ficam protegidos na sua conta.</p>
-  <button class="btn ghost sm" style="margin:12px auto 0;display:flex" data-act="import">${ic('ul','sm')} Restaurar backup</button>` : ''}`;
+  ${!db.profiles.length ? `<p class="small muted" style="text-align:center;margin-top:22px">Seus dados ficam protegidos na sua conta.</p>
+  <button class="btn ghost sm" style="margin:12px auto 0;display:flex" data-act="import">${ic('ul','sm')} Restaurar backup</button>` : ''}
+  ${formBar(db.profiles.length ? back : '', `data-act="saveProfile" data-id="${editP?editP.id:''}"`, isNew ? (db.profiles.length ? 'Cadastrar paciente' : 'Começar') : 'Salvar alterações')}`;
+}
+// barra de ações dos formulários: fixa no rodapé (celular) / pílula flutuante (computador) — sempre à mão
+function formBar(cancelAttrs, saveAttrs, saveLabel){
+  return `<div class="wiz-bar form-bar"><div class="in">
+    ${cancelAttrs ? `<button class="btn ghost" data-act="go" ${cancelAttrs}>Cancelar</button>` : ''}
+    <button class="btn dark" ${saveAttrs}>${ic('check')} ${saveLabel}</button>
+  </div></div>`;
 }
 
 function viewHome(){
@@ -427,10 +463,10 @@ function viewDetail(id){
   </div>
   </div>
 
-  <div class="no-print" style="display:grid;gap:8px;margin-top:22px">
-    ${pv?`<button class="cta" style="margin-top:0" data-act="cmpWith" data-a="${pv.id}" data-b="${a.id}"><span class="c-ico">${ic('swap')}</span><span>Comparar com a anterior <span class="arrows">›››</span></span><span class="c-ico">${ic('chart')}</span></button>`:''}
+  <div class="no-print detail-actions">
+    ${pv?`<button class="cta" data-act="cmpWith" data-a="${pv.id}" data-b="${a.id}"><span class="c-ico">${ic('swap')}</span><span>Comparar com a anterior <span class="arrows">›››</span></span><span class="c-ico">${ic('chart')}</span></button>`:''}
     <button class="btn ghost" data-act="print" data-id="${a.id}">${ic('dl','sm')} Exportar em PDF</button>
-    <button class="btn danger" style="margin-top:12px" data-act="del" data-id="${a.id}">${ic('trash','sm')} Excluir avaliação</button>
+    <button class="btn danger" data-act="del" data-id="${a.id}">${ic('trash','sm')} Excluir avaliação</button>
   </div>`;
 }
 
@@ -560,12 +596,12 @@ function viewPatients(){
     ${kpi('soon','Retornos em 7 dias',s.soon,'yellow','cal')}
     ${kpi('month','Avaliações em 30 dias',s.month,'green','clip',false)}
   </div>
-  <div class="pt-tools">
-    <label class="pt-search">${ic('search','sm')}<input id="pt-q" type="search" value="${esc(state.pq)}" placeholder="Buscar paciente…" autocomplete="off" enterkeyhint="search" aria-label="Buscar por nome, telefone, e-mail ou objetivo"></label>
+  <div class="pt-bar">
+    <label class="pt-search">${ic('search','sm')}<input id="pt-q" type="search" value="${esc(state.pq)}" placeholder="Buscar por nome, telefone ou e-mail" autocomplete="off" enterkeyhint="search" aria-label="Buscar por nome, telefone, e-mail ou objetivo"></label>
+    <div class="pt-filters" role="tablist" aria-label="Filtrar pacientes">${FILTERS.map(([k,l,n])=>`<button class="chip ${state.pf===k?'on':''}" role="tab" aria-selected="${state.pf===k}" data-act="pfilter" data-v="${k}">${l}<span class="n">${n}</span></button>`).join('')}</div>
+    <span class="pt-count">${plural(shown.length,'paciente','pacientes')}${q&&shown.length?' encontrados':''}</span>
+    ${dropdown('psort', [['recent','Avaliação mais recente','Quem foi avaliado por último primeiro'],['next','Próximo retorno','Retornos atrasados e mais próximos primeiro'],['name','Nome (A–Z)','Ordem alfabética']], state.ps, {icon:'sort', cls:'pt-sort', label:'Ordenar pacientes'})}
   </div>
-  <div class="chips pt-filters">${FILTERS.map(([k,l,n])=>`<button class="chip ${state.pf===k?'on':''}" data-act="pfilter" data-v="${k}">${l}<span class="n">${n}</span></button>`).join('')}</div>
-  <div class="pt-count"><span>${plural(shown.length,'paciente','pacientes')}${q&&shown.length?' encontrados':''}</span>
-    <label class="pt-sort">${ic('sort','sm')}<select data-ch="psort" aria-label="Ordenar pacientes">${[['recent','Avaliação mais recente'],['next','Próximo retorno'],['name','Nome (A–Z)']].map(([v,l])=>`<option value="${v}" ${state.ps===v?'selected':''}>${l}</option>`).join('')}</select>${ic('down','sm')}</label></div>
   ${shown.length
     ? `<div class="pt-grid">${shown.map(ptCard).join('')}</div>`
     : `<div class="card empty"><div class="e-ico">${ic(q?'search':'users')}</div><h3>${emptyMsg[0]}</h3><p>${emptyMsg[1]}</p></div>`}`;
@@ -587,7 +623,7 @@ function viewPatient(id){
   <div class="card blue pt-hero">
     <div class="pt-id">${pAvatar(p,'xl')}<div class="grow"><h1>${esc(p.name)}</h1><div class="small">${esc(pMeta(p))}</div></div></div>
     <div class="pt-tags"><span class="tag ${st.cls==='muted'?'':st.cls}">${st.l}</span>${p.goal?`<span class="tag">${ic('target','sm')}${esc(goalLabel(p.goal))}</span>`:''}<span class="tag">${ic('clock','sm')}Retorno a cada ${returnEvery(p)} dias</span></div>
-    ${(p.phone||p.email) ? `<div class="pt-contact">${wa?`<a class="pc wa" href="${wa}" target="_blank" rel="noopener">${ic('chat','sm')}WhatsApp</a>`:''}${p.phone?`<a class="pc" href="tel:${phoneDigits(p.phone)}">${ic('phone','sm')}${esc(p.phone)}</a>`:''}${p.email?`<a class="pc" href="mailto:${esc(p.email)}">${ic('mail','sm')}<span>${esc(p.email)}</span></a>`:''}</div>`
+    ${(p.phone||p.email) ? `<div class="pt-contact">${wa?`<a class="pc wa" href="${wa}" target="_blank" rel="noopener">${ic('chat','sm')}WhatsApp</a>`:''}${p.phone?`<a class="pc" href="tel:${phoneDigits(p.phone)}">${ic('phone','sm')}${esc(fmtPhone(p.phone))}</a>`:''}${p.email?`<a class="pc" href="mailto:${esc(p.email)}">${ic('mail','sm')}<span>${esc(p.email)}</span></a>`:''}</div>`
       : `<div class="pt-contact"><button class="pc" data-act="go" data-to="onboard" data-id="${p.id}">${ic('plus','sm')}Adicionar telefone ou e-mail</button></div>`}
   </div>
   <div class="pt-actions">
@@ -652,7 +688,7 @@ function viewProfile(){
   <div>
     <h2 class="sec">Atendimento <button data-act="go" data-to="nutri">editar</button></h2>
     <div class="kv">
-      ${row('Registro (CRN)', nutri.crn)}${row('Especialidade', nutri.specialty)}${row('Telefone', nutri.phone)}${row('Local de atendimento', nutri.place)}
+      ${row('Registro (CRN)', nutri.crn)}${row('Especialidade', nutri.specialty)}${row('Telefone', fmtPhone(nutri.phone))}${row('Local de atendimento', nutri.place)}
       <div class="kv-row"><span class="k">Retorno padrão</span><span class="t">a cada ${returnEvery({})} dias</span></div>
     </div>
     <h2 class="sec">Pacientes</h2>
@@ -673,8 +709,7 @@ function viewProfile(){
 }
 function viewNutri(){
   const tf = (id, label, val, ph, hint='', type='text') => `<label class="field"><div class="f-top"><span class="f-label">${label}</span></div>${hint?`<span class="f-hint">${hint}</span>`:''}
-    <div class="f-input text"><input id="${id}" type="${type}" value="${esc(val||'')}" placeholder="${ph}" autocomplete="off"></div></label>`;
-  const rd = num(nutri.returnDays) || 30;
+    <div class="f-input text"><input id="${id}" type="${type}" value="${esc(type==='tel'?fmtPhone(val):(val||''))}" placeholder="${ph}" autocomplete="off"${type==='tel'?' inputmode="tel" data-mask="phone" maxlength="15"':''}></div></label>`;
   return `<header class="top"><button class="icon-btn" data-act="go" data-to="profile" aria-label="Voltar">${ic('back')}</button><div class="title-block"><small>Perfil profissional</small><b>Editar perfil</b></div></header>
   <h2 class="sec" style="margin-top:6px">Identificação</h2>
   <div class="form-grid">
@@ -685,9 +720,9 @@ function viewNutri(){
   <div class="form-grid">
     <div class="fields two">${tf('nu-phone','Telefone',nutri.phone,'(11) 99999-9999','','tel')}${tf('nu-place','Local de atendimento',nutri.place,'Clínica, cidade ou online')}</div>
     <div class="field"><div class="f-top"><span class="f-label">Retorno padrão</span></div><span class="f-hint">Vale para os pacientes sem um retorno próprio. Define quem aparece como “atrasado”.</span>
-      <div class="pick" id="nu-ret">${RETURNS.map(d=>`<button type="button" class="chip ${rd===d?'on':''}" data-act="pick" data-v="${d}">${d} dias</button>`).join('')}</div></div>
+      ${dropdown('nret', RETURNS.map(d=>[String(d),`A cada ${d} dias`]), state.form.nret, {label:'Retorno padrão'})}</div>
   </div>
-  <button class="cta" data-act="saveNutri"><span class="c-ico">${ic('badge')}</span><span>Salvar perfil <span class="arrows">›››</span></span><span class="c-ico">${ic('check')}</span></button>`;
+  ${formBar('data-to="profile"', 'data-act="saveNutri"', 'Salvar perfil')}`;
 }
 
 /* ---------- WIZARD ---------- */
@@ -900,11 +935,12 @@ function render(){
 }
 function routePath(route,param){const paths={home:'/',patients:'/pacientes',patient:'/pacientes/'+param,nutri:'/perfil/editar',list:'/avaliacoes',detail:'/avaliacoes/'+param,compare:'/evolucao',profile:'/perfil',wizard:state.editingId?'/avaliacoes/'+state.editingId+'/editar':'/nova',onboard:param?'/pessoa/'+param+'/editar':'/pessoa/nova'};return paths[route]||'/';}
 // Muda a URL e deixa o syncPath desenhar a tela nova numa única passada (sem piscar a tela antiga).
-function go(route,param=null,push=true){state.route=route;state.param=param;try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} const to=routePath(route,param); if(push && to!==window.location.pathname) options.navigate(to); else render();}
+function go(route,param=null,push=true){state.route=route;state.param=param;state.dd=null;try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} const to=routePath(route,param); if(push && to!==window.location.pathname) options.navigate(to); else render();}
 function syncPath(path){
  let route='home',param=null;
  if(path==='/avaliacoes') route='list'; else if(path==='/evolucao')route='compare';else if(path==='/perfil')route='profile';else if(path==='/perfil/editar')route='nutri';else if(path==='/pacientes')route='patients';else if(path.startsWith('/pacientes/')){route='patient';param=path.split('/')[2];if(db.profiles.some(p=>p.id===param))setActive(param);}else if(path==='/nova')route='wizard';else if(path.startsWith('/pessoa/')){route='onboard';param=path.endsWith('/editar')?path.split('/')[2]:null;}else if(path.startsWith('/avaliacoes/')){param=path.split('/')[2];route=path.endsWith('/editar')?'wizard':'detail';}
  if(route==='wizard' && !draft){if(param&&findA(param)){draft=clone(findA(param));state.editingId=param;db.activeId=draft.profileId;}else if(prof()){draft=newDraft();state.editingId=null;} }
+ initForm(route,param); state.dd=null;
  state.route=route;state.param=param;if(route==='wizard'&&draft){state.step=draft._step||0;state.editingId=draft._editing||state.editingId||null;}render();
 }
 /* ---------- sheet & toast ---------- */
@@ -998,8 +1034,10 @@ const ACT = {
     if (!birth || birth>today()) return toast('Informe a data de nascimento');
     const email = document.getElementById('pf-email').value.trim();
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return toast('E-mail inválido');
-    const ficha = { phone: document.getElementById('pf-phone').value.trim() || null, email: email || null,
-      goal: document.querySelector('#pf-goal .on')?.dataset.v || null, returnDays: num(document.querySelector('#pf-ret .on')?.dataset.v) || null,
+    const phone = fmtPhone(document.getElementById('pf-phone').value);
+    if (phone && phoneDigits(phone).length < 10) return toast('Telefone incompleto: use DDD + número');
+    const ficha = { phone: phone || null, email: email || null,
+      goal: state.form.goal || null, returnDays: num(state.form.ret) || null,
       notes: document.getElementById('pf-notes').value.trim() || null };
     let id = b.dataset.id;
     if (id){ Object.assign(db.profiles.find(p=>p.id===id), {name,sex,birth,height}, ficha); }
@@ -1027,12 +1065,14 @@ const ACT = {
     const p = db.profiles.find(x=>x.id===b.dataset.id); if (!p) return;
     p.archived = !p.archived; await save(); render(); toast(p.archived ? `${firstName(p.name)} foi arquivado` : `${firstName(p.name)} voltou para os ativos`);
   },
-  pick: async b => { b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on', x===b)); },
+  ddToggle: async b => { state.dd = state.dd===b.dataset.dd ? null : b.dataset.dd; render(); },
+  ddPick: async b => { const fn = DD_PICK[b.dataset.dd]; state.dd = null; if (fn) fn(b.dataset.v); render(); app.querySelector(`[data-act="ddToggle"][data-dd="${b.dataset.dd}"]`)?.focus({preventScroll:true}); },
   pfilter: async b => { state.pf = b.dataset.v; if (state.route!=='patients') go('patients'); else { try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} render(); } },
   saveNutri: async () => {
     const v = id => document.getElementById(id).value.trim();
-    const next = { name:v('nu-name'), crn:v('nu-crn'), specialty:v('nu-spec'), phone:v('nu-phone'), place:v('nu-place'), returnDays: num(document.querySelector('#nu-ret .on')?.dataset.v) || 30 };
+    const next = { name:v('nu-name'), crn:v('nu-crn'), specialty:v('nu-spec'), phone:fmtPhone(v('nu-phone')), place:v('nu-place'), returnDays: num(state.form.nret) || 30 };
     if (!next.name) return toast('Informe seu nome');
+    if (next.phone && phoneDigits(next.phone).length < 10) return toast('Telefone incompleto: use DDD + número');
     await options.saveNutri(next); nutri = next; go('profile'); toast('Perfil salvo ✓');
   },
   delProfile: async b => { const p = db.profiles.find(x=>x.id===b.dataset.id) || prof(); sheet(`Excluir ${p.name}?`, `Isso remove o paciente e ${plural(listOf(p.id).length,'avaliação','avaliações')}. Não pode ser desfeito — se quiser só tirar da lista, use “Arquivar”.`, [
@@ -1050,6 +1090,8 @@ const ACT = {
   },
 };
 const click = async e => {
+  // menu aberto + clique fora dele: fecha
+  if (state.dd && !e.target.closest('.dd')){ state.dd = null; render(); }
   const b = e.target.closest('[data-act]'); if (!b) return;
   const fn = ACT[b.dataset.act]; if (fn){ e.preventDefault();
     // ação demorada (salvar na nuvem): o botão "respira" e bloqueia clique duplo
@@ -1059,17 +1101,26 @@ const click = async e => {
 };
 const input = e => {
   if (e.target.id==='pt-q'){ state.pq = e.target.value; render(); return; }
+  if (e.target.dataset?.mask==='phone'){
+    const el = e.target, v = fmtPhone(el.value);
+    // apagando: não recoloca o traço/parêntese que a pessoa acabou de remover
+    if (e.inputType?.startsWith('delete') && phoneDigits(v)===phoneDigits(el.value) && v.length>el.value.length) return;
+    if (v!==el.value){ el.value = v; el.setSelectionRange(v.length, v.length); }
+    return;
+  }
   const k = e.target.dataset?.k;
   if (k && draft && state.route==='wizard'){ setPath(draft, k, e.target.value); saveDraft(); updateLive(); }
 };
 const change = e => {
   const c = e.target.dataset?.ch;
   if (c==='cmpA' || c==='cmpB'){ state[c] = e.target.value; render(); }
-  if (c==='psort'){ state.ps = e.target.value; render(); }
   if (e.target.dataset?.k==='date' && state.route==='wizard') render();
 };
 // Enter avança para o próximo campo
 const keydown = e => {
+  if (e.key==='Escape' && state.dd){ const id = state.dd; state.dd = null; render(); app.querySelector(`[data-act="ddToggle"][data-dd="${id}"]`)?.focus({preventScroll:true}); return; }
+  // setas navegam entre as opções do menu aberto
+  if ((e.key==='ArrowDown'||e.key==='ArrowUp') && state.dd){ const o=[...app.querySelectorAll('.dd.open .dd-opt')]; if(o.length){ e.preventDefault(); const i=o.indexOf(document.activeElement); o[(i<0?(e.key==='ArrowDown'?0:o.length-1):(i+(e.key==='ArrowDown'?1:-1)+o.length)%o.length)].focus(); } return; }
   if (e.key!=='Enter' || !e.target.matches('input[data-k]')) return;
   e.preventDefault();
   const ins = [...document.querySelectorAll('input[data-k]')]; const i = ins.indexOf(e.target);

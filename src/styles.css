@@ -456,7 +456,6 @@ h2.sec a,h2.sec button{font-size:14px;color:var(--muted);font-weight:500;text-de
   .nav button span{display:inline}
   .steps,.chips{margin:0 0 14px;padding:2px 0;flex-wrap:wrap}
   .two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
-  .two-col h2.sec:first-child{margin-top:8px}
   .sheet{border-radius:30px;margin-bottom:24px}
   .scrim{align-items:center}
   .wiz-bar{background:none;pointer-events:none}
@@ -570,7 +569,6 @@ h1.headline[data-rv="in"],h2.sec[data-rv="in"]{animation-name:rvText;animation-d
 .field:focus-within{box-shadow:0 10px 26px oklch(0.182 0 0 / .07)}
 .field.req:focus-within{box-shadow:inset 0 0 0 1.5px var(--blue-2),0 10px 26px oklch(0.182 0 0 / .07)}
 .f-input{transition:border-color .2s,box-shadow .35s var(--ease)}
-.f-input:focus-within{box-shadow:0 0 0 4px oklch(0.944 0.103 103 / .65)}
 .proto .radio{transition:background-color .3s,box-shadow .3s}
 .proto.on .radio::after{animation:pop .45s var(--spring)}
 .switch{transition:background-color .3s}
@@ -931,20 +929,44 @@ span[data-live],b[data-live]{display:inline-block}
 button.kpi:active{scale:.97}
 
 /* busca e ordenação */
-.pt-tools{display:grid;grid-template-columns:1fr;gap:8px;margin:16px 0 10px}
-.pt-search{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:99px;padding:0 16px;height:52px;border:1.5px solid transparent;transition:border-color .2s}
+/* barra de busca, filtros e ordenação */
+.pt-bar{position:relative;z-index:5;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"search search" "filters filters" "count sort";gap:12px 10px;align-items:center;margin:16px 0 14px}
+.pt-search{grid-area:search;display:flex;align-items:center;gap:10px;background:var(--card);border-radius:99px;padding:0 18px;height:52px;border:1.5px solid transparent;transition:border-color .2s}
 .pt-search:focus-within{border-color:var(--ink)}
-.pt-search .ico,.pt-sort .ico{color:var(--muted)}
-.pt-sort{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 10px;border-radius:99px;background:var(--card);flex:none;max-width:62%}
-.pt-sort:focus-within{box-shadow:0 0 0 1.5px var(--ink)}
+.pt-search .ico{color:var(--muted)}
 .pt-search input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:16px;font-weight:500}
 .pt-search input::placeholder{color:var(--muted);font-weight:400}
 .pt-search input::-webkit-search-cancel-button{cursor:pointer}
-.pt-sort select{min-width:0;border:0;outline:0;background:transparent;font-size:13px;font-weight:600;color:var(--ink);appearance:none;-webkit-appearance:none;cursor:pointer;text-overflow:ellipsis}
-.pt-filters .chip{display:inline-flex;align-items:center;gap:7px}
-.pt-filters .chip .n{min-width:22px;height:22px;padding:0 6px;border-radius:99px;background:var(--surface);color:var(--ink);font-size:12px;display:inline-grid;place-items:center}
+.pt-filters{grid-area:filters;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:2px 16px}
+.pt-filters::-webkit-scrollbar{display:none}
+.pt-filters .chip{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 9px 0 16px}
+.pt-filters .chip .n{min-width:24px;height:24px;padding:0 7px;border-radius:99px;background:var(--surface);color:var(--ink);font-size:12px;font-weight:700;display:inline-grid;place-items:center}
 .pt-filters .chip.on .n{background:var(--yellow)}
-.pt-count{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 2px 10px 4px;font-size:13px;color:var(--muted)}
+.pt-count{grid-area:count;font-size:13px;color:var(--muted);padding-left:4px;white-space:nowrap}
+.pt-sort{grid-area:sort;justify-self:end}
+.pt-sort .dd-btn{width:auto;max-width:min(250px,62vw)}
+
+/* menu suspenso do site */
+.dd{position:relative;min-width:0}
+.dd-btn{display:flex;align-items:center;gap:8px;width:100%;height:42px;padding:0 12px 0 14px;border-radius:99px;background:var(--card);font-size:14px;font-weight:600;text-align:left;border:1.5px solid transparent;transition:border-color .2s,background-color .25s}
+.dd-btn>.ico{color:var(--muted)}
+.dd-val{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dd-chev{transition:rotate .3s var(--ease)}
+.dd.open .dd-btn{border-color:var(--ink)}
+.dd.open .dd-chev{rotate:180deg;color:var(--ink)}
+.dd-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:40;min-width:100%;width:max-content;max-width:min(340px,calc(100vw - 32px));background:var(--surface);border-radius:22px;padding:6px;box-shadow:0 18px 44px oklch(0.182 0 0 / .14),0 0 0 1px var(--line);display:grid;gap:2px;transform-origin:top right;animation:ddIn .22s var(--ease)}
+@keyframes ddIn{from{opacity:0;scale:.96;translate:0 -6px}}
+.dd-opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:11px 14px;border-radius:16px;font-size:15px;font-weight:600;transition:background-color .2s}
+.dd-opt .grow{min-width:0}
+.dd-opt small{display:block;font-size:12.5px;font-weight:500;color:var(--muted);margin-top:2px}
+.dd-opt:hover,.dd-opt:focus-visible{background:var(--card);outline:0}
+.dd-opt.on{background:var(--yellow)}
+.dd-opt.on small{color:var(--ink-2)}
+/* dentro de formulário: mesmo visual dos campos de texto */
+.field .dd{margin-top:10px}
+.field .dd-btn{height:56px;border-radius:var(--r-sm);background:var(--surface);font-size:18px;font-weight:500;padding:0 14px}
+.field .dd-menu{left:0;right:0;width:auto;max-width:none;transform-origin:top center;max-height:min(360px,52vh);overflow-y:auto}
+.field:has(.dd.open){position:relative;z-index:26}
 .pt-new{flex:none!important;height:46px;padding:0 16px 0 14px;gap:6px}
 
 /* cartão do paciente */
@@ -1000,12 +1022,6 @@ button.kpi:active{scale:.97}
 .nu-hero .small{color:var(--ink-2);overflow-wrap:anywhere}
 .nu-hero+.draft-banner{margin:12px 0 0}
 .nu-hero~.pt-kpis,.draft-banner+.pt-kpis{margin-top:12px}
-.pt-kpis+.two-col{margin-top:18px}
-
-/* formulário: seleção por chips */
-.pick{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-.field .pick .chip{background:var(--surface)}
-.field .pick .chip.on{background:var(--ink);color:var(--surface)}
 
 /* barra lateral: paciente atual (só no computador) */
 .nav .side-pt{display:none}
@@ -1028,10 +1044,15 @@ button.kpi:active{scale:.97}
   .kpi small{font-size:13.5px}
   button.kpi:hover{box-shadow:inset 0 0 0 2px oklch(0.182 0 0 / .14)}
   button.kpi.on:hover{box-shadow:inset 0 0 0 2px var(--ink)}
-  .pt-tools{margin-top:20px;max-width:720px}
-  .pt-sort{height:38px;padding:0 14px}
-  .pt-sort select{font-size:14px}
-  .pt-filters{margin-bottom:6px}
+  .pt-bar{grid-template-areas:"search sort" "filters count";gap:14px 16px;margin:22px 0 18px}
+  .pt-filters{margin:0;padding:5px;background:var(--card);border-radius:99px;width:max-content;max-width:100%;gap:2px;justify-self:start}
+  .pt-filters .chip{background:transparent}
+  .pt-filters .chip.on{background:var(--ink);color:var(--surface)}
+  .pt-filters .chip:not(.on):hover{background:var(--card-2)}
+  .pt-count{justify-self:end;font-size:14px}
+  .pt-sort .dd-btn{height:52px;padding:0 16px 0 18px;font-size:15px;min-width:270px;max-width:none}
+  .pt-sort .dd-btn:hover,.field .dd-btn:hover{border-color:oklch(0.182 0 0 / .18)}
+  .pt-sort .dd-menu{min-width:320px}
   .pt-grid{grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
   .pt-card{padding:18px}
   .pt-card:hover{background-color:var(--card-2)}
@@ -1063,4 +1084,25 @@ button.kpi:active{scale:.97}
 }
 @media (min-width:1600px){
   .pt-grid{grid-template-columns:repeat(3,1fr)}
+}
+
+/* formulários: espaço para a barra de ações fixa não cobrir o último campo */
+.app:has(.form-bar){padding-bottom:calc(130px + env(safe-area-inset-bottom))}
+@media (min-width:1024px){
+  /* ações do formulário: pílula compacta alinhada à direita do formulário (padrão de desktop) */
+  .form-bar .in{width:max-content;max-width:none;margin:0 max(0px,calc(50% - 380px)) 0 auto}
+  .form-bar .btn{flex:0 0 auto;padding:0 26px}
+  .form-bar .btn.dark{min-width:240px}
+  .app:has(.form-bar){padding-bottom:140px}
+}
+
+/* rodapé do detalhe: empilhado no celular; no computador, uma linha com "Excluir" isolado à direita */
+.detail-actions{display:grid;gap:8px;margin-top:26px}
+.detail-actions .cta{margin-top:0}
+.detail-actions .btn.danger{margin-top:12px}
+@media (min-width:1024px){
+  .detail-actions{display:flex;align-items:center;gap:12px;margin-top:36px;padding-top:24px;border-top:1px solid var(--line)}
+  .detail-actions .cta{flex:0 1 420px}
+  .detail-actions .btn{flex:none;padding:0 26px}
+  .detail-actions .btn.danger{margin:0 0 0 auto}
 }
