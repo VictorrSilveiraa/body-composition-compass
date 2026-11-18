@@ -61,7 +61,7 @@ export function cloudRepository(userId:string,initial:LegacyDB,fichaCloud=false)
       snapshot=copy;try{localStorage.setItem('avf.active.'+userId,copy.activeId??'');}catch{}
     });queue=task;return task;
   }
-  async function saveDraft(draft:Draft|null){const result=draft?await supabase.from('rascunhos').upsert({owner_id:userId,avaliacao_id:draft._editing??null,passo:draft._step??0,dados:draft as unknown as Json}):await supabase.from('rascunhos').delete().eq('owner_id',userId);if(result.error)throw result.error;}
+  async function saveDraft(draft:Draft|null){const result=draft?await supabase.from('rascunhos').upsert({owner_id:userId,avaliacao_id:draft._editing??null,passo:Math.min(draft._step??0,6),dados:draft as unknown as Json}):await supabase.from('rascunhos').delete().eq('owner_id',userId);if(result.error)throw result.error;}
   return {save,saveDraft,previewImport,async importBackup(imported:LegacyDB){const merged=mergeBackup(snapshot,imported);await save(merged);return merged;}};
 }
 export function previewImport(value:unknown):LegacyDB{

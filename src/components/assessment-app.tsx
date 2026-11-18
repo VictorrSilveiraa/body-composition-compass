@@ -4,6 +4,9 @@ import { useNavigate, useRouter, useRouterState, type AnyRoute } from '@tanstack
 import parse, { domToReact, Element, attributesToProps, type HTMLReactParserOptions, type DOMNode } from 'html-react-parser';
 import { Button } from '@/components/ui/button';
 import { AppTour, type TourSpec } from '@/components/app-tour';
+import { PoseCamera, type CameraSpec } from '@/components/pose-camera';
+import { PhotoViewer, type ViewerSpec } from '@/components/photo-viewer';
+import { composeComparison, loadPhotos, photoStore } from '@/lib/photos';
 import { supabase } from '@/integrations/supabase/client';
 import { cloudRepository, loadCloud, saveNutri, type Nutri } from '@/lib/cloud-data';
 import { motivo } from '@/lib/motivo';
@@ -48,6 +51,8 @@ const bridge = {
   toast: (_t: string) => {},
   navigate: (_to: string) => {},
   tour: (_t: TourSpec) => {},
+  camera: (_c: CameraSpec) => {},
+  viewer: (_v: ViewerSpec) => {},
 };
 let live: { runtime: Runtime; userId: string } | null = null;
 let lastFrame: Frame | null = null;
@@ -77,6 +82,8 @@ export function AssessmentApp() {
   const [toast, setToast] = useState(''), [toastOut, setToastOut] = useState(false);
   const [error, setError] = useState('');
   const [tour, setTour] = useState<TourSpec | null>(null);
+  const [camera, setCamera] = useState<CameraSpec | null>(null);
+  const [viewer, setViewer] = useState<ViewerSpec | null>(null);
   const navigate = useNavigate(), queryClient = useQueryClient();
   const path = useRouterState({ select: (s) => s.location.pathname });
   // enquanto a próxima página carrega, esta tela não deve desenhar a página nova (senão anima duas vezes)
@@ -91,6 +98,8 @@ export function AssessmentApp() {
     bridge.toast = (t) => { setToastOut(false); setToast(t); };
     bridge.navigate = (to) => withPageTransition(() => { void navigate({ to }); });
     bridge.tour = setTour;
+    bridge.camera = setCamera;
+    bridge.viewer = setViewer;
     if (live && host.current) live.runtime.attach(host.current, pathRef.current);
   }, []);
 
@@ -102,7 +111,11 @@ export function AssessmentApp() {
         const user = data.session?.user;
         if (!user) { dropLive(); await navigate({ to: '/login' }); return; }
         if (live) { if (live.userId === user.id) return; dropLive(); setFrame(null); }
-        const loaded = await queryClient.fetchQuery({ queryKey: ['assessment-data', user.id], queryFn: () => loadCloud(user.id), staleTime: 0 });
+        // fotos carregam junto (se falharem, o app abre normalmente sem elas)
+        const [loaded, pics] = await Promise.all([
+          queryClient.fetchQuery({ queryKey: ['assessment-data', user.id], queryFn: () => loadCloud(user.id), staleTime: 0 }),
+          loadPhotos(user.id).catch(() => ({ cloud: false, metas: [] })),
+        ]);
         if (cancelled || !host.current || live) return;
         const repo = cloudRepository(user.id, loaded.db, loaded.fichaCloud);
         const runtime = mountOriginal({
@@ -113,6 +126,9 @@ export function AssessmentApp() {
           toast: (t: string) => bridge.toast(t),
           navigate: (to: string) => bridge.navigate(to),
           tour: (t: TourSpec) => bridge.tour(t),
+          photos: photoStore(user.id, pics.cloud, pics.metas), composeComparison,
+          camera: (c: CameraSpec) => bridge.camera(c),
+          viewer: (v: ViewerSpec) => bridge.viewer(v),
           logout: async () => { dropLive(); await queryClient.cancelQueries(); queryClient.clear(); await supabase.auth.signOut(); await navigate({ to: '/login', replace: true }); },
         });
         live = { runtime, userId: user.id };
@@ -193,6 +209,8 @@ export function AssessmentApp() {
       )}
       {toast && <div className={'toast' + (toastOut ? ' out' : '')} role="status">{toast}</div>}
       {tour && <AppTour spec={tour} onEnd={() => setTour(null)} />}
+      {camera && <PoseCamera spec={camera} onEnd={() => setCamera(null)} />}
+      {viewer && <PhotoViewer spec={viewer} onEnd={() => setViewer(null)} />}
     </>
   );
 }

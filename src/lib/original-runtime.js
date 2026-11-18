@@ -1,6 +1,7 @@
 import {num,fmt,today,toDate,fmtDate,ageAt,foldVal,calc,bmiClass,bfClass,whrRisk,PROTOCOLS,FOLDS,CIRC_TRUNK,CIRC_LIMBS,STEPS,METRICS,GROUPS,MET,esc,getPath,setPath,clone,initials,firstName} from "./calculos.js";
 import {motivo} from "./motivo";
 import {tick} from "./motion";
+import {POSES,POSE_KEYS,poseLabel,poseSvg} from "./poses.js";
 import {exportPdf} from "./report.js";
 const FOLD_NAME=Object.fromEntries(FOLDS.map(f=>[f.k,f.l]));
 export function mountOriginal(options){
@@ -55,6 +56,9 @@ const I = {
   sort:'<path d="M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4M13.5 7.5 17 4l3.5 3.5"/>',
   steth:'<path d="M6 3v6a5 5 0 0 0 10 0V3"/><path d="M11 14v2a4 4 0 0 0 8 0v-2"/><circle cx="19" cy="12" r="2"/>',
   code:'<path d="M8.5 4C6.5 4 6 5 6 7v2.2c0 1.4-.8 2.3-2 2.8 1.2.5 2 1.4 2 2.8V17c0 2 .5 3 2.5 3M15.5 4c2 0 2.5 1 2.5 3v2.2c0 1.4.8 2.3 2 2.8-1.2.5-2 1.4-2 2.8V17c0 2-.5 3-2.5 3"/>',
+  camera:'<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>',
+  image:'<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
+  lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
 };
 const ic = (n, cls='') => `<svg class="ico ${cls}" viewBox="0 0 24 24">${I[n]||''}</svg>`;
@@ -285,6 +289,139 @@ function aItem(a, p, on){
   </button>`;
 }
 const hasDraft = () => !!draft;
+
+/* =========================================================
+   FOTOS DE ACOMPANHAMENTO (frente, costas e laterais)
+   ========================================================= */
+const PH = options.photos || null;
+let phTick = 0;
+const phFail = new Set();
+function phRefresh(){ if (phTick) return; phTick = setTimeout(()=>{ phTick = 0; render(); }, 40); }
+const phOf = aid => (PH && aid) ? PH.of(aid) : [];
+const phGet = (aid, pose) => (PH && aid) ? PH.get(aid, pose) : null;
+function phSync(){ if (PH) PH.sync(new Set(db.assessments.map(a=>a.id))).catch(()=>{}); }
+// avaliação do rascunho: id real (editando) ou um id provisório que vira o id da avaliação ao salvar
+function draftAid(){ if (!draft) return null; if (state.editingId) return state.editingId; if (!draft.tid) draft.tid = uid(); return draft.tid; }
+const aidOwner = aid => findA(aid) || (draft && draftAid()===aid ? draft : null);
+function phImg(m, alt=''){
+  if (!m) return '';
+  const u = PH.cachedUrl(m.id);
+  if (u) return `<img src="${u}" alt="${esc(alt)}" draggable="false">`;
+  if (phFail.has(m.id)) return `<span class="ph-load fail">${ic('image')}</span>`;
+  PH.url(m).then(x=>{ if (!x) phFail.add(m.id); phRefresh(); }).catch(()=>{ phFail.add(m.id); phRefresh(); });
+  return `<span class="ph-load"></span>`;
+}
+const shortDate = d => fmtDate(d,{day:'2-digit',month:'2-digit',year:'2-digit'});
+const slugOf = s => (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'paciente';
+
+async function openCamera(aid, start, pickFile=false){
+  if (!PH) return toast('Fotos indisponíveis neste navegador');
+  const a = aidOwner(aid); if (!a) return;
+  const p = db.profiles.find(x=>x.id===a.profileId); if (!p) return;
+  const existing = {}, ghosts = {}; let ghostLabel = '';
+  for (const m of phOf(aid)) existing[m.pose] = await PH.url(m);
+  // guia "foto anterior": a consulta mais recente antes desta que tenha cada pose
+  const prevs = listOf(p.id).filter(x=>x.id!==aid && x.date<=a.date).reverse();
+  for (const k of POSE_KEYS){ for (const x of prevs){ const m = phGet(x.id,k); if (m){ const u = await PH.url(m); if (u){ ghosts[k] = u; ghostLabel ||= 'Consulta de '+shortDate(x.date); } break; } } }
+  options.camera({ title: p.name, subtitle: fmtDate(a.date,{day:'2-digit',month:'short',year:'numeric'}), poses: POSE_KEYS,
+    start: start || POSE_KEYS.find(k=>!existing[k]) || 'front', existing, ghosts, ghostLabel, pickFile,
+    onPhoto: async (pose, blob, w, h) => {
+      await PH.add({assessmentId:aid, profileId:p.id, pose}, blob, w, h);
+      if (draft && draftAid()===aid) saveDraft();
+      phSync(); render();
+    },
+    onClose: () => render() });
+}
+function openViewer(aid, pose){
+  const a = aidOwner(aid); if (!a || !PH) return;
+  const p = db.profiles.find(x=>x.id===a.profileId);
+  const ms = POSE_KEYS.map(k=>phGet(aid,k)).filter(Boolean);
+  if (!ms.length) return;
+  options.viewer({
+    items: ms.map(m=>({ id:m.id, pose:m.pose, title:poseLabel(m.pose), sub:`${p?.name||''} · ${fmtDate(a.date,{day:'numeric',month:'short',year:'numeric'})}`, url:()=>PH.url(m) })),
+    index: Math.max(0, ms.findIndex(m=>m.pose===pose)),
+    onRetake: it => setTimeout(()=>openCamera(aid, it.pose), 240),
+    onDownload: async it => { const m = ms.find(x=>x.id===it.id); const b = m && await PH.blob(m); if (b) download(`${slugOf(p?.name)}-${slugOf(poseLabel(m.pose))}-${a.date}.jpg`, b, 'image/jpeg'); else toast('Não foi possível baixar a foto'); },
+    onDelete: async it => { await PH.remove(it.id); render(); toast('Foto excluída'); },
+    onClose: () => render() });
+}
+// quatro espaços (frente, costas, lados): foto, ou silhueta pronta para fotografar
+function phSlots(aid, cls=''){
+  return `<div class="ph-slots ${cls}">${POSES.map(P=>{ const m = phGet(aid,P.k); return m
+    ? `<button class="ph-slot has" data-act="phView" data-aid="${aid}" data-pose="${P.k}" aria-label="Ver foto: ${P.l}">${phImg(m,P.l)}<span class="ph-lbl">${P.l}</span></button>`
+    : `<button class="ph-slot" data-act="phCam" data-aid="${aid}" data-pose="${P.k}" aria-label="Fotografar: ${P.l}">${poseSvg(P.k,{guides:true})}<span class="ph-lbl">${ic('plus','sm')}${P.l}</span></button>`; }).join('')}</div>`;
+}
+const phNote = () => `<p class="ph-note">${ic('lock','sm')}<span>As fotos são privadas e só aparecem para você. Peça a autorização do paciente antes de fotografar.${PH && !PH.cloud ? ' <b>Por enquanto, ficam salvas neste aparelho.</b>' : ''}</span></p>`;
+const phTips = () => `<details class="ph-tips"><summary>${ic('target','sm')}<span>Dicas para fotos comparáveis</span>${ic('chev','sm')}</summary><ol>
+  <li><b>Mesmo lugar e luz:</b> fundo liso, luz de frente, sem contraluz.</li>
+  <li><b>Mesma distância:</b> celular reto, na altura do umbigo, a uns 2,5 m — sem zoom.</li>
+  <li><b>Roupa justa ou de banho</b> e cabelo preso, para ver o contorno do corpo.</li>
+  <li><b>Mesma condição:</b> de preferência no mesmo horário e em jejum.</li>
+  <li><b>Use o guia “Foto anterior”</b> na câmera para repetir o enquadramento da última consulta.</li></ol></details>`;
+// bloco de fotos na página da avaliação
+function phSection(a){
+  if (!PH) return '';
+  const n = phOf(a.id).length;
+  const prevWith = listOf(a.profileId).filter(x=>x.id!==a.id && x.date<=a.date && phOf(x.id).length).at(-1);
+  return `<section class="ph-sec no-print">
+    <h2 class="sec">Fotos <span class="sec-note">${n ? `${n} de 4` : 'opcional'}</span><span class="grow"></span>
+      ${n && prevWith ? `<button class="sec-btn" data-act="phCompare" data-a="${prevWith.id}" data-b="${a.id}">${ic('swap','sm')}<span>Comparar com ${shortDate(prevWith.date)}</span></button>` : ''}
+      <button class="sec-btn dark" data-act="phCam" data-aid="${a.id}">${ic('camera','sm')}<span>${n ? (n<4 ? 'Completar' : 'Câmera') : 'Fotografar'}</span></button></h2>
+    ${phSlots(a.id)}
+    ${n ? '' : `<p class="ph-empty-hint">Toque numa pose para abrir a câmera com a silhueta-guia, ou <button data-act="phCam" data-aid="${a.id}" data-file="1">escolha da galeria</button>.</p>`}
+  </section>`;
+}
+// aba "Fotos" da Evolução: lado a lado, deslizar (antes/depois) e sobrepor
+function viewPhotoCompare(p, list){
+  const name = firstName(p.name);
+  const withPh = list.filter(a=>phOf(a.id).length);
+  if (!PH) return `<div class="card empty"><h3>Fotos indisponíveis</h3><p>Este navegador não permite guardar fotos.</p></div>`;
+  if (!withPh.length) return `<div class="card blue empty ph-empty">${poseSvg('front',{guides:true,cls:'e-sil'})}<h3>Nenhuma foto ainda</h3>
+    <p>Fotografe ${esc(name)} com a câmera guiada: a silhueta e a foto anterior ajudam a repetir o mesmo enquadramento em cada consulta.</p>
+    <button class="btn dark" style="margin:18px auto 0;display:inline-flex" data-act="phCam" data-aid="${list.at(-1).id}">${ic('camera','sm')} Fotografar na última avaliação</button></div>`;
+  const poses = POSES.filter(P=>list.some(a=>phGet(a.id,P.k)));
+  if (!poses.some(P=>P.k===state.phPose)) state.phPose = poses[0].k;
+  const k = state.phPose, dated = list.filter(a=>phGet(a.id,k));
+  if (!dated.some(a=>a.id===state.phA)) state.phA = dated[0].id;
+  if (!dated.some(a=>a.id===state.phB) || (dated.length>1 && state.phB===state.phA)) state.phB = dated.at(-1).id;
+  const chips = `<div class="chips ph-poses" role="tablist" aria-label="Pose">${poses.map(P=>`<button class="chip ${P.k===k?'on':''}" role="tab" aria-selected="${P.k===k}" data-act="phPose" data-v="${P.k}">${P.l}<span class="n">${list.filter(a=>phGet(a.id,P.k)).length}</span></button>`).join('')}</div>`;
+  const cap = (a, tag) => { const r = calc(a,p); return `<span class="phc-cap"><b>${tag}</b><span>${fmtDate(a.date,{day:'2-digit',month:'short',year:'numeric'})}</span><small>${fmt(num(a.weight))} kg${r.bf!=null?` · ${fmt(r.bf)}% gordura`:''}</small></span>`; };
+  if (dated.length < 2){
+    const a = dated[0], last = list.at(-1);
+    return chips + `<div class="phc-one">
+      <figure class="phc-fig" data-act="phView" data-aid="${a.id}" data-pose="${k}">${phImg(phGet(a.id,k), poseLabel(k))}${cap(a,'Única foto')}</figure>
+      <div class="phc-one-txt"><h3>Falta só mais uma</h3><p>Com uma segunda consulta fotografada na pose <b>${poseLabel(k).toLowerCase()}</b>, você compara o antes e depois lado a lado, deslizando ou sobrepondo as fotos.</p>
+      ${last.id!==a.id ? `<button class="btn dark sm" data-act="phCam" data-aid="${last.id}" data-pose="${k}">${ic('camera','sm')} Fotografar em ${shortDate(last.date)}</button>` : ''}</div></div>`;
+  }
+  const A = findA(state.phA), B = findA(state.phB), mA = phGet(A.id,k), mB = phGet(B.id,k), rA = calc(A,p), rB = calc(B,p);
+  const mode = state.phMode || 'side', x = state.phX ?? 50, o = state.phO ?? 50;
+  const opts = sel => dated.slice().reverse().map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${shortDate(a.date)}</option>`).join('');
+  const days = Math.round((toDate(B.date)-toDate(A.date))/864e5);
+  const stats = [['Peso',num(B.weight),num(A.weight),0,'kg'],['Gordura',rB.bf,rA.bf,-1,'pp'],['Massa magra',rB.leanMass,rA.leanMass,1,'kg'],['Cintura',num(B.circ?.waist),num(A.circ?.waist),-1,'cm']].filter(s=>s[1]!=null&&s[2]!=null);
+  let h = chips + `<div class="cmp-pick">
+      <label class="sel a"><small>Antes (A)</small><select data-ch="phA">${opts(A.id)}</select></label>
+      <button class="vs" data-act="phSwap" aria-label="Inverter">${ic('swap','sm')}</button>
+      <label class="sel b"><small>Depois (B)</small><select data-ch="phB">${opts(B.id)}</select></label>
+    </div>
+    <div class="ph-bar">
+      <div class="seg ph-modes" role="tablist" aria-label="Modo de comparação">${[['side','Lado a lado'],['wipe','Deslizar'],['fade','Sobrepor']].map(([v,l])=>`<button role="tab" aria-selected="${mode===v}" class="${mode===v?'on':''}" data-act="phMode" data-v="${v}">${l}</button>`).join('')}</div>
+      <button class="btn ghost sm ph-share" data-act="phShare">${ic('dl','sm')}<span>Baixar imagem</span></button>
+    </div>
+    <div class="phc phc-${mode}" style="--x:${x}%;--o:${o/100}">`;
+  if (mode==='side') h += `<figure class="phc-fig" data-act="phView" data-aid="${A.id}" data-pose="${k}">${phImg(mA,'Antes')}${cap(A,'Antes')}</figure>
+      <figure class="phc-fig" data-act="phView" data-aid="${B.id}" data-pose="${k}">${phImg(mB,'Depois')}${cap(B,'Depois')}</figure>`;
+  else h += `<div class="phc-stage" tabindex="0" role="slider" aria-label="${mode==='wipe'?'Deslize para comparar antes e depois':'Arraste para sobrepor as fotos'}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${mode==='wipe'?x:o}">
+        <div class="phc-a">${phImg(mA,'Antes')}</div><div class="phc-b">${phImg(mB,'Depois')}</div>
+        ${mode==='wipe' ? `<span class="phc-handle"><i>${ic('swap','sm')}</i></span>` : `<span class="phc-fader"><i></i></span>`}
+        <span class="phc-tag l">Antes · ${shortDate(A.date)}</span><span class="phc-tag r">Depois · ${shortDate(B.date)}</span>
+      </div>`;
+  h += `</div>
+    <p class="small muted ph-days">${Math.abs(days)} dias entre as fotos${mode!=='side' ? ` · ${mode==='wipe' ? 'arraste sobre a foto para deslizar' : 'arraste para a direita para mostrar a mais recente'}` : ''}</p>
+    ${stats.length ? `<div class="ph-stats">${stats.map(([l,b,a,dir,u])=>`<div class="stat"><small>${l}</small>${deltaChip(b,a,dir,u)}</div>`).join('')}</div>` : ''}
+    <h2 class="sec">Todas as fotos · ${poseLabel(k)} <span class="sec-note">toque para ver</span></h2>
+    <div class="ph-strip">${dated.slice().reverse().map(a=>`<button class="ph-th ${a.id===A.id?'is-a':''} ${a.id===B.id?'is-b':''}" data-act="phView" data-aid="${a.id}" data-pose="${k}">${phImg(phGet(a.id,k), shortDate(a.date))}<span>${shortDate(a.date)}</span>${a.id===A.id?'<em>A</em>':a.id===B.id?'<em>B</em>':''}</button>`).join('')}</div>`;
+  return h;
+}
 
 /* =========================================================
    VIEWS
@@ -543,6 +680,8 @@ function viewDetail(id){
       <div class="mid">${fmt(r.bmi)}</div><div class="sub small">${esc(bmiClass(r.bmi))}</div></div>
   </div>
 
+  ${phSection(a)}
+
   <div class="two-col">
   <div>
     <h2 class="sec">Índices</h2>
@@ -573,12 +712,14 @@ function viewCompare(){
   const p = prof(), list = listOf(p.id);
   let h = `<header class="top"><button class="icon-btn" data-act="go" data-to="home">${ic('back')}</button>
     <div class="title-block"><small>${esc(p.name)}</small><b>Evolução</b></div><div class="grow"></div>
-    ${list.length?`<button class="icon-btn" data-act="exportCmp" aria-label="Exportar PDF" title="${state.cmpTab==='ab'?'Exportar comparativo em PDF':'Exportar evolução em PDF'}">${ic('dl')}</button>`:''}</header>
+    ${list.length && state.cmpTab!=='ph'?`<button class="icon-btn" data-act="exportCmp" aria-label="Exportar PDF" title="${state.cmpTab==='ab'?'Exportar comparativo em PDF':'Exportar evolução em PDF'}">${ic('dl')}</button>`:''}</header>
     <div class="seg full" style="margin-bottom:16px">
       <button data-act="cmpTab" data-v="evo" class="${state.cmpTab==='evo'?'on':''}">Linha do tempo</button>
-      <button data-act="cmpTab" data-v="ab" class="${state.cmpTab==='ab'?'on':''}">Comparativo A × B</button>
+      <button data-act="cmpTab" data-v="ab" class="${state.cmpTab==='ab'?'on':''}">A × B</button>
+      <button data-act="cmpTab" data-v="ph" class="${state.cmpTab==='ph'?'on':''}">${ic('camera','sm')} Fotos</button>
     </div>`;
   if (list.length < 1) return h + `<div class="card empty"><div class="e-ico">${ic('chart')}</div><h3>Sem avaliações</h3><p>Registre a primeira avaliação de ${esc(firstName(p.name))} para acompanhar a evolução.</p></div>${ctaNew()}`;
+  if (state.cmpTab==='ph') return h + viewPhotoCompare(p, list);
   const R = list.map(a=>({a, r:calc(a,p)}));
 
   if (state.cmpTab==='evo'){
@@ -629,6 +770,7 @@ function viewCompare(){
         <div class="sub">${a!=null&&b!=null?deltaChip(b,a,dir,u):'<span class="small muted">sem dados</span>'}</div>
         <div class="small muted" style="margin-top:6px">antes: ${fmt(a)}</div></div>`).join('')}
     </div>
+    ${(()=>{ const k = POSE_KEYS.find(q=>phGet(A.id,q) && phGet(B.id,q)); return k ? `<button class="ph-teaser" data-act="phCompare" data-a="${A.id}" data-b="${B.id}"><span class="ph-tz">${phImg(phGet(A.id,k),'Antes')}</span><span class="ph-tz">${phImg(phGet(B.id,k),'Depois')}</span><span class="grow"><b>Ver as fotos lado a lado</b><span>${poseLabel(k)} · ${shortDate(A.date)} → ${shortDate(B.date)}</span></span>${ic('right','sm')}</button>` : ''; })()}
     <button class="toggle" style="margin-top:16px" data-act="onlyFilled"><span>Mostrar só medidas preenchidas nas duas</span><span class="switch ${state.onlyFilled?'on':''}"></span></button>
     <div class="two-col">`;
   const cols = [[],[]];
@@ -843,7 +985,7 @@ function viewNutri(){
 /* ---------- WIZARD ---------- */
 function newDraft(){
   const p = prof(), last = listOf(p.id).at(-1);
-  return {id:null, profileId:p.id, date:today(), weight:'', height: p.height || last?.height || '', protocol: last?.protocol || 'jp7', multi:false, circ:{}, folds:{}, extra: nutriSign() ? {evaluator:nutriSign()} : {}};
+  return {id:null, tid:uid(), profileId:p.id, date:today(), weight:'', height: p.height || last?.height || '', protocol: last?.protocol || 'jp7', multi:false, circ:{}, folds:{}, extra: nutriSign() ? {evaluator:nutriSign()} : {}};
 }
 function wizPrev(){
   if (!draft) return null;
@@ -886,6 +1028,7 @@ function stepFilled(k){
     case 'trunk': return [cnt(CIRC_TRUNK.map(c=>d.circ?.[c.k])), CIRC_TRUNK.length];
     case 'limbs': return [cnt(CIRC_LIMBS.flatMap(c=>[d.circ?.[c.k+'_r'],d.circ?.[c.k+'_l']])), CIRC_LIMBS.length*2];
     case 'folds': { const need = PROTOCOLS[d.protocol].folds(p.sex); return [need.filter(f=>foldVal(d,f)!=null).length, need.length]; }
+    case 'photos': { const aid = state.editingId || draft.tid; return [aid ? phOf(aid).length : 0, 4]; }
     case 'extra': return [cnt([d.extra?.bf,d.extra?.muscle,d.extra?.visceral,d.extra?.water]) + (d.extra?.notes?1:0), 5];
     default: return [0,0];
   }
@@ -949,6 +1092,15 @@ function viewWizard(){
           <span class="f-hint">Objetivos, rotina, alimentação, sensações, orientações do nutricionista…</span>
           <div class="f-input"><textarea data-k="extra.notes" placeholder="Escreva aqui…">${esc(draft.extra?.notes??'')}</textarea></div></label>`;
       break;
+    case 'photos': {
+      const aid = draftAid(), n = phOf(aid).length;
+      body = `${phSlots(aid,'big')}
+        <div class="ph-cta">
+          <button class="cta" data-act="phCam" data-aid="${aid}"><span class="c-ico">${ic('camera')}</span><span>${n ? (n<4 ? 'Continuar com a câmera' : 'Abrir a câmera de novo') : 'Abrir câmera guiada'} <span class="arrows">›››</span></span><span class="c-ico">${ic('plus')}</span></button>
+          <button class="btn ghost" data-act="phCam" data-aid="${aid}" data-file="1">${ic('image','sm')} Escolher da galeria</button>
+        </div>
+        ${phTips()}${phNote()}`;
+      break; }
     case 'review': {
       const pv = wizPrev(), rp = pv ? calc(pv,p) : null;
       body = `<div class="dash detail-dash">
@@ -962,7 +1114,7 @@ function viewWizard(){
           <div class="card"><div class="card-head"><span class="label">RCQ</span></div><div class="mid">${fmt(r.whr,2)}</div><div class="sub small">${esc(whrRisk(r.whr,p.sex))}</div></div>
         </div>
         <h2 class="sec">O que foi preenchido</h2>
-        <div class="check-list">${STEPS.slice(1,6).map((st,i)=>{ const [f,t] = stepFilled(st.k); const ok = st.k==='extra' ? f>0 : f===t; return `<div class="check-row"><span class="ok ${ok?'yes':''}">${ok?ic('check','sm'):ic(st.i,'sm')}</span><span class="grow"><b>${st.l}</b><span class="small muted">${f} de ${t} ${st.k==='folds'?'dobras do protocolo':'campos'}</span></span><button data-act="step" data-i="${i+1}">Editar</button></div>`; }).join('')}</div>
+        <div class="check-list">${STEPS.slice(1,7).map((st,i)=>{ const [f,t] = stepFilled(st.k); const ok = (st.k==='extra'||st.k==='photos') ? f>0 : f===t; return `<div class="check-row"><span class="ok ${ok?'yes':''}">${ok?ic('check','sm'):ic(st.i,'sm')}</span><span class="grow"><b>${st.l}</b><span class="small muted">${f} de ${t} ${st.k==='folds'?'dobras do protocolo':st.k==='photos'?'fotos (opcional)':'campos'}</span></span><button data-act="step" data-i="${i+1}">Editar</button></div>`; }).join('')}</div>
         ${!num(draft.weight)?`<p class="small" style="color:var(--red-ink);margin-top:12px">Informe pelo menos o peso para salvar.</p>`:''}`;
       break; }
   }
@@ -1089,6 +1241,33 @@ const ACT = {
     saveDraft(); go('wizard');
   },
   resume: async () => ACT.new(),
+  /* ---------- fotos ---------- */
+  phCam: async b => openCamera(b.dataset.aid, b.dataset.pose || null, !!b.dataset.file),
+  phView: async b => openViewer(b.dataset.aid, b.dataset.pose),
+  phCompare: async b => {
+    const A = findA(b.dataset.a), B = findA(b.dataset.b); if (!A || !B) return;
+    setActive(A.profileId); state.cmpTab = 'ph'; state.phA = A.id; state.phB = B.id;
+    state.phPose = POSE_KEYS.find(k=>phGet(A.id,k) && phGet(B.id,k)) || state.phPose;
+    go('compare');
+  },
+  phPose: async b => { state.phPose = b.dataset.v; render(); },
+  phMode: async b => { state.phMode = b.dataset.v; render(); },
+  phSwap: async () => { [state.phA, state.phB] = [state.phB, state.phA]; render(); },
+  // baixa (ou compartilha, no celular) uma imagem com o antes e depois lado a lado
+  phShare: async () => {
+    const p = prof(), A = findA(state.phA), B = findA(state.phB), k = state.phPose;
+    const mA = A && phGet(A.id,k), mB = B && phGet(B.id,k); if (!mA || !mB) return;
+    const sub = a => { const r = calc(a,p); return `${fmt(num(a.weight))} kg${r.bf!=null?` · ${fmt(r.bf)}% gordura`:''}`; };
+    const blob = await options.composeComparison(PH, [
+      {meta:mA, label:`Antes · ${fmtDate(A.date,{day:'2-digit',month:'short',year:'numeric'})}`, sub:sub(A)},
+      {meta:mB, label:`Depois · ${fmtDate(B.date,{day:'2-digit',month:'short',year:'numeric'})}`, sub:sub(B)}], `${p.name} · ${poseLabel(k)}`);
+    const name = `comparacao-${slugOf(p.name)}-${slugOf(poseLabel(k))}-${A.date}-${B.date}.jpg`;
+    const file = typeof File==='function' ? new File([blob], name, {type:'image/jpeg'}) : null;
+    if (file && navigator.canShare?.({files:[file]}) && matchMedia('(pointer: coarse)').matches){
+      try { await navigator.share({files:[file], title:`${p.name} · antes e depois`}); return; } catch (e) { if (e?.name==='AbortError') return; }
+    }
+    download(name, blob, 'image/jpeg'); toast('Imagem baixada');
+  },
   // celular: engrenagem do detalhe abre um menu com todas as ações da avaliação
   aMenu: async b => {
     const a = findA(b.dataset.id); if (!a) return;
@@ -1099,13 +1278,14 @@ const ACT = {
     sheet('Opções da avaliação', `${p.name} · ${fmtDate(a.date,{day:'numeric',month:'long',year:'numeric'})}`, [
       {label:'Editar avaliação', icon:ic('edit','sm'), cls:'dark', fn:then(()=>ACT.edit(fake))},
       pv && {label:'Comparar com a anterior', icon:ic('swap','sm'), fn:()=>ACT.cmpWith({dataset:{a:pv.id, b:a.id}})},
+      PH && {label:phOf(a.id).length ? 'Fotos · câmera guiada' : 'Adicionar fotos', icon:ic('camera','sm'), fn:then(()=>openCamera(a.id))},
       {label:'Exportar em PDF', icon:ic('print','sm'), fn:then(()=>ACT.print(fake))},
       {label:'Excluir avaliação', icon:ic('trash','sm'), cls:'danger', fn:then(()=>ACT.del(fake))},
       {label:'Cancelar'}].filter(Boolean));
   },
   edit: async b => {
     const a = findA(b.dataset.id); if (!a) return;
-    const start = async () => { draft = clone(a); draft.circ ||= {}; draft.folds ||= {}; draft.extra ||= {}; state.editingId = a.id; state.step = 1; db.activeId = a.profileId; saveDraft(); go('wizard'); };
+    const start = async () => { if (draft && !draft._editing && draft.tid) PH?.removeAssessment(draft.tid); draft = clone(a); draft.circ ||= {}; draft.folds ||= {}; draft.extra ||= {}; state.editingId = a.id; state.step = 1; db.activeId = a.profileId; saveDraft(); go('wizard'); };
     if (draft && draft._editing!==a.id) sheet('Substituir rascunho?', 'Há uma avaliação em andamento. Editar esta vai descartar o rascunho atual.', [{label:'Descartar e editar',cls:'dark',fn:start},{label:'Cancelar'}]);
     else start();
   },
@@ -1116,25 +1296,25 @@ const ACT = {
   multi: async () => { draft.multi = !draft.multi; saveDraft(); render(); },
   wizExit: async () => sheet('Sair da avaliação?', 'O que você já preencheu fica salvo como rascunho para continuar depois.', [
     {label:'Sair e manter rascunho', cls:'dark', fn:async ()=>{ saveDraft(); go('home'); }},
-    {label:'Descartar alterações', cls:'danger', fn:async ()=>{ draft=null; state.editingId=null; saveDraft(); go('home'); toast('Rascunho descartado'); }},
+    {label:'Descartar alterações', cls:'danger', fn:async ()=>{ if (draft && !state.editingId && draft.tid) PH?.removeAssessment(draft.tid); draft=null; state.editingId=null; saveDraft(); go('home'); toast('Rascunho descartado'); }},
     {label:'Continuar preenchendo'}]),
   saveA: async () => {
     if (!num(draft.weight) || num(draft.weight)<=0){ toast('Informe o peso'); return; }
     if(draft.date>today()) return toast("A data não pode ser futura");
-    const {_step, _editing, _savedAt, ...data} = draft;
+    const {_step, _editing, _savedAt, tid, ...data} = draft;
     if (state.editingId){
       const i = db.assessments.findIndex(a=>a.id===state.editingId);
       data.id = state.editingId; data.updatedAt = Date.now();
       if (i>=0) db.assessments[i] = data; else db.assessments.push(data);
     } else {
-      data.id = uid(); data.createdAt = Date.now(); db.assessments.push(data);
+      data.id = tid || uid(); data.createdAt = Date.now(); db.assessments.push(data);
     }
     const p = prof(); if (num(data.height) && !p.height){ p.height = data.height; }
     await save(); const id = data.id; draft = null; state.editingId = null; saveDraft(); clearTimeout(draftTimer); await draftPending; await options.saveDraft(null);
-     go('detail', id); toast('Avaliação salva ✓');
+     phSync(); go('detail', id); toast('Avaliação salva ✓');
   },
   del: async b => sheet('Excluir avaliação?', 'Esta ação não pode ser desfeita.', [
-    {label:'Excluir', cls:'danger', fn:async ()=>{ db.assessments = db.assessments.filter(a=>a.id!==b.dataset.id); await save(); go('list'); toast('Avaliação excluída'); }},
+    {label:'Excluir', cls:'danger', fn:async ()=>{ db.assessments = db.assessments.filter(a=>a.id!==b.dataset.id); PH?.removeAssessment(b.dataset.id); await save(); go('list'); toast('Avaliação excluída'); }},
     {label:'Cancelar'}]),
   // menu de PDFs: no detalhe (b.dataset.id/param = avaliação) ou geral (Perfil), usando a última avaliação
   print: async b => {
@@ -1196,7 +1376,7 @@ const ACT = {
     if (draft && draft.profileId!==p.id){
       const other = db.profiles.find(x=>x.id===draft.profileId);
       return sheet('Avaliação em andamento', `Existe uma avaliação ${draft._editing?'em edição':'não concluída'} de ${other?other.name:'outro paciente'}. O que deseja fazer?`, [
-        {label:`Começar a de ${firstName(p.name)} (descarta a outra)`, cls:'dark', fn:async()=>{ draft=null; state.editingId=null; setActive(p.id); await ACT.new(); }},
+        {label:`Começar a de ${firstName(p.name)} (descarta a outra)`, cls:'dark', fn:async()=>{ if (draft && !draft._editing && draft.tid) PH?.removeAssessment(draft.tid); draft=null; state.editingId=null; setActive(p.id); await ACT.new(); }},
         other && {label:`Continuar a de ${firstName(other.name)}`, fn:async()=>{ setActive(other.id); await ACT.new(); }},
         {label:'Cancelar'}].filter(Boolean));
     }
@@ -1223,7 +1403,7 @@ const ACT = {
   skipSetup: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} state.setup = true; go('onboard'); },
   setupLater: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} state.setup = false; go('home'); toast('Tudo pronto! Cadastre o paciente quando quiser.'); },
   delProfile: async b => { const p = db.profiles.find(x=>x.id===b.dataset.id) || prof(); sheet(`Excluir ${p.name}?`, `Isso remove o paciente e ${plural(listOf(p.id).length,'avaliação','avaliações')}. Não pode ser desfeito — se quiser só tirar da lista, use “Arquivar”.`, [
-    {label:'Excluir definitivamente', cls:'danger', fn:async ()=>{ db.assessments = db.assessments.filter(a=>a.profileId!==p.id); db.profiles = db.profiles.filter(x=>x.id!==p.id); if (db.activeId===p.id) db.activeId = (db.profiles.find(x=>!x.archived)||db.profiles[0])?.id||null; if (draft?.profileId===p.id){ draft=null; saveDraft(); } await save(); go(db.profiles.length?'patients':'home'); toast('Paciente excluído'); }},
+    {label:'Excluir definitivamente', cls:'danger', fn:async ()=>{ for (const a of listOf(p.id)) PH?.removeAssessment(a.id); db.assessments = db.assessments.filter(a=>a.profileId!==p.id); db.profiles = db.profiles.filter(x=>x.id!==p.id); if (db.activeId===p.id) db.activeId = (db.profiles.find(x=>!x.archived)||db.profiles[0])?.id||null; if (draft?.profileId===p.id){ draft=null; saveDraft(); } await save(); go(db.profiles.length?'patients':'home'); toast('Paciente excluído'); }},
     {label:'Cancelar'}]); },
   export: async () => { download(`avaliacao-fisica-backup-${today()}.json`, JSON.stringify({app:'avaliacao-fisica', version:1, exportedAt:new Date().toISOString(), ...db}, null, 2), 'application/json'); toast('Backup exportado'); },
   import: async () => document.getElementById('importFile').click(),
@@ -1271,10 +1451,22 @@ const input = e => {
 const change = e => {
   const c = e.target.dataset?.ch;
   if (c==='cmpA' || c==='cmpB'){ state[c] = e.target.value; render(); }
+  if (c==='phA' || c==='phB'){ state[c] = e.target.value; render(); }
   if (e.target.dataset?.k==='date' && state.route==='wizard') render();
 };
 // Enter avança para o próximo campo
+// comparativo de fotos: arrastar sobre a foto move o divisor (Deslizar) ou a transparência (Sobrepor)
+let phDrag = null;
+function phSet(st, v){
+  v = Math.max(0, Math.min(100, Math.round(v)));
+  const fade = state.phMode==='fade'; state[fade ? 'phO' : 'phX'] = v;
+  const box = st.closest('.phc'); box?.style.setProperty(fade ? '--o' : '--x', fade ? String(v/100) : v+'%'); st.setAttribute('aria-valuenow', v);
+}
+const pdown = e => { const st = e.target.closest?.('.phc-stage'); if (!st) return; phDrag = st; st.setPointerCapture?.(e.pointerId); const r = st.getBoundingClientRect(); phSet(st, (e.clientX-r.left)/r.width*100); };
+const pmove = e => { if (!phDrag) return; const r = phDrag.getBoundingClientRect(); phSet(phDrag, (e.clientX-r.left)/r.width*100); };
+const pup = () => { phDrag = null; };
 const keydown = e => {
+  if ((e.key==='ArrowLeft'||e.key==='ArrowRight') && e.target.classList?.contains('phc-stage')){ e.preventDefault(); const cur = state.phMode==='fade' ? (state.phO??50) : (state.phX??50); phSet(e.target, cur + (e.key==='ArrowRight'?5:-5)); return; }
   if (e.key==='Escape' && state.dd){ const id = state.dd; state.dd = null; render(); app.querySelector(`[data-act="ddToggle"][data-dd="${id}"]`)?.focus({preventScroll:true}); return; }
   // setas navegam entre as opções do menu aberto
   if ((e.key==='ArrowDown'||e.key==='ArrowUp') && state.dd){ const o=[...app.querySelectorAll('.dd.open .dd-opt')]; if(o.length){ e.preventDefault(); const i=o.indexOf(document.activeElement); o[(i<0?(e.key==='ArrowDown'?0:o.length-1):(i+(e.key==='ArrowDown'?1:-1)+o.length)%o.length)].focus(); } return; }
@@ -1291,9 +1483,11 @@ function listen(on){
   if (on) file = document.getElementById('importFile');
   file?.[m]('change',importChange);
   app[m]('click',click); app[m]('input',input); app[m]('change',change); app[m]('keydown',keydown);
+  app[m]('pointerdown',pdown); app[m]('pointermove',pmove); app[m]('pointerup',pup); app[m]('pointercancel',pup);
 }
 listen(true);
 syncPath(options.path);
+phSync();
 // attach: o app continua vivo entre páginas; só troca o elemento onde desenha (sem recarregar dados).
 function attach(el, path){ listen(false); app = el; listen(true); syncPath(path); }
 return {syncPath,attach,destroy(){clearTimeout(draftTimer); draftPending.catch(()=>{}).then(()=>options.saveDraft(draft)).catch(()=>{});listen(false);}};

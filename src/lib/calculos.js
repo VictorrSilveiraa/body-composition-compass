@@ -72,6 +72,7 @@ const STEPS = [
   {k:'limbs', l:'Membros', i:'arm', c:'blue', t:'Circunferências dos membros', d:'Meça lado direito e esquerdo. Pule o que não for medir.'},
   {k:'folds', l:'Dobras', i:'pinch', c:'yellow', t:'Dobras cutâneas', d:'Adipômetro no lado direito, leitura em 2 segundos.'},
   {k:'extra', l:'Extras', i:'bolt', c:'green', t:'Bioimpedância e notas', d:'Opcional: valores da balança de bioimpedância e observações.'},
+  {k:'photos',l:'Fotos', i:'camera', c:'peach', t:'Fotos de acompanhamento', d:'Opcional: frente, costas e laterais com a câmera guiada.'},
   {k:'review',l:'Resumo', i:'check', c:'blue', t:'Resumo da avaliação', d:'Revise os resultados e salve.'},
 ];
 
