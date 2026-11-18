@@ -26,14 +26,14 @@ const reduced = () => typeof window !== 'undefined' && window.matchMedia('(prefe
 
 function Art({ kind }: { kind: 'hello' | 'done' }) {
   if (kind === 'hello') return (
-    <div className="tour-art hello" aria-hidden="true">
+    <div className="tour-art tour-hello" aria-hidden="true">
       <span className="ta blue"><Users size={26} /></span>
       <span className="ta yellow"><ClipboardList size={26} /></span>
       <span className="ta green"><TrendingUp size={26} /></span>
     </div>
   );
   return (
-    <div className="tour-art done" aria-hidden="true">
+    <div className="tour-art tour-done" aria-hidden="true">
       {Array.from({ length: 12 }, (_, i) => <i key={i} className="cf" style={{ ['--a' as string]: `${i * 30}deg`, background: ['var(--yellow-2)', 'var(--blue-2)', 'var(--green-2)', 'var(--peach)'][i % 4] }} />)}
       <span className="ok"><Check size={34} strokeWidth={2.6} /></span>
     </div>

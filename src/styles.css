@@ -1208,11 +1208,11 @@ button.kpi:active{scale:.97}
 .tour-art .ta.green{background:var(--green-2);animation-delay:.34s,1.6s}
 @keyframes taIn{from{opacity:0;transform:translateY(26px) scale(.5) rotate(-10deg)}}
 @keyframes taFloat{50%{transform:translateY(-8px)}}
-.tour-art.done .ok{position:relative;width:80px;height:80px;border-radius:50%;background:var(--green-2);display:grid;place-items:center;animation:pop .7s var(--spring) .1s backwards}
-.tour-art.done .ok::before,.tour-art.done .ok::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--green-2);animation:okRing 1.8s ease-out .3s infinite}
-.tour-art.done .ok::after{animation-delay:1.2s}
+.tour-art.tour-done .ok{position:relative;width:80px;height:80px;border-radius:50%;background:var(--green-2);display:grid;place-items:center;animation:pop .7s var(--spring) .1s backwards}
+.tour-art.tour-done .ok::before,.tour-art.tour-done .ok::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--green-2);animation:okRing 1.8s ease-out .3s infinite}
+.tour-art.tour-done .ok::after{animation-delay:1.2s}
 @keyframes okRing{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(1.7)}}
-.tour-art.done .cf{position:absolute;left:calc(50% - 4px);top:calc(50% - 4px);width:8px;height:8px;border-radius:2px;animation:cf 1.2s var(--ease) .25s both}
+.tour-art.tour-done .cf{position:absolute;left:calc(50% - 4px);top:calc(50% - 4px);width:8px;height:8px;border-radius:2px;animation:cf 1.2s var(--ease) .25s both}
 @keyframes cf{0%{opacity:0;transform:rotate(var(--a)) translateY(0) scale(.3)}15%{opacity:1}100%{opacity:0;transform:rotate(var(--a)) translateY(-78px) rotate(200deg) scale(1)}}
 
 @media (max-width:639px){
