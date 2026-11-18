@@ -54,6 +54,7 @@ const I = {
   clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   sort:'<path d="M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4M13.5 7.5 17 4l3.5 3.5"/>',
   steth:'<path d="M6 3v6a5 5 0 0 0 10 0V3"/><path d="M11 14v2a4 4 0 0 0 8 0v-2"/><circle cx="19" cy="12" r="2"/>',
+  code:'<path d="M8.5 4C6.5 4 6 5 6 7v2.2c0 1.4-.8 2.3-2 2.8 1.2.5 2 1.4 2 2.8V17c0 2 .5 3 2.5 3M15.5 4c2 0 2.5 1 2.5 3v2.2c0 1.4.8 2.3 2 2.8-1.2.5-2 1.4-2 2.8V17c0 2-.5 3-2.5 3"/>',
   gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
 };
 const ic = (n, cls='') => `<svg class="ico ${cls}" viewBox="0 0 24 24">${I[n]||''}</svg>`;
@@ -765,7 +766,7 @@ function viewPatient(id){
     <h2 class="sec">Gerenciar</h2>
     <div class="actions">
       <button class="act-row" data-act="go" data-to="onboard" data-id="${p.id}"><span class="chip-ico">${ic('edit','sm')}</span><span class="grow"><b>Editar dados</b><span>Nome, medidas, contato, objetivo e retorno</span></span></button>
-      ${list.length?`<button class="act-row" data-act="csv"><span class="chip-ico">${ic('table','sm')}</span><span class="grow"><b>Exportar planilha (CSV)</b><span>Todas as avaliações, abre no Excel</span></span></button>`:''}
+      <button class="act-row" data-act="exportPt" data-id="${p.id}" aria-haspopup="dialog"><span class="chip-ico">${ic('dl','sm')}</span><span class="grow"><b>Exportar dados</b><span>Planilha (CSV) ou arquivo JSON</span></span>${ic('right','sm')}</button>
       <button class="act-row" data-act="archive" data-id="${p.id}"><span class="chip-ico">${ic('archive','sm')}</span><span class="grow"><b>${p.archived?'Reativar paciente':'Arquivar paciente'}</b><span>${p.archived?'Volta para a lista de ativos':'Sai da lista de ativos; o histórico fica guardado'}</span></span></button>
       <button class="act-row danger" data-act="delProfile" data-id="${p.id}"><span class="chip-ico">${ic('trash','sm')}</span><span class="grow"><b>Excluir paciente</b><span style="color:inherit;opacity:.7">Remove ${esc(firstName(p.name))} e todas as avaliações</span></span></button>
     </div>
@@ -810,8 +811,8 @@ function viewProfile(){
       <button class="act-row" data-act="tour"><span class="chip-ico">${ic('target','sm')}</span><span class="grow"><b>Tour de apresentação</b><span>Reveja em 1 minuto como usar o sistema</span></span>${ic('right','sm')}</button>
       <button class="act-row" data-act="export"><span class="chip-ico">${ic('dl','sm')}</span><span class="grow"><b>Exportar backup</b><span>Arquivo .json com todos os pacientes e avaliações</span></span></button>
       <button class="act-row" data-act="import"><span class="chip-ico">${ic('ul','sm')}</span><span class="grow"><b>Restaurar backup</b><span>Importa um arquivo .json exportado antes, sem duplicar</span></span></button>
-      <button class="act-row" data-act="logout"><span class="chip-ico">${ic('out','sm')}</span><span class="grow"><b>Sair da conta</b><span>${esc(options.email||'')}</span></span></button>
     </div>
+    <button class="logout-row" data-act="logout"><span class="chip-ico">${ic('out','sm')}</span><span class="grow"><b>Sair da conta</b><span>${esc(options.email||'')}</span></span>${ic('right','sm')}</button>
   </div></div>
   <p class="small muted" style="margin-top:20px;text-align:center">Seus dados estão salvos na sua conta.</p>`;
 }
@@ -1226,8 +1227,18 @@ const ACT = {
     {label:'Cancelar'}]); },
   export: async () => { download(`avaliacao-fisica-backup-${today()}.json`, JSON.stringify({app:'avaliacao-fisica', version:1, exportedAt:new Date().toISOString(), ...db}, null, 2), 'application/json'); toast('Backup exportado'); },
   import: async () => document.getElementById('importFile').click(),
-  csv: async () => {
-    const p = prof(), list = listOf(p.id);
+  // ficha do paciente: escolhe o formato (planilha para abrir no Excel; JSON com os dados completos, restaurável)
+  exportPt: async b => {
+    const p = db.profiles.find(x=>x.id===b.dataset.id) || prof(); if (!p) return;
+    const n = listOf(p.id).length, slug = norm(firstName(p.name)).replace(/[^a-z0-9]+/g,'-') || 'paciente';
+    sheet(`Exportar dados de ${firstName(p.name)}`, n ? `${plural(n,'avaliação','avaliações')} · escolha o formato do arquivo.` : 'Ainda sem avaliações — a planilha fica disponível depois da primeira.', [
+      {label:'Planilha (CSV)', sub:'Abre no Excel ou Google Planilhas · uma linha por avaliação', icon:ic('table'), cls:'opt', fn:()=>ACT.csv({dataset:{id:p.id}})},
+      {label:'Arquivo JSON', sub:'Ficha e avaliações completas · dá para restaurar depois', icon:ic('code'), cls:'opt', fn:async()=>{
+        download(`paciente-${slug}-${today()}.json`, JSON.stringify({app:'avaliacao-fisica', version:1, exportedAt:new Date().toISOString(), activeId:p.id, profiles:[p], assessments:listOf(p.id)}, null, 2), 'application/json'); toast('Arquivo JSON exportado'); }},
+      {label:'Cancelar'}]);
+  },
+  csv: async b => {
+    const p = db.profiles.find(x=>x.id===b?.dataset?.id) || prof(), list = listOf(p.id);
     if (!list.length) return toast('Nenhuma avaliação para exportar');
     const cols = [{l:'Data',get:a=>a.date},{l:'Protocolo',get:a=>PROTOCOLS[a.protocol||'jp7'].short},{l:'Altura (cm)',get:a=>num(a.height)}, ...METRICS.map(m=>({l:m.l+(m.u?` (${m.u})`:''), get:(a,r)=>m.get(a,r), d:m.d??2}))];
     const cell = v => v==null ? '' : typeof v==='number' ? v.toFixed(2).replace('.',',') : `"${String(v).replace(/"/g,'""')}"`;

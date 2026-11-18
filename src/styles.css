@@ -1124,6 +1124,24 @@ button.kpi:active{scale:.97}
   .dt-acts .dt-del{margin-left:6px}
 }
 
+/* painel de exportar: opções grandes com ícone, título e descrição */
+.sheet .btns .btn.opt{height:auto;min-height:76px;justify-content:flex-start;gap:14px;padding:12px 18px 12px 12px;border-radius:24px;background:var(--card);text-align:left}
+.sheet .btns .btn.opt>.ico{width:48px;height:48px;padding:13px;border-radius:16px;background:var(--surface);flex:none;transition:background .25s,scale .3s var(--spring)}
+.sheet .btns .btn.opt:nth-child(1)>.ico{background:var(--green-2)}
+.sheet .btns .btn.opt:nth-child(2)>.ico{background:var(--blue-2)}
+.sheet .btns .btn.opt:hover{background:var(--line)}
+.sheet .btns .btn.opt:hover>.ico{scale:1.06}
+.sb-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.sb-txt b{font-size:16px;font-weight:600}
+.sb-txt small{font-size:13px;font-weight:400;color:var(--ink-2);line-height:1.3}
+
+/* sair da conta: separado e em destaque (vermelho suave) */
+.logout-row{display:flex;align-items:center;gap:12px;width:100%;margin-top:14px;padding:12px 16px 12px 12px;border-radius:var(--r-lg);background:var(--danger-soft);color:var(--red-ink);text-align:left;border:1.5px solid color-mix(in oklab,var(--red-ink) 22%,transparent);transition:background .25s,border-color .25s}
+.logout-row:hover{border-color:var(--red-ink)}
+.logout-row .chip-ico{width:40px;height:40px;border-radius:50%;background:var(--red-ink);color:var(--surface);display:grid;place-items:center;flex:none}
+.logout-row .grow b{display:block;font-weight:600}
+.logout-row .grow span{font-size:13px;opacity:.8}
+
 /* menu de opções (painel): ícone à esquerda, como lista de ações */
 .sheet .btns .btn>.ico{flex:none}
 .sheet .btns .btn:nth-child(4){animation-delay:.31s}.sheet .btns .btn:nth-child(5){animation-delay:.36s}
