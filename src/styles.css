@@ -1669,3 +1669,53 @@ button.kpi:active{scale:.97}
   .pp-entry>.pp-safe{grid-row:5}
   .pp-entry>.auth-links{grid-row:6}
 }
+
+
+/* ---------- portal do paciente com menus (mesmo esqueleto do app do nutricionista) ---------- */
+@media (min-width:1024px){ .app.has-nav.pp{max-width:none;margin:0} }
+.pp .pp-msg{margin-top:12px;background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--line)}
+.pp .pp-msg p{margin-top:10px;color:var(--ink-2);font-size:15px;line-height:1.45;white-space:pre-line}
+.pp-follow{display:grid;gap:10px}
+.pp .pp-nutri{flex-wrap:wrap}
+.pp .pp-nutri .grow{min-width:0;flex:1}
+.pp .pp-nutri .pp-contact{flex-basis:100%;margin:6px 0 0}
+.pp .pp-next{margin-top:0}
+.pp .pp-next .chip-ico{width:44px;height:44px;border-radius:50%;background:var(--surface);display:grid;place-items:center;flex:none}
+.pp-explore .act-row .grow b{display:block;font-weight:600}
+.pp-explore .act-row .grow span{font-size:13px;color:var(--muted)}
+.pp-ro{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;margin:22px 4px 0;font-size:12.5px;color:var(--muted);text-align:center}
+.pp-cls{display:block;font-size:12px;color:var(--muted);font-weight:500}
+.pp-guide-btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;font-size:13px;background:var(--card)}
+.pp-guide-row{margin-top:16px;background:var(--blue)}
+.pp-guide-row .grow b{display:block;font-weight:600}
+.pp-guide-row .grow span{font-size:13px;color:var(--ink-2)}
+.pp-pager{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}
+.pp-pager .act-row .grow b{display:block;font-weight:600}
+.pp-pager .act-row .grow span{font-size:12.5px;color:var(--muted)}
+.pp-pager .act-row.next{text-align:right}
+.pp-hasph{display:inline-flex;align-items:center;color:var(--muted)}
+/* guia */
+.pp-gintro{color:var(--ink-2);font-size:15px;line-height:1.45;margin:-4px 2px 16px;max-width:62ch}
+.pp-guide{display:grid;gap:10px}
+.pp-gi{padding:0}
+.pp-gi summary{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;list-style:none}
+.pp-gi summary::-webkit-details-marker{display:none}
+.pp-gi summary .chip-ico{width:40px;height:40px;border-radius:50%;background:var(--surface);display:grid;place-items:center;flex:none}
+.pp-gi summary .grow{min-width:0}
+.pp-gi summary b{display:block;font-weight:600;font-size:16px}
+.pp-gi summary small{display:block;font-size:13px;color:var(--blue-ink);font-weight:600;margin-top:2px}
+.pp-gchev{transition:rotate .3s var(--ease);color:var(--muted)}
+.pp-gi[open] .pp-gchev{rotate:90deg}
+.pp-gb{padding:0 16px 16px}
+.pp-gb p{color:var(--ink-2);font-size:14.5px;line-height:1.45;margin-bottom:12px}
+.pp-gb p:last-child{margin-bottom:0}
+/* barra lateral: botão de WhatsApp (link) com o visual do "Nova avaliação" */
+.nav a.side-cta{text-decoration:none;align-items:center;border-radius:99px}
+.nav .side-prof .ico.sm{color:var(--muted)}
+@media (min-width:1024px){
+  .pp-follow{grid-template-columns:1.2fr 1fr}
+  .pp-explore{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .pp-guide{grid-template-columns:repeat(2,1fr);align-items:start}
+  .pp .top-home .icon-btn{display:none}
+}
+@media (min-width:1024px){ .pp-guide{display:block;columns:2;column-gap:10px} .pp-guide .pp-gi{break-inside:avoid;margin-bottom:10px} }
