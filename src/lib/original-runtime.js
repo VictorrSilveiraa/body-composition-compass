@@ -865,7 +865,7 @@ function viewPatients(){
     <label class="pt-search">${ic('search','sm')}<input id="pt-q" type="search" value="${esc(state.pq)}" placeholder="Buscar por nome, telefone ou e-mail" autocomplete="off" enterkeyhint="search" aria-label="Buscar por nome, telefone, e-mail ou objetivo"></label>
     <div class="pt-filters" role="tablist" aria-label="Filtrar pacientes">${FILTERS.map(([k,l,n])=>`<button class="chip ${state.pf===k?'on':''}" role="tab" aria-selected="${state.pf===k}" data-act="pfilter" data-v="${k}">${l}<span class="n">${n}</span></button>`).join('')}</div>
     <span class="pt-count">${plural(shown.length,'paciente','pacientes')}${q&&shown.length?' encontrados':''}</span>
-    ${dropdown('psort', [['recent','Avaliação mais recente','Quem foi avaliado por último primeiro'],['next','Próximo retorno','Retornos atrasados e mais próximos primeiro'],['name','Nome (A–Z)','Ordem alfabética']], state.ps, {icon:'sort', cls:'pt-sort', label:'Ordenar pacientes'})}
+    ${dropdown('psort', [['recent','Última avaliação','Quem foi avaliado por último primeiro'],['next','Próximo retorno','Retornos atrasados e mais próximos primeiro'],['name','Nome (A–Z)','Ordem alfabética']], state.ps, {icon:'sort', cls:'pt-sort', label:'Ordenar pacientes'})}
   </div>
   ${shown.length
     ? `<div class="pt-grid">${shown.map(ptCard).join('')}</div>`
@@ -1519,7 +1519,9 @@ const ACT = {
   },
   ddToggle: async b => { state.dd = state.dd===b.dataset.dd ? null : b.dataset.dd; render(); },
   ddPick: async b => { const fn = DD_PICK[b.dataset.dd]; state.dd = null; if (fn) fn(b.dataset.v); render(); app.querySelector(`[data-act="ddToggle"][data-dd="${b.dataset.dd}"]`)?.focus({preventScroll:true}); },
-  pfilter: async b => { state.pf = b.dataset.v; if (state.route!=='patients') go('patients'); else { try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} render(); } },
+  pfilter: async b => { state.pf = b.dataset.v; if (state.route!=='patients') go('patients'); else { try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} render(); }
+    // a aba escolhida fica à vista na faixa de filtros (celular)
+    setTimeout(()=>{ const on = app.querySelector('.pt-filters .chip.on'), bar = on?.parentElement; if (on && bar && bar.scrollWidth > bar.clientWidth) bar.scrollTo({ left: on.offsetLeft - bar.clientWidth/2 + on.offsetWidth/2, behavior:'smooth' }); }, 60); },
   saveNutri: async () => {
     const v = id => document.getElementById(id).value.trim();
     const next = { name:v('nu-name'), crn:v('nu-crn'), specialty:v('nu-spec'), phone:fmtPhone(v('nu-phone')), place:v('nu-place'), returnDays: num(state.form.nret) || 30, ...(nutri.tourSeen ? {tourSeen:true} : {}) };

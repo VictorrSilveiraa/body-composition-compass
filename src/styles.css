@@ -2279,3 +2279,27 @@ button.kpi:active{scale:.97}
   .dt-ed-nav button{padding:8px 11px;font-size:13px}
   .dt-ed-shop{grid-template-columns:minmax(0,1fr)}
 }
+/* ---------- Pacientes no celular: busca (pílula) · filtros (abas sublinhadas) · ordenar (link de texto) ---------- */
+@media (max-width:639px){
+  .pt-bar{gap:4px 10px;margin:14px 0 12px}
+  .pt-search{margin-bottom:10px}
+  .pt-filters{gap:0;margin:0 -16px;padding:0 16px;border-bottom:1px solid var(--line);
+    -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent)}
+  .pt-filters .chip{position:relative;background:transparent;border-radius:0;height:46px;padding:0 13px;gap:6px;font-size:14.5px;font-weight:600;color:var(--muted);overflow:visible;transition:color .25s}
+  .pt-filters .chip:first-child{padding-left:2px}
+  .pt-filters .chip:last-child{margin-right:28px}
+  .pt-filters .chip::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:3px;border-radius:3px 3px 0 0;background:var(--ink);transform:scaleX(0);transition:transform .35s var(--spring)}
+  .pt-filters .chip:first-child::after{left:0}
+  .pt-filters .chip.on{color:var(--ink);background:transparent}
+  .pt-filters .chip.on::after{transform:scaleX(1)}
+  .pt-filters .chip .n{min-width:20px;height:20px;padding:0 6px;font-size:11px;background:var(--card);color:var(--ink-2)}
+  .pt-filters .chip.on .n{background:var(--yellow);color:var(--ink)}
+  .pt-filters .chip[data-rip]::before{display:none}
+  .pt-count{padding:10px 0 0 2px;font-weight:500}
+  .pt-sort{padding-top:10px}
+  .pt-sort .dd-btn{height:34px;padding:0 2px 0 6px;gap:6px;background:transparent;border:0;border-radius:10px;font-size:13px;font-weight:700;color:var(--ink);max-width:62vw}
+  .pt-sort .dd-btn .ico{width:16px;height:16px;color:var(--muted)}
+  .pt-sort .dd-val::before{content:"Ordenar: ";font-weight:500;color:var(--muted)}
+  .pt-sort.open .dd-btn{background:var(--card)}
+  .pt-sort .dd-menu{right:-4px}
+}
