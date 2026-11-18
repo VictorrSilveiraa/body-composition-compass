@@ -36,6 +36,13 @@
       "when": 1794987207712,
       "tag": "0004_acessos_paciente_restrict_anon",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795036541553,
+      "tag": "0005_create_dietas",
+      "breakpoints": true
     }
   ]
 }

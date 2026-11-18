@@ -117,6 +117,60 @@ export type Database = {
           },
         ]
       }
+      dietas: {
+        Row: {
+          avaliacao_id: string | null
+          created_at: string
+          dados: Json
+          id: string
+          owner_id: string
+          paciente_id: string
+          prescrito_em: string | null
+          titulo: string
+          updated_at: string
+          visivel_paciente: boolean
+        }
+        Insert: {
+          avaliacao_id?: string | null
+          created_at?: string
+          dados: Json
+          id?: string
+          owner_id?: string
+          paciente_id: string
+          prescrito_em?: string | null
+          titulo?: string
+          updated_at?: string
+          visivel_paciente?: boolean
+        }
+        Update: {
+          avaliacao_id?: string | null
+          created_at?: string
+          dados?: Json
+          id?: string
+          owner_id?: string
+          paciente_id?: string
+          prescrito_em?: string | null
+          titulo?: string
+          updated_at?: string
+          visivel_paciente?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dietas_avaliacao_id_fkey"
+            columns: ["avaliacao_id"]
+            isOneToOne: false
+            referencedRelation: "avaliacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dietas_paciente_owner_fkey"
+            columns: ["paciente_id", "owner_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id", "owner_id"]
+          },
+        ]
+      }
       fotos_avaliacao: {
         Row: {
           altura: number | null
