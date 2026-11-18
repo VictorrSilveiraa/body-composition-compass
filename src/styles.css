@@ -2097,7 +2097,20 @@ button.kpi:active{scale:.97}
   .dt-shop{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
   .dt .dt-foot-a{display:block} .dt .dt-foot-b{display:none}
 }
-@container dt (min-width:1320px){ .dt-layout{grid-template-columns:400px minmax(0,1fr)} .dt-tl{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px} .dt-tl::before{display:none} }
+/* computador largo: uma refeição por linha, em retângulo — à esquerda nome/opções/observação, à direita os alimentos */
+@container dt (min-width:1180px){
+  .dt-layout{grid-template-columns:380px minmax(0,1fr)}
+  .dt-tl{gap:14px}
+  .dt-mcard{display:grid;grid-template-columns:min(280px,34%) minmax(0,1fr);column-gap:clamp(18px,2.4vw,32px);align-items:start;padding:18px 22px 16px 24px}
+  .dt-mcard>*:not(.dt-foods){grid-column:1}
+  .dt-mcard>.dt-foods{grid-column:2;grid-row:1 / span 8;align-self:start}
+  .dt-mcard>.dt-when-in{display:none}
+  .dt-mcard .dt-mhead{margin-bottom:4px}
+  .dt-mcard .dt-opts{flex-direction:column;border-radius:18px;margin:12px 0 0}
+  .dt-mcard .dt-opts button{flex:none;text-align:left;padding:9px 14px;border-radius:12px}
+  .dt-mcard .dt-note{margin-top:12px}
+  .dt-mcard .dt-food:first-child{padding-top:4px}
+}
 @media (min-width:640px){
   .dt-intro{grid-template-columns:150px minmax(0,1fr);align-items:center;padding:28px}
   .dt-intro .dt-how{grid-column:1 / -1;grid-template-columns:repeat(3,1fr)}
