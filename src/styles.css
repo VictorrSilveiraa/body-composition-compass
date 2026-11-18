@@ -272,7 +272,7 @@ h2.sec a,h2.sec button{font-size:14px;color:var(--muted);font-weight:500;text-de
 .draft-banner b{background:var(--yellow);padding:8px 14px;border-radius:99px;font-size:14px}
 
 /* nav */
-.nav{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:6px;padding:6px;background:oklch(1 0 0 / .88);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-radius:99px;box-shadow:var(--shadow),0 0 0 1px var(--line);z-index:30}
+.nav{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:6px;padding:6px;background:var(--surface);border-radius:99px;box-shadow:var(--shadow),0 0 0 1px var(--line);z-index:30}
 .nav button{width:54px;height:54px;border-radius:99px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--card);transition:background .2s,width .2s}
 .nav button span{display:none;font-weight:600;font-size:15px}
 .nav button.on{background:var(--yellow)}
@@ -645,6 +645,10 @@ span[data-live],b[data-live]{display:inline-block}
 @keyframes vtIn{from{opacity:0}}
 .nav{view-transition-name:nav}
 ::view-transition-group(nav){animation-duration:.35s}
+/* indo para uma tela sem barra (formulários, assistente): a barra some na hora em vez de passar por cima dos botões
+   (no Safari isso aparecia como um retângulo de "vidro" borrado sobre "Cadastrar paciente") */
+::view-transition-old(nav):only-child{animation:none;opacity:0}
+::view-transition-new(nav):only-child{animation:vtIn .22s cubic-bezier(.22,1,.36,1) both}
 @media (prefers-reduced-motion:reduce){::view-transition-old(root),::view-transition-new(root){animation:none}}
 
 /* =========================================================

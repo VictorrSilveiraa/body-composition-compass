@@ -1238,7 +1238,9 @@ function download(name, content, type){
 
 /* ---------- ações ---------- */
 const ACT = {
- logout: async () => {await options.logout();},
+ logout: async () => sheet('Sair da conta?', `Você vai sair de ${options.email||'sua conta'}. Seus pacientes e avaliações continuam salvos.`, [
+    {label:'Sair da conta', icon:ic('out','sm'), cls:'danger', fn:async()=>{ await options.logout(); }},
+    {label:'Cancelar'}]),
   go: async b => { if (b.dataset.to==='compare' && !b.dataset.keep) {} go(b.dataset.to, b.dataset.id||null); },
   back: async () => go('home'),
   new: async () => {
