@@ -54,6 +54,7 @@ const I = {
   clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   sort:'<path d="M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4M13.5 7.5 17 4l3.5 3.5"/>',
   steth:'<path d="M6 3v6a5 5 0 0 0 10 0V3"/><path d="M11 14v2a4 4 0 0 0 8 0v-2"/><circle cx="19" cy="12" r="2"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
 };
 const ic = (n, cls='') => `<svg class="ico ${cls}" viewBox="0 0 24 24">${I[n]||''}</svg>`;
 
@@ -513,8 +514,14 @@ function viewDetail(id){
   const bio = [['% Gordura',num(ex.bf),'%'],['Massa muscular',num(ex.muscle),'kg'],['Gordura visceral',num(ex.visceral),''],['Água corporal',num(ex.water),'%']].map(([l,v,u])=>row(l,v,u)).join('');
   return `<header class="top no-print-sm"><button class="icon-btn no-print" data-act="back">${ic('back')}</button>
     <div class="title-block"><small>Avaliação · ${esc(p.name)}</small><b>${fmtDate(a.date,{day:'numeric',month:'long',year:'numeric'})}</b></div><div class="grow"></div>
-    <button class="icon-btn no-print" data-act="print" aria-label="Exportar PDF" title="Exportar PDF">${ic('print')}</button>
-    <button class="icon-btn no-print" data-act="edit" data-id="${a.id}" aria-label="Editar">${ic('edit')}</button></header>
+    <div class="dt-acts no-print">
+      ${pv?`<button class="btn ghost sm dt-d" data-act="cmpWith" data-a="${pv.id}" data-b="${a.id}">${ic('swap','sm')}<span>Comparar com a anterior</span></button>`:''}
+      <button class="btn ghost sm dt-d" data-act="print" data-id="${a.id}">${ic('print','sm')}<span>PDF</span></button>
+      <button class="btn ghost sm dt-d" data-act="edit" data-id="${a.id}">${ic('edit','sm')}<span>Editar</span></button>
+      <button class="btn ghost sm dt-d dt-del" data-act="del" data-id="${a.id}" aria-label="Excluir avaliação" title="Excluir avaliação">${ic('trash','sm')}</button>
+      <button class="icon-btn dt-m" data-act="print" data-id="${a.id}" aria-label="Exportar PDF">${ic('print')}</button>
+      <button class="icon-btn dt-m" data-act="aMenu" data-id="${a.id}" aria-label="Opções da avaliação" aria-haspopup="dialog">${ic('gear')}</button>
+    </div></header>
 
   <div class="dash detail-dash">
     <div class="card blue span2 span2-d hero">
@@ -558,12 +565,6 @@ function viewDetail(id){
     ${ex.evaluator?`<h2 class="sec">Avaliador(a)</h2><div class="notes">${esc(ex.evaluator)}</div>`:''}
     ${ex.notes?`<h2 class="sec">Observações</h2><div class="notes">${esc(ex.notes)}</div>`:''}
   </div>
-  </div>
-
-  <div class="no-print detail-actions">
-    ${pv?`<button class="cta" data-act="cmpWith" data-a="${pv.id}" data-b="${a.id}"><span class="c-ico">${ic('swap')}</span><span>Comparar com a anterior <span class="arrows">›››</span></span><span class="c-ico">${ic('chart')}</span></button>`:''}
-    <button class="btn ghost" data-act="print" data-id="${a.id}">${ic('dl','sm')} Exportar em PDF</button>
-    <button class="btn danger" data-act="del" data-id="${a.id}">${ic('trash','sm')} Excluir avaliação</button>
   </div>`;
 }
 
@@ -619,7 +620,8 @@ function viewCompare(){
       <button class="vs" data-act="swapAB" aria-label="Inverter">${ic('swap','sm')}</button>
       <label class="sel b"><small>Depois (B)</small><select data-ch="cmpB">${opts(B.id)}</select></label>
     </div>
-    <p class="small muted" style="margin:-4px 2px 14px">${Math.abs(days)} dias entre as avaliações${days<0?' (A é mais recente que B)':''}</p>
+    <div class="cmp-meta"><p class="small muted">${Math.abs(days)} dias entre as avaliações${days<0?' (A é mais recente que B)':''}</p>
+      <div class="cmp-legend" aria-label="Legenda das setas"><span><span class="delta good">${ic('down')}</span>Favorável</span><span><span class="delta bad">${ic('up')}</span>Desfavorável</span><span><span class="delta neu">${ic('up')}</span>Neutro</span></div></div>
     <div class="dash" data-key="ab-${A.id}-${B.id}">
       ${big.map(([l,b,a,dir,u,col,uu])=>`<div class="card ${col}"><div class="card-head"><span class="label">${l}</span></div>
         <div class="mid">${fmt(b)}<small>${uu||u}</small></div>
@@ -645,8 +647,7 @@ function viewCompare(){
     }).join('');
     if (rows) cols[gi<2?0:1].push(`<h2 class="sec">${g.g}</h2><div class="kv">${rows}</div>`);
   });
-  h += `<div>${cols[0].join('')}</div><div>${cols[1].join('')}</div></div>
-    <p class="small muted" style="margin-top:16px;display:flex;gap:14px;flex-wrap:wrap"><span><span class="delta good" style="background:var(--card)">${ic('down')}</span> evolução favorável</span><span><span class="delta bad" style="background:var(--card)">${ic('up')}</span> desfavorável</span><span><span class="delta neu" style="background:var(--card)">${ic('up')}</span> neutro</span></p>`;
+  h += `<div>${cols[0].join('')}</div><div>${cols[1].join('')}</div></div>`;
   return h;
 }
 
@@ -1087,6 +1088,20 @@ const ACT = {
     saveDraft(); go('wizard');
   },
   resume: async () => ACT.new(),
+  // celular: engrenagem do detalhe abre um menu com todas as ações da avaliação
+  aMenu: async b => {
+    const a = findA(b.dataset.id); if (!a) return;
+    const p = db.profiles.find(x=>x.id===a.profileId) || prof(), pv = prevOf(a);
+    // espera o painel fechar antes de abrir o próximo (PDF e Excluir têm painel próprio)
+    const then = fn => () => new Promise(r => setTimeout(()=>r(fn()), 260));
+    const fake = {dataset:{id:a.id}};
+    sheet('Opções da avaliação', `${p.name} · ${fmtDate(a.date,{day:'numeric',month:'long',year:'numeric'})}`, [
+      {label:'Editar avaliação', icon:ic('edit','sm'), cls:'dark', fn:then(()=>ACT.edit(fake))},
+      pv && {label:'Comparar com a anterior', icon:ic('swap','sm'), fn:()=>ACT.cmpWith({dataset:{a:pv.id, b:a.id}})},
+      {label:'Exportar em PDF', icon:ic('print','sm'), fn:then(()=>ACT.print(fake))},
+      {label:'Excluir avaliação', icon:ic('trash','sm'), cls:'danger', fn:then(()=>ACT.del(fake))},
+      {label:'Cancelar'}].filter(Boolean));
+  },
   edit: async b => {
     const a = findA(b.dataset.id); if (!a) return;
     const start = async () => { draft = clone(a); draft.circ ||= {}; draft.folds ||= {}; draft.extra ||= {}; state.editingId = a.id; state.step = 1; db.activeId = a.profileId; saveDraft(); go('wizard'); };

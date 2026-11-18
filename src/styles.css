@@ -1111,16 +1111,29 @@ button.kpi:active{scale:.97}
   .app:has(.form-bar){padding-bottom:140px}
 }
 
-/* rodapé do detalhe: empilhado no celular; no computador, uma linha com "Excluir" isolado à direita */
-.detail-actions{display:grid;gap:8px;margin-top:26px}
-.detail-actions .cta{margin-top:0}
-.detail-actions .btn.danger{margin-top:12px}
+/* ações da avaliação no topo: celular = PDF + engrenagem (menu); computador = botões com nome */
+.top .dt-acts{display:flex;align-items:center;gap:8px;margin-left:auto;flex:none}
+.dt-acts .dt-d{display:none}
+.dt-acts .btn.sm{height:46px;padding:0 18px;background:var(--card)}
+.dt-acts .btn.sm:hover{background:var(--line)}
+.dt-acts .dt-del{width:46px;padding:0;color:var(--red-ink)}
+.dt-acts .dt-del:hover{background:var(--danger-soft)}
 @media (min-width:1024px){
-  .detail-actions{display:flex;align-items:center;gap:12px;margin-top:36px;padding-top:24px;border-top:1px solid var(--line)}
-  .detail-actions .cta{flex:0 1 420px}
-  .detail-actions .btn{flex:none;padding:0 26px}
-  .detail-actions .btn.danger{margin:0 0 0 auto}
+  .dt-acts .dt-d{display:inline-flex}
+  .dt-acts .dt-m{display:none}
+  .dt-acts .dt-del{margin-left:6px}
 }
+
+/* menu de opções (painel): ícone à esquerda, como lista de ações */
+.sheet .btns .btn>.ico{flex:none}
+.sheet .btns .btn:nth-child(4){animation-delay:.31s}.sheet .btns .btn:nth-child(5){animation-delay:.36s}
+
+/* comparativo: dias entre avaliações + legenda das setas, antes dos números */
+.cmp-meta{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap;margin:-4px 2px 14px}
+.cmp-legend{display:flex;gap:6px;flex-wrap:wrap}
+.cmp-legend>span{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px 0 4px;border-radius:99px;background:var(--card);font-size:13px;font-weight:500;color:var(--ink-2)}
+.cmp-legend .delta{height:24px;width:24px;padding:0;justify-content:center;background:var(--surface)}
+.cmp-legend .delta .ico{width:13px;height:13px}
 
 /* =========================================================
    TOUR DE APRESENTAÇÃO — destaque que desliza entre os elementos + mão tocando

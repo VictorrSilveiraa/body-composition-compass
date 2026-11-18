@@ -34,7 +34,7 @@ const parserOptions: HTMLReactParserOptions = {
   },
 };
 
-type Sheet = { title: string; text: string; buttons: { label: string; cls?: string; fn?: () => void | Promise<void> }[] };
+type Sheet = { title: string; text: string; buttons: { label: string; cls?: string; icon?: string; fn?: () => void | Promise<void> }[] };
 type Frame = { html: string; nav: string; key: string; dir: string };
 type Runtime = ReturnType<typeof mountOriginal>;
 
@@ -185,7 +185,7 @@ export function AssessmentApp() {
                 <Button variant="original" key={i} className={'btn ' + (b.cls ?? 'ghost')} onClick={async () => {
                   closeSheet();
                   try { await b.fn?.(); } catch (e) { bridge.toast(motivo(e, 'Não foi possível salvar. Tente novamente.')); }
-                }}>{b.label}</Button>
+                }}>{b.icon ? parse(b.icon) : null}{b.label}</Button>
               ))}
             </div>
           </div>
