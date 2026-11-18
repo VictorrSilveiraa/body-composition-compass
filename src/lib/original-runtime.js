@@ -60,7 +60,7 @@ const ic = (n, cls='') => `<svg class="ico ${cls}" viewBox="0 0 24 24">${I[n]||'
 /* ---------- estado / storage ---------- */
 let db = options.db;
 let draft = loadDraft();
-const state = { route:'home', param:null, step:0, editingId:null, evo:'weight', cmpA:null, cmpB:null, cmpTab:'evo', onlyFilled:true, pq:'', pf:'active', ps:'recent', dd:null, form:{} };
+const state = { route:'home', param:null, step:0, editingId:null, evo:'weight', cmpA:null, cmpB:null, cmpTab:'evo', onlyFilled:true, pq:'', pf:'active', ps:'recent', dd:null, form:{}, setup:false };
 let nutri = { returnDays:30, ...(options.nutri||{}) };
 try { Object.assign(state,JSON.parse(sessionStorage.getItem('avf.view.'+options.userId)||'{}')); } catch {}
 
@@ -92,7 +92,11 @@ const nutriSign = () => (nutri.name||'').trim() ? nutri.name.trim() + (crnLabel(
 const SETUP_KEY = 'avf.setup.'+options.userId;
 const setupSkipped = () => { try { return localStorage.getItem(SETUP_KEY)==='skip'; } catch { return false; } };
 const needsSetup = () => !db.profiles.length && !(nutri.name||'').trim() && !setupSkipped();
-const setupSteps = n => `<ol class="setup-steps" aria-label="Primeiros passos">${['Seu perfil','Primeiro paciente'].map((l,i)=>{ const done = i+1<n && !!(nutri.name||'').trim(); return `<li class="${i+1===n?'on':done?'done':''}"${i+1===n?' aria-current="step"':''}><span class="n">${done?ic('check','sm'):i+1}</span>${l}</li>`; }).join('')}</ol>`;
+// state.setup: está no fluxo de boas-vindas (perfil → primeiro paciente, que é opcional)
+const inSetup = () => !db.profiles.length && (!!state.setup || needsSetup());
+const setupSteps = n => `<ol class="setup-steps" aria-label="Primeiros passos">${['Seu perfil','Primeiro paciente'].map((l,i)=>{ const done = i+1<n && !!(nutri.name||'').trim(), back = i+1<n;
+  const inner = `<span class="n">${done?ic('check','sm'):i+1}</span>${l}`;
+  return `<li class="${i+1===n?'on':done?'done':''}"${i+1===n?' aria-current="step"':''}>${back?`<button type="button" data-act="go" data-to="nutri" aria-label="Voltar para ${l}">${inner}</button>`:inner}</li>`; }).join('')}</ol>`;
 const GOALS = [['emagrecimento','Emagrecimento'],['hipertrofia','Hipertrofia'],['saude','Saúde e bem-estar'],['performance','Performance esportiva'],['reeducacao','Reeducação alimentar'],['clinico','Acompanhamento clínico']];
 const goalLabel = k => GOALS.find(g=>g[0]===k)?.[1] || '';
 const RETURNS = [15,30,45,60,90];
@@ -252,12 +256,14 @@ function viewOnboard(editP){
   const p = editP || {name:'',sex:'',birth:'',height:''};
   const isNew = !editP;
   const back = editP ? `data-to="patient" data-id="${editP.id}"` : 'data-to="patients"';
+  // boas-vindas: o primeiro paciente é opcional — "Fazer depois" leva ao painel vazio, pronto para quando houver paciente
+  const setup = isNew && inSetup(), nm = (nutri.name||'').trim();
   return `
-  ${db.profiles.length ? `<header class="top"><button class="icon-btn" data-act="go" ${back} aria-label="Voltar">${ic('back')}</button><div class="title-block"><small>Pacientes</small><b>${isNew?'Novo paciente':'Editar paciente'}</b></div></header>` : ''}
-  ${!db.profiles.length ? `${setupSteps(2)}<div class="onb-hero"><div class="blob"></div><div class="blob b2"></div>
-    <div style="position:relative"><span class="tag" style="margin-bottom:14px">${ic('users','sm')} Primeiro paciente</span>
-    <h1>${(nutri.name||'').trim() ? `Pronto, ${esc(firstName(nutri.name))}! Agora, seu paciente.` : 'Agora, seu primeiro paciente.'}</h1>
-    <p>Cadastre quem você vai avaliar. Depois é só registrar dobras, circunferências e peso passo a passo — a evolução aparece a cada consulta.</p></div></div>` : ''}
+  ${!setup ? `<header class="top"><button class="icon-btn" data-act="go" ${back} aria-label="Voltar">${ic('back')}</button><div class="title-block"><small>Pacientes</small><b>${isNew?(db.profiles.length?'Novo paciente':'Primeiro paciente'):'Editar paciente'}</b></div></header>` : ''}
+  ${setup ? `${setupSteps(2)}<div class="onb-hero"><div class="blob"></div><div class="blob b2"></div>
+    <div style="position:relative"><span class="tag" style="margin-bottom:14px">${ic('users','sm')} Primeiro paciente · opcional</span>
+    <h1>${nm ? `Perfil pronto, ${esc(firstName(nm))}!` : 'Sua conta está pronta!'}</h1>
+    <p>Já tem alguém para avaliar? Cadastre agora. Se ainda não, toque em <b>Fazer depois</b> — seu painel fica pronto para quando o primeiro paciente chegar.</p></div></div>` : ''}
   <h2 class="sec" style="margin-top:6px">${isNew?'Dados do paciente':'Dados pessoais'}</h2>
   <div class="form-grid">
     <label class="field"><div class="f-top"><span class="f-label">Nome</span></div>
@@ -298,9 +304,11 @@ function viewOnboard(editP){
       <div class="f-input"><textarea id="pf-notes" placeholder="Anotações sobre o paciente">${esc(p.notes||'')}</textarea></div></label>
   </div>
   ${options.fichaCloud ? '' : `<p class="small muted" style="margin:12px 4px 0">Contato, objetivo e observações ficam salvos neste aparelho até o banco de dados receber os novos campos.</p>`}
-  ${!db.profiles.length ? `<p class="small muted" style="text-align:center;margin-top:22px">Seus dados ficam protegidos na sua conta.</p>
+  ${setup ? `<p class="small muted" style="text-align:center;margin-top:22px">Já usava o sistema em outra conta? Traga seus pacientes de um backup.</p>
   <button class="btn ghost sm" style="margin:12px auto 0;display:flex" data-act="import">${ic('ul','sm')} Restaurar backup</button>` : ''}
-  ${formBar(db.profiles.length ? back : 'data-to="nutri"', `data-act="saveProfile" data-id="${editP?editP.id:''}"`, isNew ? (db.profiles.length ? 'Cadastrar paciente' : 'Cadastrar e começar') : 'Salvar alterações', db.profiles.length ? 'Cancelar' : 'Voltar')}`;
+  ${setup
+    ? formBar('data-v="1"', `data-act="saveProfile" data-id=""`, 'Cadastrar paciente', 'Fazer depois', 'setupLater')
+    : formBar(back, `data-act="saveProfile" data-id="${editP?editP.id:''}"`, isNew ? 'Cadastrar paciente' : 'Salvar alterações')}`;
 }
 // barra de ações dos formulários: fixa no rodapé (celular) / pílula flutuante (computador) — sempre à mão
 function formBar(cancelAttrs, saveAttrs, saveLabel, cancelLabel='Cancelar', cancelAct='go'){
@@ -310,12 +318,59 @@ function formBar(cancelAttrs, saveAttrs, saveLabel, cancelLabel='Cancelar', canc
   </div></div>`;
 }
 
+/* ---------- PAINEL SEM PACIENTES (conta nova) ---------- */
+function nutriTopbar(){
+  return `<header class="top top-home">
+    <button class="avatar" style="background:var(--yellow-2)" data-act="go" data-to="profile" aria-label="Seu perfil">${esc(initials(nutriName()))}</button>
+    <button class="hello" data-act="go" data-to="profile"><small>Olá,</small><b>${esc(firstName(nutriName()))}</b></button>
+    <div class="grow"></div>
+    <span class="top-date">${fmtDate(today(),{weekday:'long',day:'numeric',month:'long'})}</span>
+    <button class="icon-btn" data-act="newProfile" aria-label="Cadastrar paciente">${ic('plus')}</button>
+  </header>`;
+}
+function viewWelcome(){
+  const hasName = !!(nutri.name||'').trim();
+  const step = (done, icn, title, sub, act='') => `<div class="check-row"><span class="ok ${done?'yes':''}">${ic(done?'check':icn,'sm')}</span><span class="grow"><b>${title}</b><span class="small muted">${sub}</span></span>${act}</div>`;
+  const feats = [
+    ['blue','users','Pacientes organizados','Busca, filtros e alerta de retorno atrasado.'],
+    ['yellow','clip','Avaliação guiada','Peso, circunferências e dobras em 7 etapas.'],
+    ['green','chart','Evolução clara','Gráficos e comparativo entre consultas.'],
+    ['','print','Relatórios em PDF','Prontos para entregar ao paciente.']];
+  return `${nutriTopbar()}
+  <h1 class="headline">${hasName ? `${esc(firstName(nutriName()))}, seu espaço de atendimento está pronto.` : 'Seu espaço de atendimento está pronto.'}</h1>
+  <div class="card white welcome-card">
+    <div class="card-head"><span class="chip-ico" style="background:var(--yellow-2)">${ic('target','sm')}</span><span class="label"><b>Primeiros passos</b><br><span class="small muted">${hasName?1:0} de 3 concluídos</span></span></div>
+    <div class="check-list">
+      ${step(hasName,'badge','Perfil profissional', hasName ? `${esc(nutriSign())}` : 'Nome e CRN nas avaliações e nos PDFs', hasName ? '' : `<button data-act="go" data-to="nutri">Completar</button>`)}
+      ${step(false,'users','Cadastrar o primeiro paciente','Dados, contato, objetivo e retorno', `<button data-act="newProfile">Cadastrar</button>`)}
+      ${step(false,'clip','Registrar a primeira avaliação','Liberado depois de cadastrar um paciente')}
+    </div>
+  </div>
+  <button class="cta cta-new cta-first" data-act="newProfile"><span class="c-ico">${ic('users')}</span><span>Cadastrar primeiro paciente <span class="arrows">›››</span></span><span class="c-ico">${ic('plus')}</span></button>
+  <h2 class="sec">O que você pode fazer aqui</h2>
+  <div class="dash">${feats.map(([c,i,t,d])=>`<div class="card ${c}"><div class="card-head"><span class="chip-ico">${ic(i,'sm')}</span><span class="label">${t}</span></div><span class="small">${d}</span></div>`).join('')}</div>
+  <p class="small muted" style="text-align:center;margin-top:22px">Já usava o sistema em outra conta?</p>
+  <button class="btn ghost sm" style="margin:10px auto 0;display:flex" data-act="import">${ic('ul','sm')} Restaurar backup</button>`;
+}
+// telas que dependem de um paciente, abertas antes do primeiro cadastro
+function viewNoPatient(route){
+  const M = {
+    list:['Avaliações','cal','As avaliações aparecem aqui','Cadastre um paciente e registre a primeira avaliação: o histórico fica organizado da mais recente para a mais antiga.'],
+    compare:['Evolução','chart','A evolução começa na primeira avaliação','Com um paciente cadastrado e avaliado, você acompanha peso, gordura e medidas em gráficos e compara consultas.'],
+  }[route] || ['Pacientes','users','Nenhum paciente cadastrado','Cadastre quem você atende para registrar avaliações, acompanhar retornos e gerar relatórios.'];
+  return `<header class="top"><button class="icon-btn" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button>
+    <div class="title-block"><small>${esc(nutriName())}</small><b>${M[0]}</b></div></header>
+  <div class="card blue empty"><div class="e-ico">${ic(M[1])}</div><h3>${M[2]}</h3><p>${M[3]}</p>
+    <button class="btn dark" style="margin:18px auto 0;display:inline-flex" data-act="newProfile">${ic('plus','sm')} Cadastrar paciente</button></div>`;
+}
+
 function viewHome(){
+  if (!db.profiles.length) return viewWelcome();
   const p = prof(), list = listOf(p.id);
   let h = topbar(p);
-  if (hasDraft()) h += `<button class="draft-banner" data-act="resume">${ic('edit')}<span class="grow">Você tem uma avaliação ${draft._editing?'em edição':'em andamento'} — ${fmtDate(draft.date)}</span><b>Continuar</b></button>`;
+  if (hasDraft()) h += `<button class="draft-banner" data-act="resume">${ic('edit')}<span class="grow">Avaliação de ${esc(firstName((db.profiles.find(x=>x.id===draft.profileId)||p).name))} ${draft._editing?'em edição':'em andamento'} — ${fmtDate(draft.date)}</span><b>Continuar</b></button>`;
   if (!list.length){
-    h += `<h1 class="headline">${esc(firstName(p.name))}, vamos registrar sua primeira avaliação.</h1>
+    h += `<h1 class="headline">Vamos registrar a primeira avaliação de ${esc(firstName(p.name))}.</h1>
     <div class="card blue empty"><div class="e-ico">${ic('clip')}</div><h3>Nenhuma avaliação ainda</h3>
     <p>Em poucos passos você registra peso, circunferências e dobras cutâneas. Depois é só comparar.</p></div>
     <div class="dash" style="margin-top:12px">
@@ -326,7 +381,7 @@ function viewHome(){
   }
   const last = list.at(-1), prev = list.at(-2), r = calc(last,p), rp = prev ? calc(prev,p) : null;
   const improving = rp && r.bf!=null && rp.bf!=null && r.bf < rp.bf;
-  const head = improving ? `${firstName(p.name)}, sua evolução está ficando ótima!` : list.length>1 ? `${firstName(p.name)}, seu painel está em dia.` : `${firstName(p.name)}, sua primeira avaliação está registrada!`;
+  const head = improving ? `A evolução de ${firstName(p.name)} está ficando ótima!` : list.length>1 ? `Painel de ${firstName(p.name)} em dia.` : `Primeira avaliação de ${firstName(p.name)} registrada!`;
   const weights = list.map(a=>num(a.weight));
   const c = last.circ || {};
   const pills = [['Braço',avgLR(c,'biceps')??avgLR(c,'arm')],['Cintura',num(c.waist)],['Abdôm.',num(c.abdomen)],['Quadril',num(c.hip)],['Coxa',avgLR(c,'thighm')??avgLR(c,'thighp')],['Pantur.',avgLR(c,'calf')]].filter(x=>x[1]!=null);
@@ -402,7 +457,7 @@ function viewList(){
     <button class="icon-btn" data-act="new">${ic('plus')}</button></header>
   ${list.length ? `<p class="muted small" style="margin:-8px 2px 14px">${list.length} ${list.length>1?'avaliações registradas':'avaliação registrada'}</p>
   <div class="alist">${list.map((a,i)=>aItem(a,p,i===0)).join('')}</div>` :
-  `<div class="card empty"><div class="e-ico">${ic('cal')}</div><h3>Nada por aqui</h3><p>Suas avaliações aparecem aqui, da mais recente para a mais antiga.</p></div>`}
+  `<div class="card empty"><div class="e-ico">${ic('cal')}</div><h3>Nenhuma avaliação ainda</h3><p>As avaliações de ${esc(firstName(p.name))} aparecem aqui, da mais recente para a mais antiga.</p></div>`}
   ${ctaNew()}`;
 }
 
@@ -486,7 +541,7 @@ function viewCompare(){
       <button data-act="cmpTab" data-v="evo" class="${state.cmpTab==='evo'?'on':''}">Linha do tempo</button>
       <button data-act="cmpTab" data-v="ab" class="${state.cmpTab==='ab'?'on':''}">Comparativo A × B</button>
     </div>`;
-  if (list.length < 1) return h + `<div class="card empty"><div class="e-ico">${ic('chart')}</div><h3>Sem avaliações</h3><p>Registre sua primeira avaliação para começar a acompanhar.</p></div>${ctaNew()}`;
+  if (list.length < 1) return h + `<div class="card empty"><div class="e-ico">${ic('chart')}</div><h3>Sem avaliações</h3><p>Registre a primeira avaliação de ${esc(firstName(p.name))} para acompanhar a evolução.</p></div>${ctaNew()}`;
   const R = list.map(a=>({a, r:calc(a,p)}));
 
   if (state.cmpTab==='evo'){
@@ -517,7 +572,7 @@ function viewCompare(){
   }
 
   // ---- A × B
-  if (list.length < 2) return h + `<div class="card blue empty"><div class="e-ico">${ic('swap')}</div><h3>Falta só mais uma</h3><p>Com duas avaliações você vê o comparativo lado a lado de cada medida.</p></div>${ctaNew()}`;
+  if (list.length < 2) return h + `<div class="card blue empty"><div class="e-ico">${ic('swap')}</div><h3>Falta só mais uma</h3><p>Com duas avaliações de ${esc(firstName(p.name))} você vê o comparativo lado a lado de cada medida.</p></div>${ctaNew()}`;
   if (!findA(state.cmpA) || findA(state.cmpA).profileId!==p.id) state.cmpA = list.at(-2).id;
   if (!findA(state.cmpB) || findA(state.cmpB).profileId!==p.id) state.cmpB = list.at(-1).id;
   const A = findA(state.cmpA), B = findA(state.cmpB), rA = calc(A,p), rB = calc(B,p);
@@ -578,6 +633,15 @@ function ptCard({p, st, list}){
   </button></div>`;
 }
 function viewPatients(){
+  if (!db.profiles.length) return `<header class="top"><button class="icon-btn" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button>
+    <div class="title-block"><small>${esc(nutriName())}</small><b>Pacientes</b></div><div class="grow"></div>
+    <button class="btn dark sm pt-new" data-act="newProfile">${ic('plus','sm')}<span>Novo paciente</span></button></header>
+  <div class="card blue empty"><div class="e-ico">${ic('users')}</div><h3>Sua lista de pacientes começa aqui</h3>
+    <p>Cadastre quem você atende. Depois, busque por nome ou telefone, filtre por retorno atrasado e veja a situação de cada um.</p>
+    <button class="btn dark" style="margin:18px auto 0;display:inline-flex" data-act="newProfile">${ic('plus','sm')} Cadastrar primeiro paciente</button></div>
+  <div class="pt-kpis" style="margin-top:16px">
+    ${kpi('active','Pacientes ativos',0,'blue','users',false)}${kpi('late','Retornos atrasados',0,'peach','clock',false)}${kpi('soon','Retornos em 7 dias',0,'yellow','cal',false)}${kpi('month','Avaliações em 30 dias',0,'green','clip',false)}
+  </div>`;
   const s = teamStats();
   const FILTERS = [['active','Ativos',s.active],['late','Atrasados',s.late],['soon','Próximos 7 dias',s.soon],['none','Sem avaliação',s.none],['arch','Arquivados',s.arch],['all','Todos',s.total]];
   if (!FILTERS.some(f=>f[0]===state.pf)) state.pf = 'active';
@@ -717,11 +781,11 @@ function viewProfile(){
 function viewNutri(){
   const tf = (id, label, val, ph, hint='', type='text') => `<label class="field"><div class="f-top"><span class="f-label">${label}</span></div>${hint?`<span class="f-hint">${hint}</span>`:''}
     <div class="f-input text"><input id="${id}" type="${type}" value="${esc(type==='tel'?fmtPhone(val):(val||''))}" placeholder="${ph}" autocomplete="off"${type==='tel'?' inputmode="tel" data-mask="phone" maxlength="15"':''}></div></label>`;
-  const first = !db.profiles.length;
+  const first = inSetup();
   return `${first ? `${setupSteps(1)}<div class="onb-hero"><div class="blob"></div><div class="blob b2"></div>
     <div style="position:relative"><span class="tag" style="margin-bottom:14px">${ic('steth','sm')} Bem-vindo(a)</span>
     <h1>Vamos começar por você.</h1>
-    <p>Seu nome e CRN aparecem como avaliador(a) em cada avaliação e nos relatórios em PDF. Em seguida, você cadastra o primeiro paciente.</p></div></div>`
+    <p>Seu nome e CRN aparecem como avaliador(a) em cada avaliação e nos relatórios em PDF. Depois, se quiser, você já cadastra o primeiro paciente.</p></div></div>`
     : `<header class="top"><button class="icon-btn" data-act="go" data-to="profile" aria-label="Voltar">${ic('back')}</button><div class="title-block"><small>Perfil profissional</small><b>Editar perfil</b></div></header>`}
   <h2 class="sec" style="margin-top:6px">Identificação</h2>
   <div class="form-grid">
@@ -797,7 +861,7 @@ function viewWizard(){
       body = `<div class="card blue" style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
           <span class="avatar" style="background:var(--surface)">${esc(initials(p.name))}</span>
           <div class="grow"><b style="font-weight:600">${esc(p.name)}</b><div class="small">${p.sex==='F'?'Feminino':'Masculino'} · <span data-live="age">${r.age??'—'}</span> anos na data</div></div>
-          <button class="tag" data-act="go" data-to="profile">Trocar</button></div>
+          <button class="tag" data-act="go" data-to="patients">Trocar</button></div>
         <div class="fields two">
           <label class="field"><div class="f-top"><span class="f-label">Data da avaliação</span></div>
             <div class="f-input text"><input type="date" data-k="date" value="${esc(draft.date)}" max="${today()}"></div></label>
@@ -913,15 +977,17 @@ const ORDER = {home:0,patients:1,patient:2,list:3,detail:4,compare:5,profile:6,n
 let lastRoute = null;
 function render(){
   // sem pacientes: primeiro o perfil do nutricionista (1º acesso), depois o cadastro do paciente
+  // sem pacientes: 1º acesso passa pelo perfil; depois o sistema funciona normalmente, com telas vazias que convidam a cadastrar
   if (!db.profiles.length){
-    const to = needsSetup() ? 'nutri' : !['onboard','nutri'].includes(state.route) ? 'onboard' : null;
-    if (to && to!==state.route){ state.route = to; state.param = null; initForm(to, null); }
+    if (needsSetup() && !['onboard','nutri'].includes(state.route)){ state.route = 'nutri'; state.param = null; initForm('nutri', null); }
     if (state.route==='nutri' && state.form.nret==null) initForm('nutri', null);
-  }
+    if (state.route==='onboard' && state.param){ state.param = null; initForm('onboard', null); }
+  } else if (state.setup) state.setup = false;
   if (db.profiles.length && !db.profiles.find(p=>p.id===db.activeId)) { db.activeId = db.profiles[0].id; }
   if (state.route==='wizard' && !draft) state.route = 'home';
   let html = '';
-  switch(state.route){
+  if (!db.profiles.length && ['list','detail','compare','patient','wizard'].includes(state.route)) html = viewNoPatient(state.route);
+  else switch(state.route){
     case 'onboard': html = `<div class="narrow">${viewOnboard(state.param ? db.profiles.find(p=>p.id===state.param) : null)}</div>`; break;
     case 'list': html = viewList(); break;
     case 'detail': html = viewDetail(state.param); break;
@@ -937,12 +1003,13 @@ function render(){
   let navHtml='';
   if(showNav){ const tabs=[['home','home','Início'],['patients','users','Pacientes'],['list','cal','Avaliações'],['compare','chart','Evolução'],['profile','user','Perfil']]; const cur={detail:'list',patient:'patients'}[state.route]||state.route;
   // No celular: só os botões (pílula flutuante). No computador vira barra lateral com marca, paciente atual, atalho e nutricionista.
-  const p = prof(), n = listOf(p.id).length;
+  const p = prof(), n = p ? listOf(p.id).length : 0;
   navHtml=`<nav class="nav">
     <div class="side-brand"><span class="mark">${ic('heart','sm')}</span><span>Avaliação<br>Física</span></div>
     <div class="side-links">${tabs.map(([r,i,l])=>`<button class="${cur===r?'on':''}" data-act="go" data-to="${r}" aria-label="${l}">${ic(i)}<span>${l}</span></button>`).join('')}</div>
-    <button class="side-pt" data-act="go" data-to="patient" data-id="${p.id}"><small>Paciente atual</small><span class="row">${pAvatar(p)}<span class="grow"><b>${esc(p.name)}</b><small>${plural(n,'avaliação','avaliações')}</small></span>${ic('right','sm')}</span></button>
-    <button class="side-cta" data-act="new">${ic('plus')}<span>${hasDraft()?'Continuar avaliação':'Nova avaliação'}</span></button>
+    ${p ? `<button class="side-pt" data-act="go" data-to="patient" data-id="${p.id}"><small>Paciente atual</small><span class="row">${pAvatar(p)}<span class="grow"><b>${esc(p.name)}</b><small>${plural(n,'avaliação','avaliações')}</small></span>${ic('right','sm')}</span></button>
+    <button class="side-cta" data-act="new">${ic('plus')}<span>${hasDraft()?'Continuar avaliação':'Nova avaliação'}</span></button>`
+    : `<button class="side-pt" data-act="newProfile"><small>Nenhum paciente ainda</small><span class="row"><span class="avatar" style="background:var(--yellow-2)">${ic('plus','sm')}</span><span class="grow"><b>Cadastrar paciente</b><small>Comece pelo primeiro</small></span>${ic('right','sm')}</span></button>`}
     <button class="side-prof" data-act="go" data-to="profile"><span class="avatar">${esc(initials(nutriName()))}</span><span class="grow"><b>${esc(nutriName())}</b><small>${crnLabel()?esc(crnLabel()):'Perfil profissional'}</small></span>${ic('right','sm')}</button>
   </nav>`; }
   // key muda = tela nova (anima a entrada); dir = indo "para frente" ou voltando
@@ -976,6 +1043,8 @@ const ACT = {
   go: async b => { if (b.dataset.to==='compare' && !b.dataset.keep) {} go(b.dataset.to, b.dataset.id||null); },
   back: async () => go('home'),
   new: async () => {
+    // sem paciente não há quem avaliar: leva ao cadastro e explica
+    if (!db.profiles.length){ go('onboard'); toast('Cadastre o paciente que você vai avaliar'); return; }
     if (!draft){ draft = newDraft(); state.step = 0; state.editingId = null; }
     else { state.step = draft._step||0; state.editingId = draft._editing||null; }
     saveDraft(); go('wizard');
@@ -1061,6 +1130,7 @@ const ACT = {
     if (id){ Object.assign(db.profiles.find(p=>p.id===id), {name,sex,birth,height}, ficha); }
     else { const p = {id:uid(), name, sex, birth, height, ...ficha, archived:false, createdAt:Date.now()}; db.profiles.push(p); id = p.id; setActive(id); }
     const first = db.profiles.length===1 && !b.dataset.id;
+    state.setup = false; try { localStorage.setItem(SETUP_KEY,'skip'); } catch {}
     await save(); go(first ? 'home' : 'patient', first ? null : id); toast(b.dataset.id ? 'Paciente atualizado' : 'Paciente cadastrado ✓');
   },
   editProfile: async () => go('onboard', prof().id),
@@ -1091,13 +1161,15 @@ const ACT = {
     const next = { name:v('nu-name'), crn:v('nu-crn'), specialty:v('nu-spec'), phone:fmtPhone(v('nu-phone')), place:v('nu-place'), returnDays: num(state.form.nret) || 30 };
     if (!next.name) return toast('Informe seu nome');
     if (next.phone && phoneDigits(next.phone).length < 10) return toast('Telefone incompleto: use DDD + número');
+    const setup = inSetup();
     await options.saveNutri(next); nutri = next;
-    if (!db.profiles.length){ go('onboard'); toast(`Perfil salvo ✓ Agora, o primeiro paciente`); return; }
+    if (setup){ state.setup = true; go('onboard'); toast('Perfil salvo ✓'); return; }
     go('profile'); toast('Perfil salvo ✓');
   },
-  skipSetup: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} go('onboard'); },
+  skipSetup: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} state.setup = true; go('onboard'); },
+  setupLater: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} state.setup = false; go('home'); toast('Tudo pronto! Cadastre o paciente quando quiser.'); },
   delProfile: async b => { const p = db.profiles.find(x=>x.id===b.dataset.id) || prof(); sheet(`Excluir ${p.name}?`, `Isso remove o paciente e ${plural(listOf(p.id).length,'avaliação','avaliações')}. Não pode ser desfeito — se quiser só tirar da lista, use “Arquivar”.`, [
-    {label:'Excluir definitivamente', cls:'danger', fn:async ()=>{ db.assessments = db.assessments.filter(a=>a.profileId!==p.id); db.profiles = db.profiles.filter(x=>x.id!==p.id); if (db.activeId===p.id) db.activeId = (db.profiles.find(x=>!x.archived)||db.profiles[0])?.id||null; if (draft?.profileId===p.id){ draft=null; saveDraft(); } await save(); go(db.profiles.length?'patients':'onboard'); toast('Paciente excluído'); }},
+    {label:'Excluir definitivamente', cls:'danger', fn:async ()=>{ db.assessments = db.assessments.filter(a=>a.profileId!==p.id); db.profiles = db.profiles.filter(x=>x.id!==p.id); if (db.activeId===p.id) db.activeId = (db.profiles.find(x=>!x.archived)||db.profiles[0])?.id||null; if (draft?.profileId===p.id){ draft=null; saveDraft(); } await save(); go(db.profiles.length?'patients':'home'); toast('Paciente excluído'); }},
     {label:'Cancelar'}]); },
   export: async () => { download(`avaliacao-fisica-backup-${today()}.json`, JSON.stringify({app:'avaliacao-fisica', version:1, exportedAt:new Date().toISOString(), ...db}, null, 2), 'application/json'); toast('Backup exportado'); },
   import: async () => document.getElementById('importFile').click(),

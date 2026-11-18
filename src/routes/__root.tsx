@@ -86,7 +86,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "Avaliações físicas e acompanhamento da composição corporal." },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "Avaliação Física" },
-      { property: "og:description", content: "Seu corpo, medido com carinho." },
+      { property: "og:description", content: "Avaliação física e acompanhamento de pacientes para nutricionistas." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
