@@ -7,6 +7,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { PhotoViewer, type ViewerSpec } from '@/components/photo-viewer';
 import { AuthShell } from '@/components/auth-screen';
+import { AppTour, type TourSpec, type TourStep } from '@/components/app-tour';
 import { calc, bmiClass, bfClass, whrRisk, fmt, fmtDate, toDate, today, ageAt, foldVal, CIRC_TRUNK, CIRC_LIMBS, FOLDS, PROTOCOLS, METRICS, GROUPS, firstName, initials } from '@/lib/calculos.js';
 import { poseLabel, POSES } from '@/lib/poses.js';
 import { fmtCode, isCode, normCode, type PortalData, type PortalPhoto } from '@/lib/portal-code';
@@ -152,7 +153,7 @@ const readView = (): { tab: Tab; id: string | null } => {
   return { tab: v && v in ORDER ? v : 'inicio', id: q.get('id') };
 };
 
-function PortalApp({ data, onExit, onRefresh }: { data: PortalData; onExit: () => void; onRefresh: () => void }) {
+function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: string; onExit: () => void; onRefresh: () => void }) {
   const p = { sex: data.patient.sex, birth: data.patient.birth, height: data.patient.height };
   const sex = data.patient.sex;
   const list = useMemo(() => [...data.assessments].sort((x, y) => x.date.localeCompare(y.date)), [data]);
@@ -253,6 +254,35 @@ function PortalApp({ data, onExit, onRefresh }: { data: PortalData; onExit: () =
     ...(hasPhotos ? [{ k: 'fotos' as Tab, l: 'Fotos', I: Camera }] : []), { k: 'avaliacoes', l: 'Avaliações', I: ClipboardList },
   ];
   const cur: Tab = view.tab === 'avaliacao' ? 'avaliacoes' : view.tab === 'guia' ? 'medidas' : view.tab;
+
+  /* ---------- tour de boas-vindas: na 1ª entrada com este código (dá para rever em "Como usar o portal") ---------- */
+  const TOUR_KEY = 'avf.pp.tour.' + code;
+  const [tour, setTour] = useState<TourSpec | null>(null);
+  const tourSteps = (): TourStep[] => {
+    const svg = (p: string) => `<svg class="ico" viewBox="0 0 24 24">${p}</svg>`;
+    const nav = (l: string) => [`.nav [aria-label="${l}"]`];
+    const nfn = firstName(nutriName);
+    const s: (TourStep | false)[] = [
+      { art: 'patient', title: `Olá, ${fn}! Boas-vindas ao seu portal.`, text: `${nutriName === 'seu nutricionista' ? 'Seu nutricionista' : nfn} preparou este espaço para você acompanhar sua evolução${hasDiet ? ' e seguir seu plano alimentar' : ''}. Em 30 segundos você conhece tudo.`, cta: 'Começar' },
+      hasDiet && { sel: ['.dt-next'], icon: dtIcon('almoco'), title: 'Sua próxima refeição', text: 'Aqui aparece a refeição da vez, com o que comer e a quantidade. Muda sozinha ao longo do dia, conforme os horários do seu plano.' },
+      hasDiet && { sel: nav('Dieta'), icon: dtIcon('leaf'), title: 'Seu plano alimentar', text: 'Todas as refeições, as opções de cada uma e as trocas permitidas. A aba Compras vira sua lista do mercado, e dá para salvar o plano em PDF ou imagem.' },
+      !!last && { sel: ['.pp .hero'], icon: svg('<path d="M12 21a7 7 0 0 0 7-7c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-4-2 2-5 5-5 8a7 7 0 0 0 7 7z"/>'), title: 'Seus resultados de hoje', text: 'O resumo da sua última avaliação: % de gordura, peso, massa magra e medidas. Toque nos cartões para ver os detalhes.' },
+      { sel: nav('Evolução'), icon: svg('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'), title: 'Evolução', text: 'Gráficos de cada medida ao longo do tempo e a comparação lado a lado entre duas avaliações.' },
+      { sel: nav('Medidas'), icon: svg('<path d="M4 16 16 4l4 4L8 20z"/><path d="M8 12l2 2M11 9l1.5 1.5M14 6l2 2"/>'), title: 'Medidas e o que significam', text: 'Composição corporal, circunferências e dobras — com um guia que explica cada número e em que faixa você está.' },
+      hasPhotos && { sel: nav('Fotos'), icon: svg('<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>'), title: 'Antes e depois', text: 'Suas fotos de cada avaliação, para comparar lado a lado, deslizando ou sobrepondo.' },
+      { sel: nav('Avaliações'), icon: svg('<rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 4V3h6v1M9 11h6M9 15h4"/>'), title: 'Todas as avaliações', text: 'O histórico completo, da mais recente para a mais antiga, com todos os detalhes de cada consulta.' },
+      !!(wa || data.nutri.name) && { sel: window.matchMedia('(min-width:1024px)').matches ? ['.pp-side-wa', '.pp-nutri'] : ['.pp-nutri'], icon: svg('<path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 10h6M9 13.5h4"/>'), title: `Fale com ${nutriName === 'seu nutricionista' ? 'seu nutricionista' : nfn}`, text: wa ? 'Dúvida sobre o plano ou as medidas? Chame no WhatsApp direto por aqui.' : 'Aqui ficam os dados do seu nutricionista e a data prevista do próximo retorno.' },
+      { art: 'done', title: 'Tudo pronto!', text: 'Seu acesso fica salvo neste aparelho. Dica: adicione esta página à tela inicial do celular para abrir como um app.', cta: 'Começar a usar' },
+    ];
+    return s.filter((x): x is TourStep => !!x);
+  };
+  const startTour = () => { if (view.tab !== 'inicio') go('inicio'); window.setTimeout(() => setTour({ steps: tourSteps(), onClose: () => { try { localStorage.setItem(TOUR_KEY, '1'); } catch { /* ok */ } } }), view.tab !== 'inicio' ? 650 : 0); };
+  useEffect(() => {
+    let seen = false; try { seen = localStorage.getItem(TOUR_KEY) === '1'; } catch { /* sem armazenamento */ }
+    if (seen || view.tab !== 'inicio' || tour) return;
+    const t = window.setTimeout(() => setTour({ steps: tourSteps(), onClose: () => { try { localStorage.setItem(TOUR_KEY, '1'); } catch { /* ok */ } } }), 1100);
+    return () => clearTimeout(t);
+  }, [view.tab]);
 
   /* ===================== telas ===================== */
   const empty = (txt: string) => <div className="card blue empty"><div className="e-ico"><ClipboardList className="ico" /></div><h3>Nenhuma avaliação ainda</h3><p>{txt}</p></div>;
@@ -359,6 +389,7 @@ function PortalApp({ data, onExit, onRefresh }: { data: PortalData; onExit: () =
       {hasPhotos && <button className="act-row" onClick={() => go('fotos')}><span className="chip-ico"><Camera className="ico sm" /></span><span className="grow"><b>Fotos</b><span>Antes e depois, lado a lado</span></span><ChevronRight className="ico sm" /></button>}
       <button className="act-row" onClick={() => go('avaliacoes')}><span className="chip-ico"><ClipboardList className="ico sm" /></span><span className="grow"><b>Avaliações</b><span>{list.length} {list.length === 1 ? 'registro' : 'registros'} com todos os detalhes</span></span><ChevronRight className="ico sm" /></button>
       <button className="act-row" onClick={() => go('guia')}><span className="chip-ico"><BookOpen className="ico sm" /></span><span className="grow"><b>Entenda seus números</b><span>O que cada medida significa e as faixas de referência</span></span><ChevronRight className="ico sm" /></button>
+      <button className="act-row" onClick={startTour}><span className="chip-ico"><Target className="ico sm" /></span><span className="grow"><b>Como usar o portal</b><span>Reveja em 30 segundos o tour de apresentação</span></span><ChevronRight className="ico sm" /></button>
     </div>
     <p className="pp-ro"><ShieldCheck size={15} /> Somente visualização · dados registrados por {nutriName}{data.updatedAt ? ` · atualizado em ${dLong(data.updatedAt.slice(0, 10))}` : ''}</p>
   </>);
@@ -648,6 +679,7 @@ function PortalApp({ data, onExit, onRefresh }: { data: PortalData; onExit: () =
         <button className="side-prof" onClick={onExit} title="Sair deste aparelho"><span className="avatar" style={{ background: 'var(--yellow-2)' }}>{initials(data.patient.name)}</span><span className="grow"><b>{data.patient.name}</b><small>Sair deste aparelho</small></span><LogOut className="ico sm" /></button>
       </nav>
       {viewer && <PhotoViewer spec={viewer} onEnd={() => setViewer(null)} />}
+      {tour && <AppTour spec={tour} onEnd={() => setTour(null)} />}
     </main>
   );
 }
@@ -691,6 +723,6 @@ export function PatientPortal({ load = (code: string) => getPatientPortal({ data
       <Button variant="original" className="btn dark" style={{ margin: '16px auto 0', display: 'inline-flex' }} onClick={() => void enter(code.current || read())}><RefreshCw size={16} /> Tentar de novo</Button>
       <button className="btn ghost sm" style={{ margin: '10px auto 0', display: 'flex' }} onClick={exit}>Usar outro código</button></div></div></main>
   );
-  if (phase === 'ready' && data) return <PortalApp data={data} onExit={exit} onRefresh={() => void enter(code.current)} />;
+  if (phase === 'ready' && data) return <PortalApp data={data} code={code.current} onExit={exit} onRefresh={() => void enter(code.current)} />;
   return <Entry onEnter={(c) => void enter(c)} error={error} />;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import parse from 'html-react-parser';
-import { Check, ClipboardList, Pointer, TrendingUp, Users, X } from 'lucide-react';
+import { Apple, Check, ClipboardList, Pointer, Ruler, TrendingUp, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /*
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
  * de um para o outro) e mostra uma "mão" animada tocando nele. Funciona no celular e no computador
  * porque procura o primeiro elemento visível de cada lista de seletores.
  */
-export type TourStep = { sel?: string[]; icon?: string; art?: 'hello' | 'done'; title: string; text: string; cta?: string; alt?: string; action?: string };
+export type TourStep = { sel?: string[]; icon?: string; art?: 'hello' | 'done' | 'patient'; title: string; text: string; cta?: string; alt?: string; action?: string };
 export type TourSpec = { steps: TourStep[]; onClose: (action?: string) => void };
 
 type Box = { top: number; left: number; width: number; height: number };
@@ -24,7 +24,14 @@ const boxOf = (el: HTMLElement): Box => { const r = el.getBoundingClientRect(); 
 const same = (a: Box | null, b: Box) => !!a && Math.abs(a.top - b.top) < 0.5 && Math.abs(a.left - b.left) < 0.5 && Math.abs(a.width - b.width) < 0.5 && Math.abs(a.height - b.height) < 0.5;
 const reduced = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-function Art({ kind }: { kind: 'hello' | 'done' }) {
+function Art({ kind }: { kind: 'hello' | 'done' | 'patient' }) {
+  if (kind === 'patient') return (
+    <div className="tour-art tour-hello" aria-hidden="true">
+      <span className="ta green"><Apple size={26} /></span>
+      <span className="ta blue"><TrendingUp size={26} /></span>
+      <span className="ta yellow"><Ruler size={26} /></span>
+    </div>
+  );
   if (kind === 'hello') return (
     <div className="tour-art tour-hello" aria-hidden="true">
       <span className="ta blue"><Users size={26} /></span>
@@ -56,6 +63,8 @@ export function AppTour({ spec, onEnd }: { spec: TourSpec; onEnd: () => void }) 
     target.current = el;
     setPos(null);
     if (el) {
+      // se o bloco ainda não "apareceu" (animação de entrada ao rolar), mostra já
+      for (let p: HTMLElement | null = el; p; p = p.parentElement) if (p.dataset['rv'] === 'pre') p.dataset['rv'] = 'in';
       const r = el.getBoundingClientRect();
       if (r.top < 70 || r.bottom > window.innerHeight - 70) el.scrollIntoView({ block: 'center', behavior: reduced() ? 'auto' : 'smooth' });
       setBox(boxOf(el));
