@@ -42,16 +42,23 @@ export function PhotoViewer({ spec, onEnd }: { spec: ViewerSpec; onEnd: () => vo
   });
 
   if (!it) return null;
-  const onDown = (e: React.PointerEvent) => { if (zoom) return; start.current = { x: e.clientX, y: e.clientY, t: Date.now() }; };
+  // só conta gesto que começou aqui dentro: o clique que abre o visualizador termina em cima da foto e não pode ampliá-la
+  const onDown = (e: React.PointerEvent) => { start.current = { x: e.clientX, y: e.clientY, t: Date.now() }; };
   const onMove = (e: React.PointerEvent) => { if (start.current && !zoom) setDx(e.clientX - start.current.x); };
   const onUp = (e: React.PointerEvent) => {
     const s = start.current; start.current = null; setDx(0);
-    const now = Date.now();
-    if (s && Math.abs(e.clientX - s.x) > 60 && now - s.t < 700) { go(e.clientX < s.x ? 1 : -1); return; }
-    // toque duplo (ou clique no computador) amplia no ponto tocado
-    if (now - lastTap.current < 320 || e.pointerType === 'mouse') {
-      const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      setZoom((z) => (z ? null : { x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 }));
+    if (!s) return;
+    const now = Date.now(), moved = Math.abs(e.clientX - s.x);
+    if (!zoom && moved > 60 && now - s.t < 700) { go(e.clientX < s.x ? 1 : -1); return; }
+    if (moved > 8) return;
+    // ampliada: qualquer clique/toque volta ao tamanho inteiro
+    if (zoom) { setZoom(null); lastTap.current = 0; return; }
+    // amplia só clicando na própria foto (computador) ou com toque duplo (celular)
+    const img = (e.target as HTMLElement).closest('img');
+    if (!img) return;
+    if (e.pointerType === 'mouse' || now - lastTap.current < 320) {
+      const r = img.getBoundingClientRect();
+      setZoom({ x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 });
       lastTap.current = 0;
     } else lastTap.current = now;
   };
@@ -75,6 +82,7 @@ export function PhotoViewer({ spec, onEnd }: { spec: ViewerSpec; onEnd: () => vo
           ? <img key={it.id} src={urls[it.id]} alt={`${it.title} · ${it.sub}`} draggable={false} className={zoom ? 'zoom' : ''}
               style={{ transform: zoom ? 'scale(2.2)' : `translateX(${dx}px)`, transformOrigin: zoom ? `${zoom.x}% ${zoom.y}%` : undefined }} />
           : <span className="cam-spin" />}
+        {zoom && <span className="pv-zoomtag">Ampliada · toque para voltar</span>}
         {items.length > 1 && <>
           <button type="button" className="pv-nav l" onClick={(e) => { e.stopPropagation(); go(-1); }} onPointerUp={(e) => e.stopPropagation()} aria-label="Anterior"><ChevronLeft size={26} /></button>
           <button type="button" className="pv-nav r" onClick={(e) => { e.stopPropagation(); go(1); }} onPointerUp={(e) => e.stopPropagation()} aria-label="Próxima"><ChevronRight size={26} /></button>

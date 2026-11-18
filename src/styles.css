@@ -1529,3 +1529,10 @@ button.kpi:active{scale:.97}
   .ph-all .ph-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;overflow:visible;margin:0;padding:0}
   .ph-all .ph-th{width:auto}
 }
+/* visualizador: foto sempre inteira, na proporção original (sem cortar nem esticar) */
+.pv-stage{padding:4px 16px}
+.pv-stage img{width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain}
+.pv-stage:has(img.zoom){overflow:hidden}
+.pv-zoomtag{position:absolute;top:10px;left:50%;translate:-50% 0;padding:6px 12px;border-radius:99px;background:rgba(0,0,0,.6);color:#fff;font-size:12.5px;font-weight:600;pointer-events:none}
+.pv-stage{display:flex;align-items:center;justify-content:center}
+.pv-stage img{max-height:100%;max-width:100%;min-height:0}
