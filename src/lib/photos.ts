@@ -38,6 +38,26 @@ function req<T>(store: 'meta' | 'blobs', mode: IDBTransactionMode, fn: (s: IDBOb
 const idbPut = (store: 'meta' | 'blobs', value: unknown, key?: string) => req<IDBValidKey>(store, 'readwrite', (s) => s.put(value, key));
 const idbGet = <T>(store: 'meta' | 'blobs', key: string) => req<T | undefined>(store, 'readonly', (s) => s.get(key));
 const idbDel = (store: 'meta' | 'blobs', key: string) => req<undefined>(store, 'readwrite', (s) => s.delete(key));
+/*
+ * Guardar a foto: o Safari em janela privada recusa arquivo (Blob) no IndexedDB.
+ * Tenta o arquivo; se recusar, guarda os bytes; se nem isso der, fica na memória desta aba
+ * (a foto sobe para a nuvem quando a avaliação é salva, então não se perde).
+ */
+const memBlobs = new Map<string, Blob>();
+type StoredBlob = Blob | { buf: ArrayBuffer; type: string };
+async function putBlob(id: string, blob: Blob) {
+  try { await idbPut('blobs', blob, id); memBlobs.delete(id); return; } catch { /* tenta como bytes */ }
+  try { await idbPut('blobs', { buf: await blob.arrayBuffer(), type: blob.type || 'image/jpeg' }, id); memBlobs.delete(id); return; } catch { /* fica na memória */ }
+  memBlobs.set(id, blob);
+}
+async function getBlob(id: string): Promise<Blob | undefined> {
+  const m = memBlobs.get(id); if (m) return m;
+  const v = await idbGet<StoredBlob>('blobs', id).catch(() => undefined);
+  if (!v) return undefined;
+  if (v instanceof Blob) return v;
+  return v.buf ? new Blob([v.buf], { type: v.type || 'image/jpeg' }) : undefined;
+}
+async function delBlob(id: string) { memBlobs.delete(id); await idbDel('blobs', id).catch(() => {}); }
 const idbAll = <T>(store: 'meta') => req<T[]>(store, 'readonly', (s) => s.getAll());
 
 /* ---------- carregar ---------- */
@@ -89,7 +109,7 @@ export function photoStore(userId: string, cloud: boolean, initial: PhotoMeta[])
 
   function cachedUrl(id: string) { const u = urls.get(id); return u && u.exp > Date.now() ? u.url : ''; }
   async function blobOf(m: PhotoMeta): Promise<Blob | null> {
-    if (!m.path) return (await idbGet<Blob>('blobs', m.id).catch(() => undefined)) ?? null;
+    if (!m.path) return (await getBlob(m.id)) ?? null;
     const { data, error } = await loose.storage.from(PHOTO_BUCKET).download(m.path);
     return error ? null : data;
   }
@@ -98,7 +118,7 @@ export function photoStore(userId: string, cloud: boolean, initial: PhotoMeta[])
     const p = pending.get(m.id); if (p) return p;
     const job = (async () => {
       if (!m.path) {
-        const b = await idbGet<Blob>('blobs', m.id).catch(() => undefined);
+        const b = await getBlob(m.id);
         if (!b) return '';
         const u = URL.createObjectURL(b); urls.set(m.id, { url: u, exp: Infinity, local: true }); return u;
       }
@@ -112,7 +132,7 @@ export function photoStore(userId: string, cloud: boolean, initial: PhotoMeta[])
 
   async function removeMeta(m: PhotoMeta) {
     list = list.filter((x) => x.id !== m.id); forget(m.id); changed();
-    await Promise.all([idbDel('meta', m.id).catch(() => {}), idbDel('blobs', m.id).catch(() => {})]);
+    await Promise.all([idbDel('meta', m.id).catch(() => {}), delBlob(m.id)]);
     if (m.path) {
       await loose.storage.from(PHOTO_BUCKET).remove([m.path]);
       await loose.from(TABLE).delete().eq('id', m.id);
@@ -131,8 +151,8 @@ export function photoStore(userId: string, cloud: boolean, initial: PhotoMeta[])
     /** guarda (ou substitui) a foto de uma pose */
     async add(info: { assessmentId: string; profileId: string; pose: Pose }, blob: Blob, w: number, h: number) {
       const meta: PhotoMeta = { id: crypto.randomUUID(), owner: userId, ...info, w, h, createdAt: Date.now(), path: null };
-      await idbPut('blobs', blob, meta.id);
-      await idbPut('meta', meta);
+      await putBlob(meta.id, blob);
+      await idbPut('meta', meta).catch(() => {}); // sem IndexedDB: a lista fica na memória
       const old = list.find((m) => m.assessmentId === info.assessmentId && m.pose === info.pose);
       list = [...list.filter((m) => m !== old), meta];
       urls.set(meta.id, { url: URL.createObjectURL(blob), exp: Infinity, local: true });
@@ -147,14 +167,14 @@ export function photoStore(userId: string, cloud: boolean, initial: PhotoMeta[])
       if (!cloud) return queue;
       queue = queue.catch(() => {}).then(async () => {
         for (const m of list.filter((x) => !x.path && saved.has(x.assessmentId))) {
-          const blob = await idbGet<Blob>('blobs', m.id).catch(() => undefined); if (!blob) continue;
+          const blob = await getBlob(m.id); if (!blob) continue;
           const path = `${userId}/${m.profileId}/${m.assessmentId}/${m.pose}-${m.id}.jpg`;
           const up = await loose.storage.from(PHOTO_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true });
           if (up.error) continue;
           const ins = await loose.from(TABLE).insert({ id: m.id, owner_id: userId, avaliacao_id: m.assessmentId, paciente_id: m.profileId, pose: POSE_DB[m.pose], caminho: path, largura: m.w, altura: m.h });
           if (ins.error) { await loose.storage.from(PHOTO_BUCKET).remove([path]); continue; }
           m.path = path; // a URL local continua valendo nesta sessão
-          await Promise.all([idbDel('meta', m.id).catch(() => {}), idbDel('blobs', m.id).catch(() => {})]);
+          await Promise.all([idbDel('meta', m.id).catch(() => {}), delBlob(m.id)]);
         }
       });
       return queue;
