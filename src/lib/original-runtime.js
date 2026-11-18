@@ -85,7 +85,14 @@ function prevOf(a){ const l = listOf(a.profileId).filter(x=>x.id!==a.id && (x.da
 
 /* ---------- nutricionista & pacientes ---------- */
 const nutriName = () => (nutri.name||'').trim() || (options.email||'').split('@')[0] || 'Nutricionista';
-const nutriSign = () => (nutri.name||'').trim() ? nutri.name.trim() + (nutri.crn ? ' · CRN ' + nutri.crn.trim() : '') : '';
+// CRN exibido sempre como "CRN 3-12345", mesmo se a pessoa digitar o prefixo "CRN"
+const crnLabel = () => { const c = (nutri.crn||'').trim().replace(/^crn[\s:-]*/i,''); return c ? 'CRN '+c : ''; };
+const nutriSign = () => (nutri.name||'').trim() ? nutri.name.trim() + (crnLabel() ? ' · ' + crnLabel() : '') : '';
+// primeiro acesso: antes do primeiro paciente, o nutricionista monta o próprio perfil (pode pular)
+const SETUP_KEY = 'avf.setup.'+options.userId;
+const setupSkipped = () => { try { return localStorage.getItem(SETUP_KEY)==='skip'; } catch { return false; } };
+const needsSetup = () => !db.profiles.length && !(nutri.name||'').trim() && !setupSkipped();
+const setupSteps = n => `<ol class="setup-steps" aria-label="Primeiros passos">${['Seu perfil','Primeiro paciente'].map((l,i)=>{ const done = i+1<n && !!(nutri.name||'').trim(); return `<li class="${i+1===n?'on':done?'done':''}"${i+1===n?' aria-current="step"':''}><span class="n">${done?ic('check','sm'):i+1}</span>${l}</li>`; }).join('')}</ol>`;
 const GOALS = [['emagrecimento','Emagrecimento'],['hipertrofia','Hipertrofia'],['saude','Saúde e bem-estar'],['performance','Performance esportiva'],['reeducacao','Reeducação alimentar'],['clinico','Acompanhamento clínico']];
 const goalLabel = k => GOALS.find(g=>g[0]===k)?.[1] || '';
 const RETURNS = [15,30,45,60,90];
@@ -247,10 +254,10 @@ function viewOnboard(editP){
   const back = editP ? `data-to="patient" data-id="${editP.id}"` : 'data-to="patients"';
   return `
   ${db.profiles.length ? `<header class="top"><button class="icon-btn" data-act="go" ${back} aria-label="Voltar">${ic('back')}</button><div class="title-block"><small>Pacientes</small><b>${isNew?'Novo paciente':'Editar paciente'}</b></div></header>` : ''}
-  ${!db.profiles.length ? `<div class="onb-hero"><div class="blob"></div><div class="blob b2"></div>
-    <div style="position:relative"><span class="tag" style="margin-bottom:14px">${ic('heart','sm')} Avaliação física</span>
-    <h1>Acompanhe seus pacientes de perto.</h1>
-    <p>Cadastre o primeiro paciente e registre dobras, circunferências e peso passo a passo — a evolução aparece a cada consulta.</p></div></div>` : ''}
+  ${!db.profiles.length ? `${setupSteps(2)}<div class="onb-hero"><div class="blob"></div><div class="blob b2"></div>
+    <div style="position:relative"><span class="tag" style="margin-bottom:14px">${ic('users','sm')} Primeiro paciente</span>
+    <h1>${(nutri.name||'').trim() ? `Pronto, ${esc(firstName(nutri.name))}! Agora, seu paciente.` : 'Agora, seu primeiro paciente.'}</h1>
+    <p>Cadastre quem você vai avaliar. Depois é só registrar dobras, circunferências e peso passo a passo — a evolução aparece a cada consulta.</p></div></div>` : ''}
   <h2 class="sec" style="margin-top:6px">${isNew?'Dados do paciente':'Dados pessoais'}</h2>
   <div class="form-grid">
     <label class="field"><div class="f-top"><span class="f-label">Nome</span></div>
@@ -293,12 +300,12 @@ function viewOnboard(editP){
   ${options.fichaCloud ? '' : `<p class="small muted" style="margin:12px 4px 0">Contato, objetivo e observações ficam salvos neste aparelho até o banco de dados receber os novos campos.</p>`}
   ${!db.profiles.length ? `<p class="small muted" style="text-align:center;margin-top:22px">Seus dados ficam protegidos na sua conta.</p>
   <button class="btn ghost sm" style="margin:12px auto 0;display:flex" data-act="import">${ic('ul','sm')} Restaurar backup</button>` : ''}
-  ${formBar(db.profiles.length ? back : '', `data-act="saveProfile" data-id="${editP?editP.id:''}"`, isNew ? (db.profiles.length ? 'Cadastrar paciente' : 'Começar') : 'Salvar alterações')}`;
+  ${formBar(db.profiles.length ? back : 'data-to="nutri"', `data-act="saveProfile" data-id="${editP?editP.id:''}"`, isNew ? (db.profiles.length ? 'Cadastrar paciente' : 'Cadastrar e começar') : 'Salvar alterações', db.profiles.length ? 'Cancelar' : 'Voltar')}`;
 }
 // barra de ações dos formulários: fixa no rodapé (celular) / pílula flutuante (computador) — sempre à mão
-function formBar(cancelAttrs, saveAttrs, saveLabel){
+function formBar(cancelAttrs, saveAttrs, saveLabel, cancelLabel='Cancelar', cancelAct='go'){
   return `<div class="wiz-bar form-bar"><div class="in">
-    ${cancelAttrs ? `<button class="btn ghost" data-act="go" ${cancelAttrs}>Cancelar</button>` : ''}
+    ${cancelAttrs ? `<button class="btn ghost" data-act="${cancelAct}" ${cancelAttrs}>${cancelLabel}</button>` : ''}
     <button class="btn dark" ${saveAttrs}>${ic('check')} ${saveLabel}</button>
   </div></div>`;
 }
@@ -675,7 +682,7 @@ function viewProfile(){
   <div class="card yellow nu-hero">
     <span class="avatar xl">${esc(initials(nutriName()))}</span>
     <div class="grow"><span class="tag">${ic('steth','sm')}${esc((nutri.specialty||'').trim()||'Nutricionista')}</span><h1>${esc(nutriName())}</h1>
-      <div class="small">${[nutri.crn?'CRN '+esc(nutri.crn):null, esc(options.email||'')].filter(Boolean).join(' · ')}</div></div>
+      <div class="small">${[crnLabel()?esc(crnLabel()):null, esc(options.email||'')].filter(Boolean).join(' · ')}</div></div>
   </div>
   ${done?'':`<button class="draft-banner" data-act="go" data-to="nutri">${ic('badge')}<span class="grow">Complete seu perfil: nome e CRN entram como avaliador(a) nas novas avaliações e nos PDFs.</span><b>Completar</b></button>`}
   <div class="pt-kpis">
@@ -710,11 +717,16 @@ function viewProfile(){
 function viewNutri(){
   const tf = (id, label, val, ph, hint='', type='text') => `<label class="field"><div class="f-top"><span class="f-label">${label}</span></div>${hint?`<span class="f-hint">${hint}</span>`:''}
     <div class="f-input text"><input id="${id}" type="${type}" value="${esc(type==='tel'?fmtPhone(val):(val||''))}" placeholder="${ph}" autocomplete="off"${type==='tel'?' inputmode="tel" data-mask="phone" maxlength="15"':''}></div></label>`;
-  return `<header class="top"><button class="icon-btn" data-act="go" data-to="profile" aria-label="Voltar">${ic('back')}</button><div class="title-block"><small>Perfil profissional</small><b>Editar perfil</b></div></header>
+  const first = !db.profiles.length;
+  return `${first ? `${setupSteps(1)}<div class="onb-hero"><div class="blob"></div><div class="blob b2"></div>
+    <div style="position:relative"><span class="tag" style="margin-bottom:14px">${ic('steth','sm')} Bem-vindo(a)</span>
+    <h1>Vamos começar por você.</h1>
+    <p>Seu nome e CRN aparecem como avaliador(a) em cada avaliação e nos relatórios em PDF. Em seguida, você cadastra o primeiro paciente.</p></div></div>`
+    : `<header class="top"><button class="icon-btn" data-act="go" data-to="profile" aria-label="Voltar">${ic('back')}</button><div class="title-block"><small>Perfil profissional</small><b>Editar perfil</b></div></header>`}
   <h2 class="sec" style="margin-top:6px">Identificação</h2>
   <div class="form-grid">
     ${tf('nu-name','Nome completo',nutri.name,'Seu nome','Aparece como avaliador(a) nas avaliações e nos relatórios em PDF.')}
-    <div class="fields two">${tf('nu-crn','CRN',nutri.crn,'CRN-3 12345')}${tf('nu-spec','Especialidade',nutri.specialty,'Ex.: Nutrição esportiva')}</div>
+    <div class="fields two">${tf('nu-crn','CRN',nutri.crn,'Ex.: 3-12345')}${tf('nu-spec','Especialidade',nutri.specialty,'Ex.: Nutrição esportiva')}</div>
   </div>
   <h2 class="sec">Atendimento</h2>
   <div class="form-grid">
@@ -722,7 +734,8 @@ function viewNutri(){
     <div class="field"><div class="f-top"><span class="f-label">Retorno padrão</span></div><span class="f-hint">Vale para os pacientes sem um retorno próprio. Define quem aparece como “atrasado”.</span>
       ${dropdown('nret', RETURNS.map(d=>[String(d),`A cada ${d} dias`]), state.form.nret, {label:'Retorno padrão'})}</div>
   </div>
-  ${formBar('data-to="profile"', 'data-act="saveNutri"', 'Salvar perfil')}`;
+  ${first ? `<p class="small muted" style="text-align:center;margin-top:22px">Conta: ${esc(options.email||'')} · dá para mudar tudo depois em Perfil.</p>` : ''}
+  ${first ? formBar('data-v="1"', 'data-act="saveNutri"', 'Continuar', 'Pular por agora', 'skipSetup') : formBar('data-to="profile"', 'data-act="saveNutri"', 'Salvar perfil')}`;
 }
 
 /* ---------- WIZARD ---------- */
@@ -899,7 +912,12 @@ let app = options.app;
 const ORDER = {home:0,patients:1,patient:2,list:3,detail:4,compare:5,profile:6,nutri:7,onboard:8,wizard:9};
 let lastRoute = null;
 function render(){
-  if (!db.profiles.length && state.route!=='onboard') state.route = 'onboard';
+  // sem pacientes: primeiro o perfil do nutricionista (1º acesso), depois o cadastro do paciente
+  if (!db.profiles.length){
+    const to = needsSetup() ? 'nutri' : !['onboard','nutri'].includes(state.route) ? 'onboard' : null;
+    if (to && to!==state.route){ state.route = to; state.param = null; initForm(to, null); }
+    if (state.route==='nutri' && state.form.nret==null) initForm('nutri', null);
+  }
   if (db.profiles.length && !db.profiles.find(p=>p.id===db.activeId)) { db.activeId = db.profiles[0].id; }
   if (state.route==='wizard' && !draft) state.route = 'home';
   let html = '';
@@ -925,7 +943,7 @@ function render(){
     <div class="side-links">${tabs.map(([r,i,l])=>`<button class="${cur===r?'on':''}" data-act="go" data-to="${r}" aria-label="${l}">${ic(i)}<span>${l}</span></button>`).join('')}</div>
     <button class="side-pt" data-act="go" data-to="patient" data-id="${p.id}"><small>Paciente atual</small><span class="row">${pAvatar(p)}<span class="grow"><b>${esc(p.name)}</b><small>${plural(n,'avaliação','avaliações')}</small></span>${ic('right','sm')}</span></button>
     <button class="side-cta" data-act="new">${ic('plus')}<span>${hasDraft()?'Continuar avaliação':'Nova avaliação'}</span></button>
-    <button class="side-prof" data-act="go" data-to="profile"><span class="avatar">${esc(initials(nutriName()))}</span><span class="grow"><b>${esc(nutriName())}</b><small>${nutri.crn?'CRN '+esc(nutri.crn):'Perfil profissional'}</small></span>${ic('right','sm')}</button>
+    <button class="side-prof" data-act="go" data-to="profile"><span class="avatar">${esc(initials(nutriName()))}</span><span class="grow"><b>${esc(nutriName())}</b><small>${crnLabel()?esc(crnLabel()):'Perfil profissional'}</small></span>${ic('right','sm')}</button>
   </nav>`; }
   // key muda = tela nova (anima a entrada); dir = indo "para frente" ou voltando
   const key = state.route==='wizard' ? 'wizard' : state.route+':'+(state.param||'');
@@ -1073,8 +1091,11 @@ const ACT = {
     const next = { name:v('nu-name'), crn:v('nu-crn'), specialty:v('nu-spec'), phone:fmtPhone(v('nu-phone')), place:v('nu-place'), returnDays: num(state.form.nret) || 30 };
     if (!next.name) return toast('Informe seu nome');
     if (next.phone && phoneDigits(next.phone).length < 10) return toast('Telefone incompleto: use DDD + número');
-    await options.saveNutri(next); nutri = next; go('profile'); toast('Perfil salvo ✓');
+    await options.saveNutri(next); nutri = next;
+    if (!db.profiles.length){ go('onboard'); toast(`Perfil salvo ✓ Agora, o primeiro paciente`); return; }
+    go('profile'); toast('Perfil salvo ✓');
   },
+  skipSetup: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} go('onboard'); },
   delProfile: async b => { const p = db.profiles.find(x=>x.id===b.dataset.id) || prof(); sheet(`Excluir ${p.name}?`, `Isso remove o paciente e ${plural(listOf(p.id).length,'avaliação','avaliações')}. Não pode ser desfeito — se quiser só tirar da lista, use “Arquivar”.`, [
     {label:'Excluir definitivamente', cls:'danger', fn:async ()=>{ db.assessments = db.assessments.filter(a=>a.profileId!==p.id); db.profiles = db.profiles.filter(x=>x.id!==p.id); if (db.activeId===p.id) db.activeId = (db.profiles.find(x=>!x.archived)||db.profiles[0])?.id||null; if (draft?.profileId===p.id){ draft=null; saveDraft(); } await save(); go(db.profiles.length?'patients':'onboard'); toast('Paciente excluído'); }},
     {label:'Cancelar'}]); },

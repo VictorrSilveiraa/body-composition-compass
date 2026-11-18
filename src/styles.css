@@ -1086,6 +1086,17 @@ button.kpi:active{scale:.97}
   .pt-grid{grid-template-columns:repeat(3,1fr)}
 }
 
+/* primeiro acesso: indicador de 2 passos (perfil do nutricionista → primeiro paciente) */
+.setup-steps{list-style:none;display:flex;gap:6px;padding:5px;margin:4px 0 14px;background:var(--surface);border:1px solid var(--line);border-radius:999px}
+.setup-steps li{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 12px;border-radius:999px;font-size:14px;font-weight:500;color:var(--muted);white-space:nowrap;transition:background .3s,color .3s}
+.setup-steps .n{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--bg);font-size:12px;font-weight:600}
+.setup-steps .n svg{width:13px;height:13px}
+.setup-steps li.on{background:var(--ink);color:var(--surface)}
+.setup-steps li.on .n{background:var(--yellow-2);color:var(--ink)}
+.setup-steps li.done{color:var(--ink)}
+.setup-steps li.done .n{background:var(--green-2);color:var(--ink)}
+@media (min-width:1024px){ .setup-steps{max-width:420px;margin:0 0 18px} }
+
 /* formulários: espaço para a barra de ações fixa não cobrir o último campo */
 .app:has(.form-bar){padding-bottom:calc(130px + env(safe-area-inset-bottom))}
 @media (min-width:1024px){
