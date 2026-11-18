@@ -4,13 +4,14 @@
  * nos espaços vazios e no comparativo — é isso que mantém o enquadramento igual entre consultas.
  */
 export const POSES = [
-  { k: 'front', l: 'Frente', hint: 'De frente, braços levemente afastados do corpo, pés na largura do quadril.' },
-  { k: 'back', l: 'Costas', hint: 'De costas, mesma posição da foto de frente.' },
-  { k: 'right', l: 'Lado direito', hint: 'Lado direito voltado para a câmera, braços ao longo do corpo.' },
-  { k: 'left', l: 'Lado esquerdo', hint: 'Lado esquerdo voltado para a câmera, braços ao longo do corpo.' },
+  { k: 'front', l: 'Frente', s: 'Frente', hint: 'De frente, braços levemente afastados do corpo, pés na largura do quadril.' },
+  { k: 'back', l: 'Costas', s: 'Costas', hint: 'De costas, mesma posição da foto de frente.' },
+  { k: 'right', l: 'Lado direito', s: 'Lado D', hint: 'Lado direito voltado para a câmera, braços ao longo do corpo.' },
+  { k: 'left', l: 'Lado esquerdo', s: 'Lado E', hint: 'Lado esquerdo voltado para a câmera, braços ao longo do corpo.' },
 ];
 export const POSE_KEYS = POSES.map((p) => p.k);
 export const poseLabel = (k) => POSES.find((p) => p.k === k)?.l || '';
+export const poseShort = (k) => POSES.find((p) => p.k === k)?.s || '';
 export const poseHint = (k) => POSES.find((p) => p.k === k)?.hint || '';
 
 // linhas de referência no quadro (em unidades do viewBox)

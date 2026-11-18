@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import parse from 'html-react-parser';
 import { Check, Grid3x3, History, ImagePlus, PersonStanding, RotateCcw, SwitchCamera, Timer, TimerOff, X, Zap, ZapOff, EyeOff, Crosshair } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { poseHint, poseLabel, poseSvg, type Pose } from '@/lib/poses.js';
+import { poseHint, poseLabel, poseShort, poseSvg, type Pose } from '@/lib/poses.js';
 import { toJpeg } from '@/lib/photos';
 
 /*
@@ -267,7 +267,7 @@ export function PoseCamera({ spec, onEnd }: { spec: CameraSpec; onEnd: () => voi
         {poses.map((p, j) => (
           <button type="button" key={p} className={'cam-pose' + (j === idx && phase !== 'done' ? ' on' : '') + (taken[p] ? ' has' : '')} onClick={() => goPose(j)} aria-current={j === idx}>
             <span className="cp-thumb">{taken[p] ? <img src={taken[p]} alt="" /> : parse(poseSvg(p))}{taken[p] && <i><Check size={11} strokeWidth={3} /></i>}</span>
-            <span className="cp-l">{poseLabel(p)}</span>
+            <span className="cp-l">{poseShort(p)}</span>
           </button>
         ))}
       </nav>
@@ -280,7 +280,7 @@ export function PoseCamera({ spec, onEnd }: { spec: CameraSpec; onEnd: () => voi
             <p>As fotos já estão salvas nesta avaliação. Toque numa pose acima para refazer.</p>
             <div className="cd-grid">{poses.map((p, j) => (
               <button type="button" key={p} onClick={() => goPose(j)} className={taken[p] ? '' : 'empty'}>
-                {taken[p] ? <img src={taken[p]} alt={poseLabel(p)} /> : parse(poseSvg(p))}<span>{poseLabel(p)}</span>
+                {taken[p] ? <img src={taken[p]} alt={poseLabel(p)} /> : parse(poseSvg(p))}<span>{poseShort(p)}</span>
               </button>
             ))}</div>
           </div>

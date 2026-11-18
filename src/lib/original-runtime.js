@@ -398,14 +398,12 @@ function viewPhotoCompare(p, list){
   const opts = sel => dated.slice().reverse().map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${shortDate(a.date)}</option>`).join('');
   const days = Math.round((toDate(B.date)-toDate(A.date))/864e5);
   const stats = [['Peso',num(B.weight),num(A.weight),0,'kg'],['Gordura',rB.bf,rA.bf,-1,'pp'],['Massa magra',rB.leanMass,rA.leanMass,1,'kg'],['Cintura',num(B.circ?.waist),num(A.circ?.waist),-1,'cm']].filter(s=>s[1]!=null&&s[2]!=null);
-  let h = chips + `<div class="cmp-pick">
-      <label class="sel a"><small>Antes (A)</small><select data-ch="phA">${opts(A.id)}</select></label>
-      <button class="vs" data-act="phSwap" aria-label="Inverter">${ic('swap','sm')}</button>
-      <label class="sel b"><small>Depois (B)</small><select data-ch="phB">${opts(B.id)}</select></label>
-    </div>
+  const daysTxt = days===0 ? 'Fotos do mesmo dia' : `${Math.abs(days)} ${Math.abs(days)===1?'dia':'dias'} entre as fotos`;
+  // computador: comparação à esquerda, painel (datas, variação, todas as fotos) à direita; celular: tudo empilhado
+  let h = chips + `<div class="ph-layout"><div class="ph-main">
     <div class="ph-bar">
       <div class="seg ph-modes" role="tablist" aria-label="Modo de comparação">${[['side','Lado a lado'],['wipe','Deslizar'],['fade','Sobrepor']].map(([v,l])=>`<button role="tab" aria-selected="${mode===v}" class="${mode===v?'on':''}" data-act="phMode" data-v="${v}">${l}</button>`).join('')}</div>
-      <button class="btn ghost sm ph-share" data-act="phShare">${ic('dl','sm')}<span>Baixar imagem</span></button>
+      <button class="btn ghost sm ph-share" data-act="phShare" aria-label="Baixar imagem do antes e depois">${ic('dl','sm')}<span>Baixar imagem</span></button>
     </div>
     <div class="phc phc-${mode}" style="--x:${x}%;--o:${o/100}">`;
   if (mode==='side') h += `<figure class="phc-fig" data-act="phView" data-aid="${A.id}" data-pose="${k}">${phImg(mA,'Antes')}${cap(A,'Antes')}</figure>
@@ -416,10 +414,20 @@ function viewPhotoCompare(p, list){
         <span class="phc-tag l">Antes · ${shortDate(A.date)}</span><span class="phc-tag r">Depois · ${shortDate(B.date)}</span>
       </div>`;
   h += `</div>
-    <p class="small muted ph-days">${Math.abs(days)} dias entre as fotos${mode!=='side' ? ` · ${mode==='wipe' ? 'arraste sobre a foto para deslizar' : 'arraste para a direita para mostrar a mais recente'}` : ''}</p>
+    <p class="small muted ph-days">${daysTxt}${mode!=='side' ? ` · ${mode==='wipe' ? 'arraste sobre a foto para deslizar' : 'arraste para a direita para mostrar a mais recente'}` : ''}</p>
+  </div>
+  <aside class="ph-aside">
+    <div class="cmp-pick">
+      <label class="sel a"><small>Antes (A)</small><select data-ch="phA">${opts(A.id)}</select></label>
+      <button class="vs" data-act="phSwap" aria-label="Inverter">${ic('swap','sm')}</button>
+      <label class="sel b"><small>Depois (B)</small><select data-ch="phB">${opts(B.id)}</select></label>
+    </div>
     ${stats.length ? `<div class="ph-stats">${stats.map(([l,b,a,dir,u])=>`<div class="stat"><small>${l}</small>${deltaChip(b,a,dir,u)}</div>`).join('')}</div>` : ''}
-    <h2 class="sec">Todas as fotos · ${poseLabel(k)} <span class="sec-note">toque para ver</span></h2>
-    <div class="ph-strip">${dated.slice().reverse().map(a=>`<button class="ph-th ${a.id===A.id?'is-a':''} ${a.id===B.id?'is-b':''}" data-act="phView" data-aid="${a.id}" data-pose="${k}">${phImg(phGet(a.id,k), shortDate(a.date))}<span>${shortDate(a.date)}</span>${a.id===A.id?'<em>A</em>':a.id===B.id?'<em>B</em>':''}</button>`).join('')}</div>`;
+    <div class="ph-all">
+      <h3 class="ph-all-h">Todas as fotos · ${poseLabel(k)}<span>${plural(dated.length,'foto','fotos')}</span></h3>
+      <div class="ph-strip">${dated.slice().reverse().map(a=>`<button class="ph-th ${a.id===A.id?'is-a':''} ${a.id===B.id?'is-b':''}" data-act="phView" data-aid="${a.id}" data-pose="${k}" aria-label="Ver foto de ${shortDate(a.date)}"><span class="ph-th-img">${phImg(phGet(a.id,k), shortDate(a.date))}${a.id===A.id?'<em>A</em>':a.id===B.id?'<em class="b">B</em>':''}</span><span class="ph-th-d">${shortDate(a.date)}</span></button>`).join('')}</div>
+    </div>
+  </aside></div>`;
   return h;
 }
 

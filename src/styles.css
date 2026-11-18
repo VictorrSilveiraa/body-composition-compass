@@ -1469,3 +1469,58 @@ button.kpi:active{scale:.97}
   .ph-sec .ph-slots{grid-template-columns:repeat(4,minmax(0,150px));gap:12px}
   .ph-slots.big{max-width:760px}
 }
+
+/* ---------- ajustes: abas com 3 opções, miniaturas da câmera, aba Fotos ---------- */
+/* abas: larguras iguais e destaque deslizante que acompanha 3 opções */
+.seg.full button{flex:1 1 0;min-width:0;min-height:44px}
+.seg.full:has(>button:nth-child(3))::before{width:calc((100% - 16px) / 3)}
+.seg.full:has(>button:nth-child(3)):has(>button.on:nth-child(2))::before{translate:calc(100% + 4px) 0}
+.seg.full:has(>button:nth-child(3)):has(>button.on:nth-child(3))::before{translate:calc(200% + 8px) 0}
+/* câmera: 4 poses sempre com o mesmo espaço entre si */
+.cam-poses{display:grid;grid-template-columns:repeat(4,62px);justify-content:center;gap:10px}
+.cam-pose{width:62px;min-width:0}
+.cam-pose .cp-l{display:block;width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cp-thumb{margin:0 auto}
+.cd-grid span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* aba Fotos: celular empilhado (datas → modo → comparação → variação → todas as fotos) */
+.ph-layout{display:flex;flex-direction:column}
+.ph-main,.ph-aside{display:contents}
+.ph-aside .cmp-pick{order:1;margin-bottom:12px}
+.ph-main .ph-bar{order:2}
+.ph-main .phc{order:3}
+.ph-main .ph-days{order:4}
+.ph-aside .ph-stats{order:5}
+.ph-aside .ph-all{order:6;margin-top:22px}
+.ph-stats{grid-template-columns:repeat(2,1fr)}
+/* todas as fotos: cartões com respiro, foto arredondada e marcação A/B por dentro */
+.ph-all-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:17px;font-weight:600;margin:0 2px 10px}
+.ph-all-h span{font-size:13px;font-weight:500;color:var(--muted)}
+.ph-strip{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:4px 16px 8px;scroll-snap-type:x proximity}
+.ph-th{flex:none;width:104px;padding:6px 6px 8px;border-radius:20px;background:var(--card);scroll-snap-align:start;text-align:center;box-shadow:inset 0 0 0 2px transparent;transition:box-shadow .25s,background .25s}
+.ph-th:hover{background:var(--line)}
+.ph-th-img{position:relative;display:block;width:100%;aspect-ratio:3/4;border-radius:14px;overflow:hidden;background:var(--surface)}
+.ph-th-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;box-shadow:none}
+.ph-th-img .ph-load{border-radius:0}
+.ph-th-d{display:block;margin-top:7px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.ph-th em{position:absolute;top:6px;left:6px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:700;background:var(--surface);color:var(--ink);box-shadow:0 2px 6px oklch(0 0 0 / .18)}
+.ph-th em.b{background:var(--blue-ink);color:#fff}
+.ph-th.is-a{box-shadow:inset 0 0 0 2px var(--ink)}
+.ph-th.is-b{box-shadow:inset 0 0 0 2px var(--blue-ink);background:var(--blue)}
+.ph-th.is-a img,.ph-th.is-b img{box-shadow:none}
+/* computador: comparação grande à esquerda, painel à direita */
+@media (min-width:1024px){
+  .ph-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start}
+  .ph-main,.ph-aside{display:block}
+  .ph-aside{position:sticky;top:24px;display:flex;flex-direction:column;gap:18px}
+  .ph-aside .cmp-pick,.ph-aside .ph-all{margin:0}
+  .ph-aside .cmp-pick{grid-template-columns:1fr auto 1fr}
+  .ph-main .ph-bar{margin-bottom:14px}
+  .ph-main .phc-side{max-width:none;margin:0;gap:14px}
+  .ph-main .phc-fig{max-height:calc(100vh - 230px)}
+  .ph-main .phc-side .phc-fig{width:100%;max-height:none}
+  .ph-main .phc-side{max-width:min(100%,calc((100vh - 250px) * 1.5 + 14px));margin:0 auto}
+  .ph-main .phc-stage{max-width:min(100%,calc((100vh - 250px) * .75));max-height:none}
+  .ph-stats{margin:0}
+  .ph-all .ph-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;overflow:visible;margin:0;padding:0}
+  .ph-all .ph-th{width:auto}
+}
