@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PhotoViewer, type ViewerSpec } from '@/components/photo-viewer';
+import { AuthShell } from '@/components/auth-screen';
 import { calc, bmiClass, bfClass, whrRisk, fmt, fmtDate, toDate, today, ageAt, foldVal, CIRC_TRUNK, CIRC_LIMBS, FOLDS, PROTOCOLS, METRICS, GROUPS, firstName, initials } from '@/lib/calculos.js';
 import { poseLabel, POSES } from '@/lib/poses.js';
 import { fmtCode, isCode, normCode, type PortalData, type PortalPhoto } from '@/lib/portal-code';
@@ -118,23 +119,23 @@ function Entry({ onEnter, error }: { onEnter: (c: string) => void; error: string
   const [v, setV] = useState('');
   const ok = isCode(normCode(v));
   return (
-    <main className="app"><div className="auth-wrap pp-entry">
-      <div className="auth-mark"><span className="avatar"><Activity /></span>Avaliação Física</div>
-      <div className="onb-hero"><span className="tag">Portal do paciente</span><h1 className="auth-title">Acompanhe sua evolução.</h1><p>Use o código que seu nutricionista enviou para ver suas avaliações, medidas e fotos.</p></div>
-      <h2 className="sec">Entrar com código</h2>
-      <form className="auth-form" onSubmit={(e) => { e.preventDefault(); if (ok) onEnter(normCode(v)); }}>
-        <label className="field"><span className="f-label">Código de acesso</span>
-          <div className="f-input text pp-code-in"><KeyRound size={18} />
-            <input value={v} onChange={(e) => setV(fmtCode(e.target.value))} placeholder="XXXX-XXXX" autoComplete="one-time-code" autoCapitalize="characters" spellCheck={false} maxLength={9} aria-describedby="pp-help" autoFocus />
+    <AuthShell kicker="Portal do paciente" title="Acompanhe sua evolução." text="Suas avaliações, medidas, fotos e o significado de cada número — num só lugar.">
+      <h1 className="lg-title">Entrar com código</h1>
+      <p className="lg-sub">Use o código que seu nutricionista enviou. São 8 letras e números, como <b>K7QM-3HXA</b>.</p>
+      <form className="lg-form" onSubmit={(e) => { e.preventDefault(); if (ok) onEnter(normCode(v)); }}>
+        <div className="field lg-field">
+          <div className="lg-label"><label className="f-label" htmlFor="code">Código de acesso</label></div>
+          <div className="f-input text lg-input pp-code-in"><KeyRound size={18} />
+            <input id="code" name="code" value={v} onChange={(e) => setV(fmtCode(e.target.value))} placeholder="XXXX-XXXX" autoComplete="one-time-code" autoCapitalize="characters" spellCheck={false} maxLength={9} autoFocus />
           </div>
-        </label>
-        <p id="pp-help" className="small muted">São 8 letras e números, como <b>K7QM-3HXA</b>. Maiúsculas ou minúsculas, tanto faz.</p>
-        {error && <p className="auth-error" role="alert">{error}</p>}
-        <Button variant="original" type="submit" className="cta" disabled={!ok}><span className="c-ico"><KeyRound size={20} /></span><span>Ver minha evolução ›››</span><span className="c-ico"><ArrowRight size={20} /></span></Button>
+        </div>
+        {error && <p className="auth-error lg-error" role="alert">{error}</p>}
+        <Button variant="original" type="submit" className="btn dark lg-submit" disabled={!ok}>Ver minha evolução <ArrowRight size={18} /></Button>
       </form>
       <p className="pp-safe"><ShieldCheck size={16} /> Acesso somente para visualizar. Ninguém consegue alterar seus dados por aqui.</p>
-      <div className="auth-links"><a href="/login">Sou nutricionista · entrar com e-mail</a></div>
-    </div></main>
+      <div className="lg-or"><span>ou</span></div>
+      <a className="auth-patient lg-patient" href="/login"><span className="chip-ico"><Activity size={18} /></span><span className="grow"><b>Sou nutricionista</b><span>Entrar com e-mail e senha</span></span><ArrowRight size={18} /></a>
+    </AuthShell>
   );
 }
 
