@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { PhotoViewer, type ViewerSpec } from '@/components/photo-viewer';
 import { AuthShell } from '@/components/auth-screen';
 import { AppTour, type TourSpec, type TourStep } from '@/components/app-tour';
+import { WA_PATH, waSvg } from '@/lib/wa-icon';
+const WaIcon = () => <svg className="ico sm wa-ico" viewBox="0 0 24 24" aria-hidden="true"><path d={WA_PATH} /></svg>;
 import { calc, bmiClass, bfClass, whrRisk, fmt, fmtDate, toDate, today, ageAt, foldVal, CIRC_TRUNK, CIRC_LIMBS, FOLDS, PROTOCOLS, METRICS, GROUPS, firstName, initials } from '@/lib/calculos.js';
 import { poseLabel, POSES } from '@/lib/poses.js';
 import { fmtCode, isCode, normCode, type PortalData, type PortalPhoto } from '@/lib/portal-code';
@@ -271,7 +273,7 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
       { sel: nav('Medidas'), icon: svg('<path d="M4 16 16 4l4 4L8 20z"/><path d="M8 12l2 2M11 9l1.5 1.5M14 6l2 2"/>'), title: 'Medidas e o que significam', text: 'Composição corporal, circunferências e dobras — com um guia que explica cada número e em que faixa você está.' },
       hasPhotos && { sel: nav('Fotos'), icon: svg('<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>'), title: 'Antes e depois', text: 'Suas fotos de cada avaliação, para comparar lado a lado, deslizando ou sobrepondo.' },
       { sel: nav('Avaliações'), icon: svg('<rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 4V3h6v1M9 11h6M9 15h4"/>'), title: 'Todas as avaliações', text: 'O histórico completo, da mais recente para a mais antiga, com todos os detalhes de cada consulta.' },
-      !!(wa || data.nutri.name) && { sel: window.matchMedia('(min-width:1024px)').matches ? ['.pp-side-wa', '.pp-nutri'] : ['.pp-nutri'], icon: svg('<path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 10h6M9 13.5h4"/>'), title: `Fale com ${nutriName === 'seu nutricionista' ? 'seu nutricionista' : nfn}`, text: wa ? 'Dúvida sobre o plano ou as medidas? Chame no WhatsApp direto por aqui.' : 'Aqui ficam os dados do seu nutricionista e a data prevista do próximo retorno.' },
+      !!(wa || data.nutri.name) && { sel: window.matchMedia('(min-width:1024px)').matches ? ['.side-wa', '.side-nutri'] : ['.pp-nutri'], icon: waSvg(), title: `Fale com ${nutriName === 'seu nutricionista' ? 'seu nutricionista' : nfn}`, text: wa ? 'Dúvida sobre o plano ou as medidas? Chame no WhatsApp direto por aqui.' : 'Aqui ficam os dados do seu nutricionista e a data prevista do próximo retorno.' },
       { art: 'done', title: 'Tudo pronto!', text: 'Seu acesso fica salvo neste aparelho. Dica: adicione esta página à tela inicial do celular para abrir como um app.', cta: 'Começar a usar' },
     ];
     return s.filter((x): x is TourStep => !!x);
@@ -369,7 +371,7 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
         <span className="avatar">{initials(nutriName)}</span>
         <div className="grow"><small>Seu nutricionista</small><b>{nutriName}</b><span>{[crn, data.nutri.specialty].filter(Boolean).join(' · ') || 'Acompanhamento nutricional'}</span></div>
         {(wa || data.nutri.place) && <div className="pp-contact">
-          {wa && <a className="pc wa" href={wa} target="_blank" rel="noopener"><MessageCircle size={16} />Falar no WhatsApp</a>}
+          {wa && <a className="pc wa" href={wa} target="_blank" rel="noopener"><WaIcon />Falar no WhatsApp</a>}
           {data.nutri.place && <span className="pc"><MapPin size={16} />{data.nutri.place}</span>}
         </div>}
       </div>
@@ -674,9 +676,15 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
       <nav className={'nav' + (tabs.length > 5 ? ' six' : '')}>
         <div className="side-brand"><span className="mark"><Heart className="ico sm" /></span><span>Portal do<br />paciente</span></div>
         <div className="side-links">{tabs.map(({ k, l, I }) => <button key={k} className={cur === k ? 'on' : ''} onClick={() => go(k)} aria-label={l} aria-current={cur === k ? 'page' : undefined}><I className="ico" /><span>{l}</span></button>)}</div>
-        <button className="side-pt" onClick={() => go('inicio')}><small>Seu nutricionista</small><span className="row"><span className="avatar" style={{ background: 'var(--peach)' }}>{initials(nutriName)}</span><span className="grow"><b>{nutriName}</b><small>{crn || data.nutri.specialty || 'Acompanhamento'}</small></span></span></button>
-        {wa && <a className="side-cta pp-side-wa" href={wa} target="_blank" rel="noopener"><MessageCircle className="ico" /><span>Falar no WhatsApp</span></a>}
-        <button className="side-prof" onClick={onExit} title="Sair deste aparelho"><span className="avatar" style={{ background: 'var(--yellow-2)' }}>{initials(data.patient.name)}</span><span className="grow"><b>{data.patient.name}</b><small>Sair deste aparelho</small></span><LogOut className="ico sm" /></button>
+        {/* rodapé: quem cuida de você (e o atalho para falar com ele) logo acima de você */}
+        <div className="side-bottom">
+          <div className="side-nutri">
+            <small>Seu nutricionista</small>
+            <span className="row"><span className="avatar" style={{ background: 'var(--peach)' }}>{initials(nutriName)}</span><span className="grow"><b>{nutriName}</b><small>{crn || data.nutri.specialty || 'Acompanhamento'}</small></span></span>
+            {wa && <a className="side-wa" href={wa} target="_blank" rel="noopener"><WaIcon /><span>Falar no WhatsApp</span></a>}
+          </div>
+          <button className="side-prof" onClick={onExit} title="Sair deste aparelho"><span className="avatar" style={{ background: 'var(--yellow-2)' }}>{initials(data.patient.name)}</span><span className="grow"><b>{data.patient.name}</b><small>Sair deste aparelho</small></span><LogOut className="ico sm" /></button>
+        </div>
       </nav>
       {viewer && <PhotoViewer spec={viewer} onEnd={() => setViewer(null)} />}
       {tour && <AppTour spec={tour} onEnd={() => setTour(null)} />}

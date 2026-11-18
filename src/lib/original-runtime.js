@@ -4,6 +4,7 @@ import {tick} from "./motion";
 import {POSES,POSE_KEYS,poseLabel,poseSvg} from "./poses.js";
 import {exportPdf} from "./report.js";
 import {dietScreens} from "./diet-screens.js";
+import {waSvg} from "./wa-icon";
 const FOLD_NAME=Object.fromEntries(FOLDS.map(f=>[f.k,f.l]));
 export function mountOriginal(options){
 
@@ -901,7 +902,7 @@ function paSection(p){
         <span class="tag ${a.active?'green':''}">${a.active ? ic('check','sm')+'Ativo' : 'Pausado'}</span></div>
       <p class="pa-seen">${ic('clock','sm')}${seen}</p>
       <div class="pa-btns">
-        <button class="pa-b" data-act="paSend" data-id="${p.id}">${ic('chat','sm')}<span>${p.phone ? 'WhatsApp' : 'Enviar'}</span></button>
+        <button class="pa-b" data-act="paSend" data-id="${p.id}">${p.phone ? waSvg('sm') : ic('chat','sm')}<span>${p.phone ? 'WhatsApp' : 'Enviar'}</span></button>
         <button class="pa-b" data-act="paCopy" data-id="${p.id}" data-what="code">${ic('clip','sm')}<span>Copiar código</span></button>
         <button class="pa-b" data-act="paCopy" data-id="${p.id}" data-what="link">${ic('swap','sm')}<span>Copiar link</span></button>
       </div>
@@ -939,7 +940,7 @@ function viewPatient(id){
   <div class="card blue pt-hero">
     <div class="pt-id">${pAvatar(p,'xl')}<div class="grow"><h1>${esc(p.name)}</h1><div class="small">${esc(pMeta(p))}</div></div></div>
     <div class="pt-tags"><span class="tag ${st.cls==='muted'?'':st.cls}">${st.l}</span>${p.goal?`<span class="tag">${ic('target','sm')}${esc(goalLabel(p.goal))}</span>`:''}<span class="tag">${ic('clock','sm')}Retorno a cada ${returnEvery(p)} dias</span></div>
-    ${(p.phone||p.email) ? `<div class="pt-contact">${wa?`<a class="pc wa" href="${wa}" target="_blank" rel="noopener">${ic('chat','sm')}WhatsApp</a>`:''}${p.phone?`<a class="pc" href="tel:${phoneDigits(p.phone)}">${ic('phone','sm')}${esc(fmtPhone(p.phone))}</a>`:''}${p.email?`<a class="pc" href="mailto:${esc(p.email)}">${ic('mail','sm')}<span>${esc(p.email)}</span></a>`:''}</div>`
+    ${(p.phone||p.email) ? `<div class="pt-contact">${wa?`<a class="pc wa" href="${wa}" target="_blank" rel="noopener">${waSvg('sm')}WhatsApp</a>`:''}${p.phone?`<a class="pc" href="tel:${phoneDigits(p.phone)}">${ic('phone','sm')}${esc(fmtPhone(p.phone))}</a>`:''}${p.email?`<a class="pc" href="mailto:${esc(p.email)}">${ic('mail','sm')}<span>${esc(p.email)}</span></a>`:''}</div>`
       : `<div class="pt-contact"><button class="pc" data-act="go" data-to="onboard" data-id="${p.id}">${ic('plus','sm')}Adicionar telefone ou e-mail</button></div>`}
   </div>
   <div class="pt-actions">
@@ -1264,12 +1265,19 @@ function render(){
   if(showNav){ const tabs=[['home','home','Início'],['patients','users','Pacientes'],['list','cal','Avaliações'],['compare','chart','Evolução'],...(DS.has()?[['diets','leaf','Dieta']]:[]),['profile','user','Perfil']]; const cur={detail:'list',patient:'patients',diet:'diets'}[state.route]||state.route;
   // No celular: só os botões (pílula flutuante). No computador vira barra lateral com marca, paciente atual, atalho e nutricionista.
   const p = prof(), n = p ? listOf(p.id).length : 0;
+  // Computador: bloco geral (Início, Pacientes) + bloco do paciente atual (cartão, os menus dele e Nova avaliação); nutricionista no rodapé.
+  // Celular: os blocos ficam "transparentes" e sobra só a pílula de botões, na mesma ordem.
+  const navBtn = ([r,i,l]) => `<button class="${cur===r?'on':''}" data-act="go" data-to="${r}" aria-label="${l}">${ic(i)}<span>${l}</span></button>`;
+  const general = tabs.filter(t=>t[0]==='home'||t[0]==='patients'), ofPatient = tabs.filter(t=>t[0]!=='home'&&t[0]!=='patients');
   navHtml=`<nav class="nav${tabs.length>5?' six':''}">
     <div class="side-brand"><span class="mark">${ic('heart','sm')}</span><span>Avaliação<br>Física</span></div>
-    <div class="side-links">${tabs.map(([r,i,l])=>`<button class="${cur===r?'on':''}" data-act="go" data-to="${r}" aria-label="${l}">${ic(i)}<span>${l}</span></button>`).join('')}</div>
-    ${p ? `<button class="side-pt" data-act="go" data-to="patient" data-id="${p.id}"><small>Paciente atual</small><span class="row">${pAvatar(p)}<span class="grow"><b>${esc(p.name)}</b><small>${plural(n,'avaliação','avaliações')}</small></span>${ic('right','sm')}</span></button>
-    <button class="side-cta" data-act="new">${ic('plus')}<span>${hasDraft()?'Continuar avaliação':'Nova avaliação'}</span></button>`
-    : `<button class="side-pt" data-act="newProfile"><small>Nenhum paciente ainda</small><span class="row"><span class="avatar" style="background:var(--yellow-2)">${ic('plus','sm')}</span><span class="grow"><b>Cadastrar paciente</b><small>Comece pelo primeiro</small></span>${ic('right','sm')}</span></button>`}
+    <div class="side-links">${general.map(navBtn).join('')}</div>
+    <div class="side-group${p?'':' empty'}">
+      ${p ? `<button class="side-pt" data-act="go" data-to="patient" data-id="${p.id}"><small>Paciente atual</small><span class="row">${pAvatar(p)}<span class="grow"><b>${esc(p.name)}</b><small>${plural(n,'avaliação','avaliações')}</small></span>${ic('right','sm')}</span></button>`
+      : `<button class="side-pt" data-act="newProfile"><small>Nenhum paciente ainda</small><span class="row"><span class="avatar" style="background:var(--yellow-2)">${ic('plus','sm')}</span><span class="grow"><b>Cadastrar paciente</b><small>Comece pelo primeiro</small></span>${ic('right','sm')}</span></button>`}
+      <div class="side-links side-sub">${ofPatient.map(navBtn).join('')}</div>
+      ${p ? `<button class="side-cta" data-act="new">${ic('plus')}<span>${hasDraft()?'Continuar avaliação':'Nova avaliação'}</span></button>` : ''}
+    </div>
     <button class="side-prof" data-act="go" data-to="profile"><span class="avatar">${esc(initials(nutriName()))}</span><span class="grow"><b>${esc(nutriName())}</b><small>${crnLabel()?esc(crnLabel()):'Perfil profissional'}</small></span>${ic('right','sm')}</button>
   </nav>`; }
   // key muda = tela nova (anima a entrada); dir = indo "para frente" ou voltando

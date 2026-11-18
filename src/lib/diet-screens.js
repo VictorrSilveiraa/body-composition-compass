@@ -2,6 +2,7 @@ import { esc, fmt, num, fmtDate, today, firstName, clone } from './calculos.js';
 import { parseDiet, dietProblems, dietStats, emptyDiet, did, normTxt, normTime, splitName, mealKind, shoppingList } from './diet-parse';
 import { dietHtml, dietMini, dietAct, newDietUi, nowMinutes, dtIcon, KIND_COLOR } from './diet-view';
 import { exportDietPdf, dietImage, dietFileName, shareOrDownload } from './diet-export';
+import { waSvg } from './wa-icon';
 
 /*
  * Plano alimentar no app do nutricionista:
@@ -100,7 +101,7 @@ function viewDiet(id){
     <div class="card-head"><span class="chip-ico" style="background:var(--blue)">${ic('users','sm')}</span><span class="label"><b>${p?esc(firstName(p.name)):'Paciente'} no portal</b><br><span class="small muted">${rec.visible ? (portal==='active' ? 'Vê este plano com o código de acesso' : portal==='none' ? 'Crie o código de acesso na ficha' : portal==='paused' ? 'Acesso pausado na ficha' : 'Vê este plano no portal') : 'Este plano está oculto do paciente'}</span></span></div>
     <button class="toggle" data-act="dtVis" data-id="${id}"><span><b>Mostrar no portal</b><br><span class="small muted">O paciente vê, baixa em PDF e imagem</span></span><span class="switch ${rec.visible?'on':''}"></span></button>
     <div class="dt-share-btns">
-      <button class="btn dark sm" data-act="dtSend" data-id="${id}">${ic('chat','sm')} Enviar ao paciente</button>
+      <button class="btn dark sm" data-act="dtSend" data-id="${id}">${p?.phone ? waSvg('sm') : ic('chat','sm')} Enviar ao paciente</button>
       ${p?`<button class="btn ghost sm" data-act="go" data-to="patient" data-id="${p.id}">${ic('user','sm')} Ficha</button>`:''}
     </div></div>`;
   const saved = justSaved?.id===id && Date.now()-justSaved.t < 7000;
@@ -407,7 +408,7 @@ const acts = {
       {label:'Editar plano', icon:ic('edit','sm'), cls:'dark', fn:()=>acts.dtEdit(fake)},
       {label:'Baixar PDF', icon:ic('print','sm'), fn:then(()=>acts.dtPdf(fake))},
       {label:'Baixar imagem', icon:ic('image','sm'), fn:then(()=>acts.dtImg(fake))},
-      {label:'Enviar ao paciente', icon:ic('chat','sm'), fn:then(()=>acts.dtSend(fake))},
+      {label:'Enviar ao paciente', icon:P(rec.profileId)?.phone ? waSvg('sm') : ic('chat','sm'), fn:then(()=>acts.dtSend(fake))},
       {label:rec.visible?'Ocultar do portal':'Mostrar no portal', icon:ic(rec.visible?'lock':'check','sm'), fn:()=>acts.dtVis(fake)},
       {label:'Substituir por um novo PDF', icon:ic('ul','sm'), fn:()=>{ startImport(rec.profileId, rec.assessmentId||undefined); go('dietNew'); }},
       {label:'Excluir plano', icon:ic('trash','sm'), cls:'danger', fn:then(()=>acts.dtDel(fake))},

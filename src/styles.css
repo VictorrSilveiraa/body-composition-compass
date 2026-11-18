@@ -2303,3 +2303,34 @@ button.kpi:active{scale:.97}
   .pt-sort.open .dd-btn{background:var(--card)}
   .pt-sort .dd-menu{right:-4px}
 }
+/* ---------- ícone do WhatsApp (preenchido, não contorno) ---------- */
+.ico.wa-ico{fill:currentColor;stroke:none}
+.pc.wa .wa-ico,.pa-b .wa-ico{width:17px;height:17px}
+
+/* ---------- barra lateral: blocos (no celular viram só a pílula de botões) ---------- */
+.side-group,.side-bottom{display:contents}
+.nav .side-nutri{display:none}
+@media (min-width:1024px){
+  /* nutricionista: bloco do paciente atual = cartão + menus dele + Nova avaliação */
+  .nav .side-group{display:flex;flex-direction:column;gap:2px;margin-top:18px;padding:6px;border-radius:28px;background:var(--surface);box-shadow:0 0 0 1px var(--line)}
+  .nav .side-group .side-pt{margin-top:0}
+  .nav .side-sub{margin:6px 0 0;gap:2px}
+  .nav .side-sub button{height:46px;padding:0 16px;border-radius:16px}
+  .nav .side-sub button:not(.on):hover{background:var(--card)}
+  .nav .side-sub [data-to="profile"]{display:none}
+  .nav .side-group .side-cta{margin-top:6px;height:50px}
+  .nav .side-group.empty .side-sub{opacity:.55}
+  /* paciente: rodapé com o nutricionista (e o WhatsApp) logo acima do próprio paciente */
+  .nav .side-bottom{display:flex;flex-direction:column;gap:8px;margin-top:auto;padding-top:16px}
+  .nav .side-bottom .side-prof{margin-top:0}
+  .nav .side-nutri{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:24px;background:var(--blue)}
+  .side-nutri>small{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--blue-ink);padding-left:2px}
+  .side-nutri .row{display:flex;align-items:center;gap:10px}
+  .side-nutri .avatar{width:38px;height:38px;font-size:14px;display:grid}
+  .side-nutri .grow{min-width:0;display:flex;flex-direction:column;line-height:1.2}
+  .side-nutri .grow b{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .side-nutri .grow small{font-size:12px;color:var(--ink-2)}
+  .nav .side-wa{display:flex;align-items:center;justify-content:center;gap:8px;height:44px;border-radius:99px;background:var(--ink);color:var(--surface);font-size:14px;font-weight:600;text-decoration:none;transition:transform .2s var(--ease),background-color .25s}
+  .nav .side-wa:hover{transform:translateY(-1px)}
+  .nav .side-wa .wa-ico{width:18px;height:18px}
+}
