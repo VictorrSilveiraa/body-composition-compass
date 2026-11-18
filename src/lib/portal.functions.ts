@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
-import { isCode, normCode, type PortalAssessment, type PortalData, type PortalPhoto, type PortalResult } from './portal-code';
+import { isCode, normCode, type PortalAssessment, type PortalData, type PortalDiet, type PortalPhoto, type PortalResult } from './portal-code';
 
 /*
  * Portal do paciente — roda SÓ no servidor.
@@ -74,6 +74,20 @@ async function loadPortal(code: string): Promise<PortalResult> {
       }
     }
 
+    // planos alimentares marcados como visíveis (se a tabela ainda não existir, o portal segue sem a aba Dieta)
+    const diets: PortalDiet[] = [];
+    try {
+      const dt = await db.from('dietas').select('id,titulo,prescrito_em,avaliacao_id,dados,visivel_paciente,created_at,updated_at')
+        .eq('paciente_id', access.paciente_id).eq('owner_id', access.owner_id).eq('visivel_paciente', true)
+        .order('prescrito_em', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false });
+      for (const row of (dt.error ? [] : dt.data ?? []) as Record<string, unknown>[]) {
+        const dados = row['dados'] as PortalDiet['data'] | null;
+        if (!dados || !Array.isArray(dados.meals)) continue;
+        const up = String(row['updated_at'] ?? row['created_at'] ?? ''); if (up && (!updatedAt || up > updatedAt)) updatedAt = up;
+        diets.push({ id: String(row['id']), title: String(row['titulo'] ?? dados.title ?? 'Plano alimentar'), prescribedAt: (row['prescrito_em'] as string | null) ?? null, assessmentId: (row['avaliacao_id'] as string | null) ?? null, data: dados, updatedAt: up || null });
+      }
+    } catch { /* sem dietas */ }
+
     // perfil profissional do nutricionista (nome, CRN, especialidade, contato de atendimento)
     let nutri: PortalData['nutri'] = { name: '', crn: '', specialty: '', phone: '', place: '', returnDays: null };
     try {
@@ -89,7 +103,7 @@ async function loadPortal(code: string): Promise<PortalResult> {
       ok: true,
       data: {
         patient: { name: String(p['nome'] ?? ''), sex: p['sexo'] === 'F' ? 'F' : 'M', birth: String(p['nascimento'] ?? ''), height: n(p['altura_cm']), goal: (p['objetivo'] as string) ?? null, returnDays: n(p['retorno_dias']) },
-        nutri, assessments, photos, share: { photos: sharePhotos, notes: shareNotes }, updatedAt,
+        nutri, assessments, photos, diets, share: { photos: sharePhotos, notes: shareNotes }, updatedAt,
       },
     };
 }

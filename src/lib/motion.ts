@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Motor de animações das telas importadas.
  * - Revela blocos quando entram na tela (IntersectionObserver): no celular só anima o que você rola até ver.
  * - Números contam do zero, anel/barras/pílulas crescem, gráficos se desenham.
@@ -10,9 +10,10 @@ const REVEAL = [
   '.act-row', '.prof-row', '.kv-row', '.cmp-row', '.notes', '.check-row', '.step-intro', '.onb-hero',
   '.empty', '.chips', '.cmp-pick', '.toggle', '.seg.full', '.steps', '.progress', '.auth-mark', '.auth-links',
   '.pt-cell', '.kpi', '.pt-bar', '.pt-actions',
+  '.dt-meal', '.dt-stats', '.dt-shop-g', '.dt-drop', '.dt-saved', '.dt-how', '.dt-read', '.dt-stepper',
 ].join(',');
 const COUNT = '.big,.mid,.stat b,.ring-wrap .inner b,.pill .val,.kv-row .v,.cmp-row .vals b,.kpi b';
-const RIPPLE = '.cta,.btn,.aitem,.act-row,.prof-row,.proto,.chip,.step-chip,.nav button,.icon-btn,.seg button,.toggle,.draft-banner,.kv-row[data-act],.card[data-act],.tag[data-act],.vs,.pt-card,.kpi,.pa,.pc';
+const RIPPLE = '.cta,.btn,.aitem,.act-row,.prof-row,.proto,.chip,.step-chip,.nav button,.icon-btn,.seg button,.toggle,.draft-banner,.kv-row[data-act],.card[data-act],.tag[data-act],.vs,.pt-card,.kpi,.pa,.pc,.dt-opts button,.dt-swap,.dt-check';
 
 const STAGGER = 55;
 const MAX_STAGGER = 9;

@@ -45,11 +45,14 @@ export type PortalAssessment = {
   extra: { bf?: number | undefined; muscle?: number | undefined; visceral?: number | undefined; water?: number | undefined; evaluator?: string | undefined; notes?: string | undefined };
 };
 export type PortalPhoto = { assessmentId: string; pose: 'front' | 'back' | 'right' | 'left'; url: string; w: number; h: number };
+/** plano alimentar visível para o paciente (o mais recente primeiro) */
+export type PortalDiet = { id: string; title: string; prescribedAt: string | null; assessmentId: string | null; data: import('./diet-parse').Diet; updatedAt: string | null };
 export type PortalData = {
   patient: { name: string; sex: 'F' | 'M'; birth: string; height: number | null; goal: string | null; returnDays: number | null };
   nutri: { name: string; crn: string; specialty: string; phone: string; place: string; returnDays: number | null };
   assessments: PortalAssessment[];
   photos: PortalPhoto[];
+  diets: PortalDiet[];
   share: { photos: boolean; notes: boolean };
   updatedAt: string | null;
 };

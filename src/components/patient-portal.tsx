@@ -12,6 +12,11 @@ import { poseLabel, POSES } from '@/lib/poses.js';
 import { fmtCode, isCode, normCode, type PortalData, type PortalPhoto } from '@/lib/portal-code';
 import { getPatientPortal } from '@/lib/portal.functions';
 import { pageReady, ripple, scan, withPageTransition } from '@/lib/motion';
+import parseHtml from 'html-react-parser';
+import { Apple, Download, FileText } from 'lucide-react';
+import { dietAct, dietHtml, dietMini, newDietUi, nowMinutes, variantOf, KIND_COLOR, dtIcon, type DietUi } from '@/lib/diet-view';
+import { mealKind, qtyParts, fmtAmount } from '@/lib/diet-parse';
+import { dietFileName, dietImage, exportDietPdf, shareOrDownload } from '@/lib/diet-export';
 
 /*
  * Portal do paciente: entrada com o código que o nutricionista compartilhou e um app SOMENTE de leitura,
@@ -140,8 +145,8 @@ function Entry({ onEnter, error }: { onEnter: (c: string) => void; error: string
 }
 
 /* ---------- app do paciente ---------- */
-type Tab = 'inicio' | 'evolucao' | 'medidas' | 'fotos' | 'avaliacoes' | 'guia' | 'avaliacao';
-const ORDER: Record<Tab, number> = { inicio: 0, evolucao: 1, medidas: 2, fotos: 3, avaliacoes: 4, avaliacao: 5, guia: 6 };
+type Tab = 'inicio' | 'evolucao' | 'medidas' | 'fotos' | 'avaliacoes' | 'guia' | 'avaliacao' | 'dieta';
+const ORDER: Record<Tab, number> = { inicio: 0, dieta: 0.5, evolucao: 1, medidas: 2, fotos: 3, avaliacoes: 4, avaliacao: 5, guia: 6 };
 const readView = (): { tab: Tab; id: string | null } => {
   const q = new URLSearchParams(window.location.search), v = q.get('v') as Tab | null;
   return { tab: v && v in ORDER ? v : 'inicio', id: q.get('id') };
@@ -159,6 +164,8 @@ function PortalApp({ data, onExit, onRefresh }: { data: PortalData; onExit: () =
   const crn = data.nutri.crn ? 'CRN ' + data.nutri.crn.replace(/^crn[\s:-]*/i, '') : '';
   const wa = data.nutri.phone ? 'https://wa.me/' + (() => { const d = data.nutri.phone.replace(/\D/g, ''); return d.length <= 11 ? '55' + d : d; })() : '';
   const hasPhotos = data.share.photos && data.photos.length > 0;
+  const diets = data.diets ?? [];
+  const hasDiet = diets.length > 0;
   const photoOf = (aid: string, k: string) => data.photos.find((x) => x.assessmentId === aid && x.pose === k);
 
   /* navegação entre telas (com transição e histórico do navegador) */
@@ -196,6 +203,22 @@ function PortalApp({ data, onExit, onRefresh }: { data: PortalData; onExit: () =
   const [sx, setSx] = useState(50), [so, setSo] = useState(50);
   const [viewer, setViewer] = useState<ViewerSpec | null>(null);
   const drag = useRef(false);
+  /* plano alimentar: versão escolhida + estado da tela (aba, opção, trocas, compras marcadas) */
+  const [dietId, setDietId] = useState<string | null>(null);
+  const [dietUis, setDietUis] = useState<Record<string, DietUi>>({});
+  const [nowMin, setNowMin] = useState(nowMinutes);
+  useEffect(() => { const t = window.setInterval(() => setNowMin(nowMinutes()), 60_000); return () => clearInterval(t); }, []);
+  const uiFor = (id: string): DietUi => dietUis[id] ?? (() => { const u = newDietUi(); try { u.checked = JSON.parse(localStorage.getItem('avf.pp.shop.' + id) || '{}') as Record<string, boolean>; } catch { /* sem armazenamento */ } return u; })();
+  const dietClick = (e: React.MouseEvent<HTMLElement>, id: string) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>('[data-act]');
+    if (!el) return;
+    const u = structuredClone(uiFor(id));
+    if (!dietAct(u, el)) return;
+    e.preventDefault();
+    if (el.dataset['act'] === 'dtCheck' || el.dataset['act'] === 'dtClear') { try { localStorage.setItem('avf.pp.shop.' + id, JSON.stringify(u.checked)); } catch { /* ok */ } }
+    setDietUis((m) => ({ ...m, [id]: u }));
+  };
+  useLayoutEffect(() => { scan(host.current, { fresh: false }); }, [dietUis, dietId]);
 
   const openViewer = (k: string, aid: string) => {
     const items = list.filter((a) => photoOf(a.id, k)).map((a) => { const ph = photoOf(a.id, k)!; return { id: a.id + '|' + k, pose: k, title: poseLabel(k), sub: dLong(a.date), url: () => Promise.resolve(ph.url) }; });
@@ -226,7 +249,7 @@ function PortalApp({ data, onExit, onRefresh }: { data: PortalData; onExit: () =
   const lastNote = [...list].reverse().find((a) => a.extra.notes);
 
   const tabs: { k: Tab; l: string; I: typeof House }[] = [
-    { k: 'inicio', l: 'Início', I: House }, { k: 'evolucao', l: 'Evolução', I: TrendingUp }, { k: 'medidas', l: 'Medidas', I: Ruler },
+    { k: 'inicio', l: 'Início', I: House }, ...(hasDiet ? [{ k: 'dieta' as Tab, l: 'Dieta', I: Apple }] : []), { k: 'evolucao', l: 'Evolução', I: TrendingUp }, { k: 'medidas', l: 'Medidas', I: Ruler },
     ...(hasPhotos ? [{ k: 'fotos' as Tab, l: 'Fotos', I: Camera }] : []), { k: 'avaliacoes', l: 'Avaliações', I: ClipboardList },
   ];
   const cur: Tab = view.tab === 'avaliacao' ? 'avaliacoes' : view.tab === 'guia' ? 'medidas' : view.tab;
@@ -244,6 +267,23 @@ function PortalApp({ data, onExit, onRefresh }: { data: PortalData; onExit: () =
       <button className="icon-btn" onClick={onExit} aria-label="Sair deste aparelho"><LogOut className="ico" /></button>
     </header>
     <h1 className="headline">{summary}</h1>
+    {hasDiet && (() => {
+      const d = diets[0]!, mini = dietMini(d.data, nowMin), cur = mini.cur;
+      const v = cur ? variantOf(cur.meal, uiFor(d.id)).v : null;
+      const k = cur ? mealKind(cur.meal.name, cur.meal.time) : 'outra';
+      return (
+        <div className="card dt-next" style={{ ['--mc' as string]: KIND_COLOR[k] }} onClick={() => go('dieta')} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') go('dieta'); }}>
+          <div className="dt-next-top">
+            <span className="dt-mico">{parseHtml(dtIcon(k))}</span>
+            <div className="grow"><small>{cur ? (cur.state === 'now' ? 'Hora de comer' : 'Próxima refeição') : 'Seu plano alimentar'}</small>
+              <b>{cur ? `${cur.meal.time} · ${cur.meal.name}` : d.title}</b></div>
+            <ChevronRight className="ico" />
+          </div>
+          {v && <ul className="dt-next-foods">{v.foods.slice(0, 4).map((f) => { const q = qtyParts(f.qty); return <li key={f.id}><span>{f.name}</span><em>{q.measure || fmtAmount(q)}</em></li>; })}{v.foods.length > 4 && <li className="more">+ {v.foods.length - 4} {v.foods.length - 4 === 1 ? 'alimento' : 'alimentos'}</li>}</ul>}
+          {mini.strip && <div className="dt-strip">{parseHtml(mini.strip)}</div>}
+        </div>
+      );
+    })()}
     {!last ? empty(`Assim que ${nutriName} registrar sua primeira avaliação, tudo aparece aqui.`) : (<>
       <div className="dash">
         <div className="card blue span2 span2-d hero" onClick={() => go('medidas')} style={{ cursor: 'pointer' }}>
@@ -313,6 +353,7 @@ function PortalApp({ data, onExit, onRefresh }: { data: PortalData; onExit: () =
 
     <h2 className="sec">Explore</h2>
     <div className="actions pp-explore">
+      {hasDiet && <button className="act-row" onClick={() => go('dieta')}><span className="chip-ico"><Apple className="ico sm" /></span><span className="grow"><b>Plano alimentar</b><span>Refeições, opções, trocas e lista de compras</span></span><ChevronRight className="ico sm" /></button>}
       <button className="act-row" onClick={() => go('evolucao')}><span className="chip-ico"><TrendingUp className="ico sm" /></span><span className="grow"><b>Evolução</b><span>Gráfico de cada medida e comparação entre avaliações</span></span><ChevronRight className="ico sm" /></button>
       <button className="act-row" onClick={() => go('medidas')}><span className="chip-ico"><Ruler className="ico sm" /></span><span className="grow"><b>Medidas</b><span>Composição, índices, circunferências e dobras</span></span><ChevronRight className="ico sm" /></button>
       {hasPhotos && <button className="act-row" onClick={() => go('fotos')}><span className="chip-ico"><Camera className="ico sm" /></span><span className="grow"><b>Fotos</b><span>Antes e depois, lado a lado</span></span><ChevronRight className="ico sm" /></button>}
@@ -571,11 +612,35 @@ function PortalApp({ data, onExit, onRefresh }: { data: PortalData; onExit: () =
     </>);
   };
 
-  const screens: Record<Tab, () => ReactNode> = { inicio: Home, evolucao: Evolution, medidas: Measures, fotos: hasPhotos ? Photos : Home, avaliacoes: Assessments, avaliacao: Detail, guia: Guide };
+  const DietScreen = () => {
+    const d = diets.find((x) => x.id === dietId) ?? diets[0];
+    if (!d) return Home();
+    const meta = { patient: data.patient.name, nutri: data.nutri.name, crn, consult: d.assessmentId ? (() => { const a = list.find((x) => x.id === d.assessmentId); return a ? 'Consulta de ' + dShort(a.date) : ''; })() : '' };
+    const img = async () => { const b = await dietImage(d.data, meta); await shareOrDownload(b, dietFileName(d.data, meta, 'png'), d.title); };
+    const chips = [meta.consult ? `<span class="tag">${meta.consult}</span>` : '', d.id === diets[0]!.id ? '<span class="tag green">Plano atual</span>' : '<span class="tag">Plano anterior</span>'].join('');
+    const foot = `<div class="card white dt-save"><div class="card-head"><span class="chip-ico" style="background:var(--green)">${dtIcon('leaf', 'sm')}</span><span class="label"><b>Leve com você</b><br><span class="small muted">Salve no celular, imprima ou mande para alguém</span></span></div>
+      <div class="dt-share-btns"><button type="button" class="btn dark sm" data-act="ppPdf">Salvar em PDF</button><button type="button" class="btn ghost sm" data-act="ppImg">Salvar imagem</button></div></div>`;
+    return (<>
+      <Head title="Plano alimentar" sub={data.patient.name} back={() => go('inicio')} right={<>
+        <button className="icon-btn" onClick={() => exportDietPdf(d.data, meta)} aria-label="Salvar em PDF" title="Salvar em PDF"><FileText className="ico" /></button>
+        <button className="icon-btn" onClick={() => void img()} aria-label="Salvar como imagem" title="Salvar como imagem"><Download className="ico" /></button>
+      </>} />
+      {diets.length > 1 && <div className="chips dt-vers">{diets.map((x, i) => <button key={x.id} className={'chip' + (x.id === d.id ? ' on' : '')} onClick={() => setDietId(x.id)}>{i === 0 ? 'Atual' : 'Anterior'}{x.prescribedAt ? ' · ' + dShort(x.prescribedAt) : ''}</button>)}</div>}
+      <div onClick={(e) => {
+        const a = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset['act'];
+        if (a === 'ppPdf') { exportDietPdf(d.data, meta); return; }
+        if (a === 'ppImg') { void img(); return; }
+        dietClick(e, d.id);
+      }}>{parseHtml(dietHtml(d.data, uiFor(d.id), { mode: 'patient', nowMin, chips, foot }))}</div>
+      <p className="pp-ro"><ShieldCheck size={15} /> Plano prescrito por {nutriName}. Dúvidas? Fale com {firstName(nutriName)} antes de mudar algo.</p>
+    </>);
+  };
+
+  const screens: Record<Tab, () => ReactNode> = { inicio: Home, dieta: hasDiet ? DietScreen : Home, evolucao: Evolution, medidas: Measures, fotos: hasPhotos ? Photos : Home, avaliacoes: Assessments, avaliacao: Detail, guia: Guide };
   return (
     <main className="app has-nav pp" ref={host}>
       <div className="view" key={view.tab + (view.id ?? '')} data-dir={dir}>{screens[view.tab]()}</div>
-      <nav className="nav">
+      <nav className={'nav' + (tabs.length > 5 ? ' six' : '')}>
         <div className="side-brand"><span className="mark"><Heart className="ico sm" /></span><span>Portal do<br />paciente</span></div>
         <div className="side-links">{tabs.map(({ k, l, I }) => <button key={k} className={cur === k ? 'on' : ''} onClick={() => go(k)} aria-label={l} aria-current={cur === k ? 'page' : undefined}><I className="ico" /><span>{l}</span></button>)}</div>
         <button className="side-pt" onClick={() => go('inicio')}><small>Seu nutricionista</small><span className="row"><span className="avatar" style={{ background: 'var(--peach)' }}>{initials(nutriName)}</span><span className="grow"><b>{nutriName}</b><small>{crn || data.nutri.specialty || 'Acompanhamento'}</small></span></span></button>

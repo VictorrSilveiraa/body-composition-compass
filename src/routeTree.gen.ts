@@ -16,15 +16,19 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as PacienteRouteImport } from './routes/paciente'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedAvaliacoesRouteImport } from './routes/_authenticated/avaliacoes'
+import { Route as AuthenticatedDietasRouteImport } from './routes/_authenticated/dietas'
 import { Route as AuthenticatedEvolucaoRouteImport } from './routes/_authenticated/evolucao'
 import { Route as AuthenticatedNovaRouteImport } from './routes/_authenticated/nova'
 import { Route as AuthenticatedPacientesRouteImport } from './routes/_authenticated/pacientes'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedAvaliacoesIdRouteImport } from './routes/_authenticated/avaliacoes.$id'
+import { Route as AuthenticatedDietasIdRouteImport } from './routes/_authenticated/dietas.$id'
+import { Route as AuthenticatedDietasNovaRouteImport } from './routes/_authenticated/dietas.nova'
 import { Route as AuthenticatedPacientesIdRouteImport } from './routes/_authenticated/pacientes.$id'
 import { Route as AuthenticatedPerfilEditarRouteImport } from './routes/_authenticated/perfil.editar'
 import { Route as AuthenticatedPessoaNovaRouteImport } from './routes/_authenticated/pessoa.nova'
 import { Route as AuthenticatedAvaliacoesIdEditarRouteImport } from './routes/_authenticated/avaliacoes.$id.editar'
+import { Route as AuthenticatedDietasIdEditarRouteImport } from './routes/_authenticated/dietas.$id.editar'
 import { Route as AuthenticatedPessoaIdEditarRouteImport } from './routes/_authenticated/pessoa.$id.editar'
 
 const IndexRoute = IndexRouteImport.update({
@@ -61,6 +65,11 @@ const AuthenticatedAvaliacoesRoute = AuthenticatedAvaliacoesRouteImport.update({
   path: '/avaliacoes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDietasRoute = AuthenticatedDietasRouteImport.update({
+  id: '/dietas',
+  path: '/dietas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedEvolucaoRoute = AuthenticatedEvolucaoRouteImport.update({
   id: '/evolucao',
   path: '/evolucao',
@@ -87,6 +96,16 @@ const AuthenticatedAvaliacoesIdRoute =
     path: '/$id',
     getParentRoute: () => AuthenticatedAvaliacoesRoute,
   } as any)
+const AuthenticatedDietasIdRoute = AuthenticatedDietasIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AuthenticatedDietasRoute,
+} as any)
+const AuthenticatedDietasNovaRoute = AuthenticatedDietasNovaRouteImport.update({
+  id: '/nova',
+  path: '/nova',
+  getParentRoute: () => AuthenticatedDietasRoute,
+} as any)
 const AuthenticatedPacientesIdRoute =
   AuthenticatedPacientesIdRouteImport.update({
     id: '/$id',
@@ -110,6 +129,12 @@ const AuthenticatedAvaliacoesIdEditarRoute =
     path: '/editar',
     getParentRoute: () => AuthenticatedAvaliacoesIdRoute,
   } as any)
+const AuthenticatedDietasIdEditarRoute =
+  AuthenticatedDietasIdEditarRouteImport.update({
+    id: '/editar',
+    path: '/editar',
+    getParentRoute: () => AuthenticatedDietasIdRoute,
+  } as any)
 const AuthenticatedPessoaIdEditarRoute =
   AuthenticatedPessoaIdEditarRouteImport.update({
     id: '/pessoa/$id/editar',
@@ -124,15 +149,19 @@ export interface FileRoutesByFullPath {
   '/paciente': typeof PacienteRoute
   '/reset-password': typeof ResetPasswordRoute
   '/avaliacoes': typeof AuthenticatedAvaliacoesRouteWithChildren
+  '/dietas': typeof AuthenticatedDietasRouteWithChildren
   '/evolucao': typeof AuthenticatedEvolucaoRoute
   '/nova': typeof AuthenticatedNovaRoute
   '/pacientes': typeof AuthenticatedPacientesRouteWithChildren
   '/perfil': typeof AuthenticatedPerfilRouteWithChildren
   '/avaliacoes/$id': typeof AuthenticatedAvaliacoesIdRouteWithChildren
+  '/dietas/$id': typeof AuthenticatedDietasIdRouteWithChildren
+  '/dietas/nova': typeof AuthenticatedDietasNovaRoute
   '/pacientes/$id': typeof AuthenticatedPacientesIdRoute
   '/perfil/editar': typeof AuthenticatedPerfilEditarRoute
   '/pessoa/nova': typeof AuthenticatedPessoaNovaRoute
   '/avaliacoes/$id/editar': typeof AuthenticatedAvaliacoesIdEditarRoute
+  '/dietas/$id/editar': typeof AuthenticatedDietasIdEditarRoute
   '/pessoa/$id/editar': typeof AuthenticatedPessoaIdEditarRoute
 }
 export interface FileRoutesByTo {
@@ -142,15 +171,19 @@ export interface FileRoutesByTo {
   '/paciente': typeof PacienteRoute
   '/reset-password': typeof ResetPasswordRoute
   '/avaliacoes': typeof AuthenticatedAvaliacoesRouteWithChildren
+  '/dietas': typeof AuthenticatedDietasRouteWithChildren
   '/evolucao': typeof AuthenticatedEvolucaoRoute
   '/nova': typeof AuthenticatedNovaRoute
   '/pacientes': typeof AuthenticatedPacientesRouteWithChildren
   '/perfil': typeof AuthenticatedPerfilRouteWithChildren
   '/avaliacoes/$id': typeof AuthenticatedAvaliacoesIdRouteWithChildren
+  '/dietas/$id': typeof AuthenticatedDietasIdRouteWithChildren
+  '/dietas/nova': typeof AuthenticatedDietasNovaRoute
   '/pacientes/$id': typeof AuthenticatedPacientesIdRoute
   '/perfil/editar': typeof AuthenticatedPerfilEditarRoute
   '/pessoa/nova': typeof AuthenticatedPessoaNovaRoute
   '/avaliacoes/$id/editar': typeof AuthenticatedAvaliacoesIdEditarRoute
+  '/dietas/$id/editar': typeof AuthenticatedDietasIdEditarRoute
   '/pessoa/$id/editar': typeof AuthenticatedPessoaIdEditarRoute
 }
 export interface FileRoutesById {
@@ -162,15 +195,19 @@ export interface FileRoutesById {
   '/paciente': typeof PacienteRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/avaliacoes': typeof AuthenticatedAvaliacoesRouteWithChildren
+  '/_authenticated/dietas': typeof AuthenticatedDietasRouteWithChildren
   '/_authenticated/evolucao': typeof AuthenticatedEvolucaoRoute
   '/_authenticated/nova': typeof AuthenticatedNovaRoute
   '/_authenticated/pacientes': typeof AuthenticatedPacientesRouteWithChildren
   '/_authenticated/perfil': typeof AuthenticatedPerfilRouteWithChildren
   '/_authenticated/avaliacoes/$id': typeof AuthenticatedAvaliacoesIdRouteWithChildren
+  '/_authenticated/dietas/$id': typeof AuthenticatedDietasIdRouteWithChildren
+  '/_authenticated/dietas/nova': typeof AuthenticatedDietasNovaRoute
   '/_authenticated/pacientes/$id': typeof AuthenticatedPacientesIdRoute
   '/_authenticated/perfil/editar': typeof AuthenticatedPerfilEditarRoute
   '/_authenticated/pessoa/nova': typeof AuthenticatedPessoaNovaRoute
   '/_authenticated/avaliacoes/$id/editar': typeof AuthenticatedAvaliacoesIdEditarRoute
+  '/_authenticated/dietas/$id/editar': typeof AuthenticatedDietasIdEditarRoute
   '/_authenticated/pessoa/$id/editar': typeof AuthenticatedPessoaIdEditarRoute
 }
 export interface FileRouteTypes {
@@ -182,15 +219,19 @@ export interface FileRouteTypes {
     | '/paciente'
     | '/reset-password'
     | '/avaliacoes'
+    | '/dietas'
     | '/evolucao'
     | '/nova'
     | '/pacientes'
     | '/perfil'
     | '/avaliacoes/$id'
+    | '/dietas/$id'
+    | '/dietas/nova'
     | '/pacientes/$id'
     | '/perfil/editar'
     | '/pessoa/nova'
     | '/avaliacoes/$id/editar'
+    | '/dietas/$id/editar'
     | '/pessoa/$id/editar'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -200,15 +241,19 @@ export interface FileRouteTypes {
     | '/paciente'
     | '/reset-password'
     | '/avaliacoes'
+    | '/dietas'
     | '/evolucao'
     | '/nova'
     | '/pacientes'
     | '/perfil'
     | '/avaliacoes/$id'
+    | '/dietas/$id'
+    | '/dietas/nova'
     | '/pacientes/$id'
     | '/perfil/editar'
     | '/pessoa/nova'
     | '/avaliacoes/$id/editar'
+    | '/dietas/$id/editar'
     | '/pessoa/$id/editar'
   id:
     | '__root__'
@@ -219,15 +264,19 @@ export interface FileRouteTypes {
     | '/paciente'
     | '/reset-password'
     | '/_authenticated/avaliacoes'
+    | '/_authenticated/dietas'
     | '/_authenticated/evolucao'
     | '/_authenticated/nova'
     | '/_authenticated/pacientes'
     | '/_authenticated/perfil'
     | '/_authenticated/avaliacoes/$id'
+    | '/_authenticated/dietas/$id'
+    | '/_authenticated/dietas/nova'
     | '/_authenticated/pacientes/$id'
     | '/_authenticated/perfil/editar'
     | '/_authenticated/pessoa/nova'
     | '/_authenticated/avaliacoes/$id/editar'
+    | '/_authenticated/dietas/$id/editar'
     | '/_authenticated/pessoa/$id/editar'
   fileRoutesById: FileRoutesById
 }
@@ -291,6 +340,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAvaliacoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/dietas': {
+      id: '/_authenticated/dietas'
+      path: '/dietas'
+      fullPath: '/dietas'
+      preLoaderRoute: typeof AuthenticatedDietasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/evolucao': {
       id: '/_authenticated/evolucao'
       path: '/evolucao'
@@ -326,6 +382,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAvaliacoesIdRouteImport
       parentRoute: typeof AuthenticatedAvaliacoesRoute
     }
+    '/_authenticated/dietas/$id': {
+      id: '/_authenticated/dietas/$id'
+      path: '/$id'
+      fullPath: '/dietas/$id'
+      preLoaderRoute: typeof AuthenticatedDietasIdRouteImport
+      parentRoute: typeof AuthenticatedDietasRoute
+    }
+    '/_authenticated/dietas/nova': {
+      id: '/_authenticated/dietas/nova'
+      path: '/nova'
+      fullPath: '/dietas/nova'
+      preLoaderRoute: typeof AuthenticatedDietasNovaRouteImport
+      parentRoute: typeof AuthenticatedDietasRoute
+    }
     '/_authenticated/pacientes/$id': {
       id: '/_authenticated/pacientes/$id'
       path: '/$id'
@@ -353,6 +423,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/avaliacoes/$id/editar'
       preLoaderRoute: typeof AuthenticatedAvaliacoesIdEditarRouteImport
       parentRoute: typeof AuthenticatedAvaliacoesIdRoute
+    }
+    '/_authenticated/dietas/$id/editar': {
+      id: '/_authenticated/dietas/$id/editar'
+      path: '/editar'
+      fullPath: '/dietas/$id/editar'
+      preLoaderRoute: typeof AuthenticatedDietasIdEditarRouteImport
+      parentRoute: typeof AuthenticatedDietasIdRoute
     }
     '/_authenticated/pessoa/$id/editar': {
       id: '/_authenticated/pessoa/$id/editar'
@@ -392,6 +469,32 @@ const AuthenticatedAvaliacoesRouteWithChildren =
     AuthenticatedAvaliacoesRouteChildren,
   )
 
+interface AuthenticatedDietasIdRouteChildren {
+  AuthenticatedDietasIdEditarRoute: typeof AuthenticatedDietasIdEditarRoute
+}
+
+const AuthenticatedDietasIdRouteChildren: AuthenticatedDietasIdRouteChildren = {
+  AuthenticatedDietasIdEditarRoute: AuthenticatedDietasIdEditarRoute,
+}
+
+const AuthenticatedDietasIdRouteWithChildren =
+  AuthenticatedDietasIdRoute._addFileChildren(
+    AuthenticatedDietasIdRouteChildren,
+  )
+
+interface AuthenticatedDietasRouteChildren {
+  AuthenticatedDietasIdRoute: typeof AuthenticatedDietasIdRouteWithChildren
+  AuthenticatedDietasNovaRoute: typeof AuthenticatedDietasNovaRoute
+}
+
+const AuthenticatedDietasRouteChildren: AuthenticatedDietasRouteChildren = {
+  AuthenticatedDietasIdRoute: AuthenticatedDietasIdRouteWithChildren,
+  AuthenticatedDietasNovaRoute: AuthenticatedDietasNovaRoute,
+}
+
+const AuthenticatedDietasRouteWithChildren =
+  AuthenticatedDietasRoute._addFileChildren(AuthenticatedDietasRouteChildren)
+
 interface AuthenticatedPacientesRouteChildren {
   AuthenticatedPacientesIdRoute: typeof AuthenticatedPacientesIdRoute
 }
@@ -419,6 +522,7 @@ const AuthenticatedPerfilRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAvaliacoesRoute: typeof AuthenticatedAvaliacoesRouteWithChildren
+  AuthenticatedDietasRoute: typeof AuthenticatedDietasRouteWithChildren
   AuthenticatedEvolucaoRoute: typeof AuthenticatedEvolucaoRoute
   AuthenticatedNovaRoute: typeof AuthenticatedNovaRoute
   AuthenticatedPacientesRoute: typeof AuthenticatedPacientesRouteWithChildren
@@ -429,6 +533,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAvaliacoesRoute: AuthenticatedAvaliacoesRouteWithChildren,
+  AuthenticatedDietasRoute: AuthenticatedDietasRouteWithChildren,
   AuthenticatedEvolucaoRoute: AuthenticatedEvolucaoRoute,
   AuthenticatedNovaRoute: AuthenticatedNovaRoute,
   AuthenticatedPacientesRoute: AuthenticatedPacientesRouteWithChildren,

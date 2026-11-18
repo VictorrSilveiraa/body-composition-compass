@@ -3,6 +3,7 @@ import {motivo} from "./motivo";
 import {tick} from "./motion";
 import {POSES,POSE_KEYS,poseLabel,poseSvg} from "./poses.js";
 import {exportPdf} from "./report.js";
+import {dietScreens} from "./diet-screens.js";
 const FOLD_NAME=Object.fromEntries(FOLDS.map(f=>[f.k,f.l]));
 export function mountOriginal(options){
 
@@ -59,6 +60,7 @@ const I = {
   camera:'<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>',
   image:'<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
   lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  leaf:'<path d="M5 19c0-8 5-13 15-14-1 10-6 15-14 15"/><path d="M5 19c3-4 6-6.5 10-8.5"/>',
   gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
 };
 const ic = (n, cls='') => `<svg class="ico ${cls}" viewBox="0 0 24 24">${I[n]||''}</svg>`;
@@ -117,6 +119,7 @@ function tourSteps(){
       : {sel:['.cta-first','.side-pt'], icon:ic('plus'), title:'Cadastre o primeiro paciente', text:'Tudo começa aqui. Nome, sexo, nascimento e altura bastam — contato, objetivo e retorno você completa quando quiser.'},
     {sel:['.nav [data-to="list"]'], icon:ic('clip'), title:'Avaliações', text:'Peso, circunferências e dobras cutâneas em 7 etapas, com o % de gordura calculado na hora. O histórico de cada paciente fica aqui.'},
     {sel:['.nav [data-to="compare"]'], icon:ic('chart'), title:'Evolução', text:'Gráficos de cada medida ao longo do tempo e comparativo lado a lado entre duas consultas. Tudo pode virar PDF para entregar.'},
+    {sel:['.nav [data-to="diets"]'], icon:ic('leaf'), title:'Plano alimentar', text:'Montou a dieta no WebDiet? Envie o PDF aqui: o sistema lê refeições, opções e substituições e entrega um plano interativo no portal do paciente, com lista de compras, PDF e imagem.'},
     {sel:['.nav [data-to="profile"]'], icon:ic('user'), title:'Seu perfil', text:'Nome e CRN que assinam as avaliações, retorno padrão e backup dos dados. Quer rever este tour? Ele fica aqui também.'},
     has
       ? {art:'done', title:'Tudo pronto!', text:'Bom atendimento! Seus pacientes e avaliações estão a um toque de distância.', cta:'Começar a usar'}
@@ -517,7 +520,8 @@ function viewWelcome(){
     ['blue','users','Pacientes organizados','Busca, filtros e alerta de retorno atrasado.'],
     ['yellow','clip','Avaliação guiada','Peso, circunferências e dobras em 7 etapas.'],
     ['green','chart','Evolução clara','Gráficos e comparativo entre consultas.'],
-    ['','print','Relatórios em PDF','Prontos para entregar ao paciente.']];
+    ['','print','Relatórios em PDF','Prontos para entregar ao paciente.'],
+    ['green span2','leaf','Plano alimentar interativo','Importe o PDF do WebDiet e o paciente recebe a dieta organizada no portal.']];
   return `${nutriTopbar()}
   <h1 class="headline">${hasName ? `${esc(firstName(nutriName()))}, seu espaço de atendimento está pronto.` : 'Seu espaço de atendimento está pronto.'}</h1>
   <div class="card white welcome-card">
@@ -539,7 +543,8 @@ function viewNoPatient(route){
   const M = {
     list:['Avaliações','cal','As avaliações aparecem aqui','Cadastre um paciente e registre a primeira avaliação: o histórico fica organizado da mais recente para a mais antiga.'],
     compare:['Evolução','chart','A evolução começa na primeira avaliação','Com um paciente cadastrado e avaliado, você acompanha peso, gordura e medidas em gráficos e compara consultas.'],
-  }[route] || ['Pacientes','users','Nenhum paciente cadastrado','Cadastre quem você atende para registrar avaliações, acompanhar retornos e gerar relatórios.'];
+    diets:['Plano alimentar','leaf','A dieta do WebDiet, viva no app','Cadastre um paciente e importe o PDF da dieta: o sistema transforma em um plano interativo que ele acessa no portal.'],
+  }[{diet:'diets',dietNew:'diets',dietEdit:'diets'}[route]||route] || ['Pacientes','users','Nenhum paciente cadastrado','Cadastre quem você atende para registrar avaliações, acompanhar retornos e gerar relatórios.'];
   return `<header class="top"><button class="icon-btn" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button>
     <div class="title-block"><small>${esc(nutriName())}</small><b>${M[0]}</b></div></header>
   <div class="card blue empty"><div class="e-ico">${ic(M[1])}</div><h3>${M[2]}</h3><p>${M[3]}</p>
@@ -620,6 +625,7 @@ function viewHome(){
       <div class="dash" style="grid-template-columns:repeat(3,1fr);gap:8px">
         ${[['Peso',num(last.weight),num(prev.weight),0,'kg'],['Gordura',r.bf,rp.bf,-1,'pp'],['Cintura',num(c.waist),num(prev.circ?.waist),-1,'cm']].map(([l,a,b,dir,u])=>`<div class="stat" style="background:var(--card)"><small>${l}</small>${a!=null&&b!=null?deltaChip(a,b,dir,u):'<b>—</b>'}</div>`).join('')}
       </div></div>` : ''}
+    ${DS.homeCard(p)}
   </div>
 
   <h2 class="sec">Últimas avaliações <button data-act="go" data-to="list">Ver todas</button></h2>
@@ -689,6 +695,7 @@ function viewDetail(id){
   </div>
 
   ${phSection(a)}
+  ${DS.assessmentSection(a)}
 
   <div class="two-col">
   <div>
@@ -884,7 +891,7 @@ function paSection(p){
   else if (!s.access) body = `<div class="pa-card pa-empty">
       <span class="pa-ico">${ic('lock')}</span>
       <b>Compartilhe a evolução com ${fn}</b>
-      <p>Com um código, ${fn} vê avaliações, medidas, gráficos e fotos — só para visualizar, sem poder alterar nada.</p>
+      <p>Com um código, ${fn} vê avaliações, medidas, gráficos, fotos e o plano alimentar — só para visualizar, sem poder alterar nada.</p>
       <button class="btn dark sm" data-act="paCreate" data-id="${p.id}">${ic('plus','sm')} Criar código de acesso</button></div>`;
   else {
     const a = s.access;
@@ -900,6 +907,7 @@ function paSection(p){
       </div>
       <h3 class="pa-h">O que ${fn} pode ver</h3>
       <button class="toggle pa-t on" disabled><span><b>Avaliações, medidas e gráficos</b><br><span class="small muted">Sempre visível</span></span><span class="switch on"></span></button>
+      ${DS.has() ? `<button class="toggle pa-t" data-act="openAs" data-to="diets" data-id="${p.id}"><span><b>Plano alimentar</b><br><span class="small muted">${(()=>{ const l = options.diets.ofPatient(p.id); const v = l.filter(x=>x.visible).length; return l.length ? `${v} de ${l.length} ${l.length===1?'plano visível':'planos visíveis'} · ajuste em cada plano` : 'Aparece quando você importar a dieta'; })()}</span></span>${ic('right','sm')}</button>` : ''}
       <button class="toggle pa-t" data-act="paTog" data-id="${p.id}" data-k="photos"><span><b>Fotos</b><br><span class="small muted">Antes e depois de cada pose</span></span><span class="switch ${a.photos?'on':''}"></span></button>
       <button class="toggle pa-t" data-act="paTog" data-id="${p.id}" data-k="notes"><span><b>Observações das avaliações</b><br><span class="small muted">As notas da ficha continuam só suas</span></span><span class="switch ${a.notes?'on':''}"></span></button>
       <div class="pa-foot">
@@ -938,6 +946,7 @@ function viewPatient(id){
     <button class="pa main" data-act="newFor" data-id="${p.id}">${ic(cont?'edit':'plus')}<span>${cont?'Continuar avaliação':'Nova avaliação'}</span></button>
     <button class="pa" data-act="openAs" data-to="home" data-id="${p.id}">${ic('home')}<span>Painel</span></button>
     <button class="pa" data-act="openAs" data-to="compare" data-id="${p.id}">${ic('chart')}<span>Evolução</span></button>
+    ${DS.has() ? `<button class="pa" data-act="openAs" data-to="diets" data-id="${p.id}">${ic('leaf')}<span>Dieta</span></button>` : ''}
     <button class="pa" data-act="print">${ic('print')}<span>PDF</span></button>
   </div>`;
   if (!last){
@@ -953,6 +962,7 @@ function viewPatient(id){
     <h2 class="sec">Avaliações <button data-act="openAs" data-to="list" data-id="${p.id}">Ver todas (${list.length})</button></h2>
     <div class="alist">${list.slice(-4).reverse().map((a,i)=>aItem(a,p,i===0)).join('')}</div>`;
   }
+  h += DS.patientSection(p);
   h += `</div><aside class="pt-aside">
     <h2 class="sec">Agenda</h2>
     <div class="kv">
@@ -1222,7 +1232,7 @@ function updateLive(){
    RENDER / ROUTER
    ========================================================= */
 let app = options.app;
-const ORDER = {home:0,patients:1,patient:2,list:3,detail:4,compare:5,profile:6,nutri:7,onboard:8,wizard:9};
+const ORDER = {home:0,patients:1,patient:2,list:3,detail:4,compare:5,diets:5.3,diet:5.5,profile:6,nutri:7,onboard:8,wizard:9,dietNew:9,dietEdit:9};
 let lastRoute = null;
 function render(){
   // sem pacientes: primeiro o perfil do nutricionista (1º acesso), depois o cadastro do paciente
@@ -1235,7 +1245,8 @@ function render(){
   if (db.profiles.length && !db.profiles.find(p=>p.id===db.activeId)) { db.activeId = db.profiles[0].id; }
   if (state.route==='wizard' && !draft) state.route = 'home';
   let html = '';
-  if (!db.profiles.length && ['list','detail','compare','patient','wizard'].includes(state.route)) html = viewNoPatient(state.route);
+  if (!db.profiles.length && ['list','detail','compare','patient','wizard','diets','diet','dietNew','dietEdit'].includes(state.route)) html = viewNoPatient(state.route);
+  else if (DS.views[state.route]) html = state.route==='dietNew'||state.route==='dietEdit' ? `<div class="narrow dt-narrow">${DS.views[state.route](state.param)}</div>` : DS.views[state.route](state.param);
   else switch(state.route){
     case 'onboard': html = `<div class="narrow">${viewOnboard(state.param ? db.profiles.find(p=>p.id===state.param) : null)}</div>`; break;
     case 'list': html = viewList(); break;
@@ -1248,12 +1259,12 @@ function render(){
     case 'wizard': html = viewWizard(); break;
     default: html = viewHome();
   }
-  const showNav = !['wizard','onboard','nutri'].includes(state.route);
+  const showNav = !['wizard','onboard','nutri','dietNew','dietEdit'].includes(state.route);
   let navHtml='';
-  if(showNav){ const tabs=[['home','home','Início'],['patients','users','Pacientes'],['list','cal','Avaliações'],['compare','chart','Evolução'],['profile','user','Perfil']]; const cur={detail:'list',patient:'patients'}[state.route]||state.route;
+  if(showNav){ const tabs=[['home','home','Início'],['patients','users','Pacientes'],['list','cal','Avaliações'],['compare','chart','Evolução'],...(DS.has()?[['diets','leaf','Dieta']]:[]),['profile','user','Perfil']]; const cur={detail:'list',patient:'patients',diet:'diets'}[state.route]||state.route;
   // No celular: só os botões (pílula flutuante). No computador vira barra lateral com marca, paciente atual, atalho e nutricionista.
   const p = prof(), n = p ? listOf(p.id).length : 0;
-  navHtml=`<nav class="nav">
+  navHtml=`<nav class="nav${tabs.length>5?' six':''}">
     <div class="side-brand"><span class="mark">${ic('heart','sm')}</span><span>Avaliação<br>Física</span></div>
     <div class="side-links">${tabs.map(([r,i,l])=>`<button class="${cur===r?'on':''}" data-act="go" data-to="${r}" aria-label="${l}">${ic(i)}<span>${l}</span></button>`).join('')}</div>
     ${p ? `<button class="side-pt" data-act="go" data-to="patient" data-id="${p.id}"><small>Paciente atual</small><span class="row">${pAvatar(p)}<span class="grow"><b>${esc(p.name)}</b><small>${plural(n,'avaliação','avaliações')}</small></span>${ic('right','sm')}</span></button>
@@ -1268,12 +1279,13 @@ function render(){
   options.render(html, navHtml, key, dir);
   maybeTour();
 }
-function routePath(route,param){const paths={home:'/',patients:'/pacientes',patient:'/pacientes/'+param,nutri:'/perfil/editar',list:'/avaliacoes',detail:'/avaliacoes/'+param,compare:'/evolucao',profile:'/perfil',wizard:state.editingId?'/avaliacoes/'+state.editingId+'/editar':'/nova',onboard:param?'/pessoa/'+param+'/editar':'/pessoa/nova'};return paths[route]||'/';}
+function routePath(route,param){const paths={home:'/',patients:'/pacientes',patient:'/pacientes/'+param,nutri:'/perfil/editar',list:'/avaliacoes',detail:'/avaliacoes/'+param,compare:'/evolucao',profile:'/perfil',diets:'/dietas',diet:'/dietas/'+param,dietNew:'/dietas/nova',dietEdit:'/dietas/'+param+'/editar',wizard:state.editingId?'/avaliacoes/'+state.editingId+'/editar':'/nova',onboard:param?'/pessoa/'+param+'/editar':'/pessoa/nova'};return paths[route]||'/';}
 // Muda a URL e deixa o syncPath desenhar a tela nova numa única passada (sem piscar a tela antiga).
 function go(route,param=null,push=true){state.route=route;state.param=param;state.dd=null;try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} const to=routePath(route,param); if(push && to!==window.location.pathname) options.navigate(to); else render();}
 function syncPath(path){
  let route='home',param=null;
- if(path==='/avaliacoes') route='list'; else if(path==='/evolucao')route='compare';else if(path==='/perfil')route='profile';else if(path==='/perfil/editar')route='nutri';else if(path==='/pacientes')route='patients';else if(path.startsWith('/pacientes/')){route='patient';param=path.split('/')[2];if(db.profiles.some(p=>p.id===param))setActive(param);}else if(path==='/nova')route='wizard';else if(path.startsWith('/pessoa/')){route='onboard';param=path.endsWith('/editar')?path.split('/')[2]:null;}else if(path.startsWith('/avaliacoes/')){param=path.split('/')[2];route=path.endsWith('/editar')?'wizard':'detail';}
+ if(path==='/avaliacoes') route='list'; else if(path==='/evolucao')route='compare';else if(path==='/perfil')route='profile';else if(path==='/perfil/editar')route='nutri';else if(path==='/pacientes')route='patients';else if(path.startsWith('/pacientes/')){route='patient';param=path.split('/')[2];if(db.profiles.some(p=>p.id===param))setActive(param);}else if(path==='/nova')route='wizard';else if(path.startsWith('/pessoa/')){route='onboard';param=path.endsWith('/editar')?path.split('/')[2]:null;}else if(path.startsWith('/avaliacoes/')){param=path.split('/')[2];route=path.endsWith('/editar')?'wizard':'detail';}else if(path==='/dietas')route='diets';else if(path==='/dietas/nova')route='dietNew';else if(path.startsWith('/dietas/')){param=path.split('/')[2];route=path.endsWith('/editar')?'dietEdit':'diet';const r=options.diets?.get(param);if(r&&db.profiles.some(p=>p.id===r.profileId))setActive(r.profileId);}
+ if(route==='dietNew'||route==='dietEdit'){const r2=DS.prepare(route,param);if(r2!==route){route=r2;param=null;}}
  if(route==='wizard' && !draft){if(param&&findA(param)){draft=clone(findA(param));state.editingId=param;db.activeId=draft.profileId;}else if(prof()){draft=newDraft();state.editingId=null;} }
  initForm(route,param); state.dd=null;
  state.route=route;state.param=param;if(route==='wizard'&&draft){state.step=draft._step||0;state.editingId=draft._editing||state.editingId||null;}render();
@@ -1286,6 +1298,33 @@ function download(name, content, type){
   const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 1000);
 }
+
+/* ---------- plano alimentar (src/lib/diet-screens.js) ---------- */
+const DS = dietScreens({
+  options, state, ic, go, render, toast, sheet, dropdown, dpill, findA, listOf, prof, setActive, nutriName, crnLabel,
+  db: () => db, app: () => app,
+  // situação do acesso ao portal (para explicar ao nutricionista se o paciente já consegue ver o plano)
+  portalState: pid => { paLoad(pid); const s = PA[pid]; if (!s?.loaded || !s.available) return ''; if (!s.access) return 'none'; return s.access.active ? 'active' : 'paused'; },
+  sendDiet: async rec => {
+    const p = db.profiles.find(x=>x.id===rec.profileId); if (!p) return;
+    paLoad(p.id);
+    const a = PA[p.id]?.access;
+    if (!rec.visible) return sheet('Plano oculto do portal', `Para ${firstName(p.name)} ver o plano no portal, deixe-o visível. Ou envie a imagem do plano pelo WhatsApp.`, [
+      {label:'Deixar visível e enviar', cls:'dark', fn:async()=>{ await options.diets.save({...rec, visible:true}); render(); await DS.acts.dtSend({dataset:{id:rec.id}}); }},
+      {label:'Enviar como imagem', icon:ic('image','sm'), fn:()=>DS.acts.dtImg({dataset:{id:rec.id}})},
+      {label:'Cancelar'}]);
+    if (!a || !a.active) return sheet(`${firstName(p.name)} ainda não tem acesso ao portal`, a ? 'O acesso está pausado. Reative na ficha do paciente para ele ver o plano.' : 'Crie o código de acesso na ficha do paciente: com ele, o plano aparece no portal. Ou envie a imagem do plano agora.', [
+      {label:'Abrir ficha do paciente', cls:'dark', fn:async()=>go('patient', p.id)},
+      {label:'Enviar como imagem', icon:ic('image','sm'), fn:()=>DS.acts.dtImg({dataset:{id:rec.id}})},
+      {label:'Cancelar'}]);
+    const msg = `Olá, ${firstName(p.name)}! Seu plano alimentar está no portal: refeições, opções, substituições e lista de compras — e dá para salvar em PDF ou imagem.\n\nAcesse: ${portalLink(a.code)}\nSeu código: ${fmtAccessCode(a.code)}\n\n${nutriName()}`;
+    const wa = waLink(p.phone);
+    if (wa) { window.open(wa + '?text=' + encodeURIComponent(msg), '_blank', 'noopener'); return; }
+    if (navigator.share && matchMedia('(pointer: coarse)').matches){ try { await navigator.share({text:msg}); return; } catch (e) { if (e?.name==='AbortError') return; } }
+    await paCopyText(msg, 'Mensagem copiada ✓ Cole no WhatsApp do paciente');
+  },
+});
+Object.assign(DD_PICK, DS.ddPick);
 
 /* ---------- ações ---------- */
 const ACT = {
@@ -1314,7 +1353,7 @@ const ACT = {
   },
   paSend: async b => {
     const p = db.profiles.find(x=>x.id===b.dataset.id), a = PA[b.dataset.id]?.access; if (!p || !a) return;
-    const msg = `Olá, ${firstName(p.name)}! Agora você pode acompanhar suas avaliações, medidas e evolução online.\n\nAcesse: ${portalLink(a.code)}\nSeu código: ${fmtAccessCode(a.code)}\n\n${nutriName()}`;
+    const msg = `Olá, ${firstName(p.name)}! Agora você pode acompanhar suas avaliações, medidas, evolução${DS.has() && options.diets.ofPatient(p.id).some(x=>x.visible) ? ' e seu plano alimentar' : ''} online.\n\nAcesse: ${portalLink(a.code)}\nSeu código: ${fmtAccessCode(a.code)}\n\n${nutriName()}`;
     const wa = waLink(p.phone);
     if (wa) { window.open(wa + '?text=' + encodeURIComponent(msg), '_blank', 'noopener'); return; }
     if (navigator.share && matchMedia('(pointer: coarse)').matches){ try { await navigator.share({text:msg}); return; } catch (e) { if (e?.name==='AbortError') return; } }
@@ -1406,7 +1445,7 @@ const ACT = {
      phSync(); go('detail', id); toast('Avaliação salva ✓');
   },
   del: async b => sheet('Excluir avaliação?', 'Esta ação não pode ser desfeita.', [
-    {label:'Excluir', cls:'danger', fn:async ()=>{ db.assessments = db.assessments.filter(a=>a.id!==b.dataset.id); PH?.removeAssessment(b.dataset.id); await save(); go('list'); toast('Avaliação excluída'); }},
+    {label:'Excluir', cls:'danger', fn:async ()=>{ db.assessments = db.assessments.filter(a=>a.id!==b.dataset.id); PH?.removeAssessment(b.dataset.id); DS.unlinkAssessment(b.dataset.id); await save(); go('list'); toast('Avaliação excluída'); }},
     {label:'Cancelar'}]),
   // menu de PDFs: no detalhe (b.dataset.id/param = avaliação) ou geral (Perfil), usando a última avaliação
   print: async b => {
@@ -1495,7 +1534,7 @@ const ACT = {
   skipSetup: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} state.setup = true; go('onboard'); },
   setupLater: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} state.setup = false; go('home'); toast('Tudo pronto! Cadastre o paciente quando quiser.'); },
   delProfile: async b => { const p = db.profiles.find(x=>x.id===b.dataset.id) || prof(); sheet(`Excluir ${p.name}?`, `Isso remove o paciente e ${plural(listOf(p.id).length,'avaliação','avaliações')}. Não pode ser desfeito — se quiser só tirar da lista, use “Arquivar”.`, [
-    {label:'Excluir definitivamente', cls:'danger', fn:async ()=>{ for (const a of listOf(p.id)) PH?.removeAssessment(a.id); db.assessments = db.assessments.filter(a=>a.profileId!==p.id); db.profiles = db.profiles.filter(x=>x.id!==p.id); if (db.activeId===p.id) db.activeId = (db.profiles.find(x=>!x.archived)||db.profiles[0])?.id||null; if (draft?.profileId===p.id){ draft=null; saveDraft(); } await save(); go(db.profiles.length?'patients':'home'); toast('Paciente excluído'); }},
+    {label:'Excluir definitivamente', cls:'danger', fn:async ()=>{ for (const a of listOf(p.id)) PH?.removeAssessment(a.id); db.assessments = db.assessments.filter(a=>a.profileId!==p.id); db.profiles = db.profiles.filter(x=>x.id!==p.id); if (db.activeId===p.id) db.activeId = (db.profiles.find(x=>!x.archived)||db.profiles[0])?.id||null; if (draft?.profileId===p.id){ draft=null; saveDraft(); } DS.forgetPatient(p.id); await save(); go(db.profiles.length?'patients':'home'); toast('Paciente excluído'); }},
     {label:'Cancelar'}]); },
   export: async () => { download(`avaliacao-fisica-backup-${today()}.json`, JSON.stringify({app:'avaliacao-fisica', version:1, exportedAt:new Date().toISOString(), ...db}, null, 2), 'application/json'); toast('Backup exportado'); },
   import: async () => document.getElementById('importFile').click(),
@@ -1517,6 +1556,7 @@ const ACT = {
     const rows = [cols.map(c=>cell(c.l)).join(';'), ...list.map(a=>{ const r = calc(a,p); return cols.map(c=>cell(c.get(a,r))).join(';'); })];
     download(`avaliacoes-${firstName(p.name).toLowerCase()}-${today()}.csv`, '﻿'+rows.join('\n'), 'text/csv;charset=utf-8'); toast('Planilha exportada');
   },
+  ...DS.acts,
 };
 const click = async e => {
   // menu aberto + clique fora dele: fecha
@@ -1530,6 +1570,7 @@ const click = async e => {
 };
 const input = e => {
   if (e.target.id==='pt-q'){ state.pq = e.target.value; render(); return; }
+  if (e.target.dataset?.dk && DS.onInput(e.target)) return;
   if (e.target.dataset?.mask==='phone'){
     const el = e.target, v = fmtPhone(el.value);
     // apagando: não recoloca o traço/parêntese que a pessoa acabou de remover
@@ -1541,6 +1582,8 @@ const input = e => {
   if (k && draft && state.route==='wizard'){ setPath(draft, k, e.target.value); saveDraft(); updateLive(); }
 };
 const change = e => {
+  if (e.target.id==='dietFile'){ const f = e.target.files?.[0]; e.target.value = ''; void DS.onFile(f); return; }
+  if (e.target.dataset?.dk && DS.onInput(e.target)) return;
   const c = e.target.dataset?.ch;
   if (c==='cmpA' || c==='cmpB'){ state[c] = e.target.value; render(); }
   if (c==='phA' || c==='phB'){ state[c] = e.target.value; render(); }
@@ -1576,6 +1619,7 @@ function listen(on){
   file?.[m]('change',importChange);
   app[m]('click',click); app[m]('input',input); app[m]('change',change); app[m]('keydown',keydown);
   app[m]('pointerdown',pdown); app[m]('pointermove',pmove); app[m]('pointerup',pup); app[m]('pointercancel',pup);
+  app[m]('dragover',DS.dragOver); app[m]('dragleave',DS.dragLeave); app[m]('drop',DS.drop);
 }
 listen(true);
 syncPath(options.path);
