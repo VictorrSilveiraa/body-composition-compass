@@ -1,4 +1,6 @@
 # Avaliação Física
+- [x] Criar fotos_avaliacao, índices, acesso por proprietário, bucket privado fotos-avaliacoes com 10 MB e rascunhos de 0 a 7.
+- [ ] Restringir o bucket a image/jpeg, image/png e image/webp — ferramenta de configuração do storage não oferece allowed_mime_types.
 - [x] Preservar telas, campos, fórmulas e navegação do original.
 - [x] Login, cadastro, recuperação de senha e dados privados no Cloud implementados.
 - [x] Rascunho em outro aparelho, importação sem duplicar e exportações verificados.

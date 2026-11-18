@@ -15,6 +15,13 @@
       "when": 1794961366380,
       "tag": "0001_pacientes_ficha_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794984737756,
+      "tag": "0002_fotos_avaliacao_storage",
+      "breakpoints": true
     }
   ]
 }
