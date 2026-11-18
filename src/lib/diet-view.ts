@@ -138,10 +138,12 @@ export function dietHtml(d: Diet, ui: DietUi, opts: DietViewOpts) {
   const tab = tabs.some((t) => t[0] === ui.tab) ? ui.tab : 'meals';
   const center = cur ? `<small>${cur.state === 'now' ? 'Agora' : 'Próxima'}</small><b>${esc(cur.meal.time ?? '')}</b><span>${esc(cur.meal.name)}</span>` : `<small>Refeições</small><b>${s.meals}</b><span>no dia</span>`;
   const help = opts.mode === 'patient' ? `<details class="card dt-help"${ui.help ? ' open' : ''}><summary><span class="chip-ico">${dtIcon('spark', 'sm')}</span><span class="grow"><b>Como usar seu plano</b><small>Cores, trocas e opções em 20 segundos</small></span>${dtIcon('chev', 'sm dt-chev')}</summary>
-    <ul><li><i class="dt-legend-dot" style="--cc:${CAT_COLOR.prot}"></i>A <b>bolinha colorida</b> mostra o grupo do alimento (proteína, carboidrato, fruta…).</li>
-    <li>${dtIcon('swap', 'sm')}Em <b>trocas</b> estão alimentos equivalentes: escolha um deles, na quantidade indicada.</li>
-    <li><span class="dt-mini-opt">Opção 1</span>Quando a refeição tem <b>opções</b>, escolha uma delas para o dia — não some as duas.</li>
-    <li>${dtIcon('cart', 'sm')}A aba <b>Compras</b> vira sua lista do mercado: toque para marcar.</li></ul></details>` : '';
+    <ul class="dt-help-list">
+      <li><span class="dt-help-ic"><i class="dt-legend-dot" style="--cc:${CAT_COLOR.prot}"></i></span><span>A <b>bolinha colorida</b> mostra o grupo do alimento (proteína, carboidrato, fruta…).</span></li>
+      <li><span class="dt-help-ic blue">${dtIcon('swap', 'sm')}</span><span>Em <b>trocas</b> estão alimentos equivalentes: escolha um deles, na quantidade indicada.</span></li>
+      <li><span class="dt-help-ic yellow"><b>1</b></span><span>Quando a refeição tem <b>opções</b>, escolha uma delas para o dia — não some as duas.</span></li>
+      <li><span class="dt-help-ic green">${dtIcon('cart', 'sm')}</span><span>A aba <b>Compras</b> vira sua lista do mercado: toque para marcar.</span></li>
+    </ul></details>` : '';
   const body = tab === 'meals'
     ? `${help}<ol class="dt-tl">${d.meals.map((m, i) => mealHtml(m, ui, i, cur?.meal.id === m.id ? cur.state : '', opts)).join('')}</ol>${!d.meals.length ? '<div class="card empty"><h3>Nenhuma refeição</h3><p>Edite o plano para adicionar as refeições.</p></div>' : ''}`
     : tab === 'shop' ? shopHtml(d, ui) : tab === 'recipes' ? recipesHtml(d) : infoHtml(d);

@@ -1,6 +1,6 @@
-import { esc, fmtDate, today, firstName, clone } from './calculos.js';
-import { parseDiet, dietProblems, dietStats, emptyDiet, did, normTxt, normTime, splitName } from './diet-parse';
-import { dietHtml, dietMini, dietAct, isDietAct, newDietUi, nowMinutes, dtIcon, hasInfo } from './diet-view';
+import { esc, fmt, num, fmtDate, today, firstName, clone } from './calculos.js';
+import { parseDiet, dietProblems, dietStats, emptyDiet, did, normTxt, normTime, splitName, mealKind } from './diet-parse';
+import { dietHtml, dietMini, dietAct, newDietUi, nowMinutes, dtIcon, KIND_COLOR } from './diet-view';
 import { exportDietPdf, dietImage, dietFileName, shareOrDownload } from './diet-export';
 
 /*
@@ -134,7 +134,8 @@ function startEdit(id){
   imp = { phase:'review', pid:rec.profileId, aid:rec.assessmentId, visible:rec.visible, editingId:id, diet:clone(rec.data), read:null, err:'', problems:[] };
   return true;
 }
-const aOpts = pid => [['none','Sem vínculo com consulta'], ...(pid ? ctx.listOf(pid).slice().reverse().map(a=>[a.id,'Consulta de '+fmtDate(a.date,{day:'2-digit',month:'short',year:'numeric'})]) : [])];
+// consultas no mesmo dia ganham o peso no nome, para dar para diferenciar
+const aOpts = pid => { const l = pid ? ctx.listOf(pid).slice().reverse() : []; return [['none','Sem vínculo com consulta'], ...l.map(a=>[a.id,'Consulta de '+fmtDate(a.date,{day:'2-digit',month:'short',year:'numeric'})+(l.filter(x=>x.date===a.date).length>1 && num(a.weight)!=null ? ` · ${fmt(num(a.weight))} kg` : '')])]; };
 function whoCard(){
   const people = db().profiles.filter(p=>!p.archived || p.id===imp.pid);
   return `<div class="card white dt-who">
@@ -197,7 +198,10 @@ function viewImport(){
     ${saveBar(editing)}`;
   const inp = (k, v, ph, cls='', type='text') => `<input class="dt-in ${cls}" data-dk="${k}" type="${type}" value="${esc(v??'')}" placeholder="${ph}" autocomplete="off">`;
   const meals = d.meals.map((m, mi) => `<section class="card dt-ed-meal" data-key="em-${m.id}">
-      <div class="dt-ed-mh">${inp(`m.${m.id}.time`, m.time||'', '08:00', 'dt-in-time', 'time')}${inp(`m.${m.id}.name`, m.name, 'Nome da refeição', 'dt-in-name')}
+      <div class="dt-ed-mh" style="--mc:${KIND_COLOR[mealKind(m.name, m.time)]}">
+        <span class="dt-ed-ico">${dtIcon(mealKind(m.name, m.time))}</span>
+        <div class="dt-ed-mf">${inp(`m.${m.id}.name`, m.name, 'Nome da refeição', 'dt-in-name')}
+          <label class="dt-ed-time">${ic('clock','sm')}${inp(`m.${m.id}.time`, m.time||'', '08:00', 'dt-in-time', 'time')}</label></div>
         <button class="icon-btn sm" data-act="dtDelMeal" data-m="${m.id}" aria-label="Excluir refeição">${ic('trash','sm')}</button></div>
       ${m.variants.map((v, vi) => `<div class="dt-ed-var" data-key="ev-${v.id}">
         ${m.variants.length>1 ? `<div class="dt-ed-vh">${inp(`v.${m.id}.${v.id}.label`, v.label, `Opção ${vi+1}`, 'dt-in-label')}<button class="dt-x" data-act="dtDelVar" data-m="${m.id}" data-v="${v.id}" aria-label="Excluir opção">${ic('x','sm')}</button></div>` : ''}

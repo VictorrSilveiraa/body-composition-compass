@@ -6,12 +6,27 @@ import type { PdfPage } from './diet-parse';
  */
 export type PdfRead = { pages: PdfPage[]; thumbs: string[]; name: string; size: number };
 
+/** recursos novos do JavaScript que o pdf.js pode usar e o Safari do iPhone ainda não tem */
+function polyfill() {
+  for (const C of [Map, WeakMap] as unknown as { prototype: Record<string, unknown> }[]) {
+    const p = C.prototype as { has(k: unknown): boolean; get(k: unknown): unknown; set(k: unknown, v: unknown): unknown } & Record<string, unknown>;
+    if (typeof p['getOrInsert'] !== 'function') Object.defineProperty(p, 'getOrInsert', { configurable: true, writable: true, value(this: typeof p, k: unknown, v: unknown) { if (!this.has(k)) this.set(k, v); return this.get(k); } });
+    if (typeof p['getOrInsertComputed'] !== 'function') Object.defineProperty(p, 'getOrInsertComputed', { configurable: true, writable: true, value(this: typeof p, k: unknown, fn: (k: unknown) => unknown) { if (!this.has(k)) this.set(k, fn(k)); return this.get(k); } });
+  }
+  const P = Promise as unknown as Record<string, unknown>;
+  if (typeof P['withResolvers'] !== 'function') P['withResolvers'] = function () { let resolve!: (v: unknown) => void, reject!: (e: unknown) => void; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
+}
+
 export async function readPdf(file: File, maxThumbs = 4): Promise<PdfRead> {
   if (file.size > 25 * 1024 * 1024) throw new Error('O PDF é muito grande (máximo 25 MB).');
   const head = new Uint8Array(await file.slice(0, 5).arrayBuffer());
   if (String.fromCharCode(...head) !== '%PDF-') throw new Error('Este arquivo não é um PDF.');
-  const [pdfjs, worker] = await Promise.all([import('pdfjs-dist'), import('pdfjs-dist/build/pdf.worker.min.mjs?url')]);
-  pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+  polyfill();
+  // edição "legacy" (compatível com Safari/iPhone mais antigos) e leitura na própria página, sem worker separado:
+  // assim o remendo acima vale também para a parte que lê o arquivo
+  const worker = await import('pdfjs-dist/legacy/build/pdf.worker.mjs');
+  (globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = worker;
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
   let doc;
   try { doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise; }
   catch (e) { throw new Error((e as { name?: string })?.name === 'PasswordException' ? 'Este PDF tem senha. Exporte de novo sem senha.' : 'Não foi possível abrir este PDF.'); }

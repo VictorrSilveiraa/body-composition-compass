@@ -2078,32 +2078,38 @@ button.kpi:active{scale:.97}
 @media (max-width:359px){ .nav.six button{width:43px;height:43px} }
 .pt-actions:has(> .pa:nth-child(5)){grid-template-columns:repeat(5,1fr)}
 @media (max-width:420px){ .pt-actions:has(> .pa:nth-child(5)) .pa span{font-size:11.5px} }
-@media (max-width:420px){ .dt-tabs button span{display:none} .dt-tabs button.on span{display:inline} .dt-stats .stat b{font-size:21px} .dt-ed-food{grid-template-columns:minmax(0,1fr) minmax(0,.8fr) 30px} .dt-ed-mh{grid-template-columns:84px minmax(0,1fr) auto} }
-@media (min-width:640px){
+@media (max-width:420px){ .dt-tabs button span{display:none} .dt-tabs button.on span{display:inline} .dt-stats .stat b{font-size:21px} }
+/* a tela do plano se adapta ao espaço que tem (página inteira ou prévia dentro da edição) */
+.dt{container:dt / inline-size}
+@container dt (min-width:600px){
   .dt-hero{grid-template-columns:minmax(0,1fr) 210px;align-items:center;padding:26px}
   .dt-clock{width:210px;margin:0}
-  .dt-intro{grid-template-columns:150px minmax(0,1fr);align-items:center;padding:28px}
-  .dt-intro .dt-how{grid-column:1 / -1;grid-template-columns:repeat(3,1fr)}
-  .dt-read{grid-template-columns:260px minmax(0,1fr);padding:30px}
-  .dt-who .fields,.dt-ed-top .fields{grid-template-columns:1fr 1fr}
   .dt-shop{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
   .dt-recipes{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
 }
-@media (min-width:1024px){
-  .dt-layout{grid-template-columns:minmax(300px,360px) minmax(0,1fr);gap:22px;align-items:start}
+@container dt (min-width:940px){
+  .dt-layout{grid-template-columns:minmax(300px,360px) minmax(0,1fr);gap:22px;align-items:start;--tl:66px}
   .dt-side{position:sticky;top:24px}
   .dt-hero{grid-template-columns:1fr;padding:24px}
   .dt-hero h1{font-size:30px}
   .dt-clock{width:230px;margin:6px auto 0}
-  .dt{--tl:66px}
   .dt-mcard{padding:16px 18px 14px}
-  .dt-tabs{top:20px}
   .dt-shop{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+  .dt .dt-foot-a{display:block} .dt .dt-foot-b{display:none}
+}
+@container dt (min-width:1320px){ .dt-layout{grid-template-columns:400px minmax(0,1fr)} .dt-tl{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px} .dt-tl::before{display:none} }
+@media (min-width:640px){
+  .dt-intro{grid-template-columns:150px minmax(0,1fr);align-items:center;padding:28px}
+  .dt-intro .dt-how{grid-column:1 / -1;grid-template-columns:repeat(3,1fr)}
+  .dt-read{grid-template-columns:260px minmax(0,1fr);padding:30px}
+  .dt-who .fields,.dt-ed-top .fields{grid-template-columns:1fr 1fr}
+}
+@media (min-width:1024px){
+  .dt-tabs{top:20px}
   .dt-narrow{max-width:860px}
   .dt-intro{grid-template-columns:190px minmax(0,1fr)}
   .dt-intro-art{width:180px}
 }
-@media (min-width:1500px){ .dt-layout{grid-template-columns:400px minmax(0,1fr)} .dt-tl{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px} .dt-tl::before{display:none} }
 @media (prefers-reduced-motion:reduce){ .dt-blob,.dt-badge.now,.dt-scanline,.dt-doc .d-scan,.dt-doc .d-ok,.dt-ck-dot.on circle:first-child{animation:none} .dt-ck-span{stroke-dashoffset:0} .dt-doc .d-ok{stroke-dashoffset:0} }
 
 /* ---------- plano alimentar em PDF ---------- */
@@ -2149,4 +2155,48 @@ button.kpi:active{scale:.97}
 .dp-shop p{font-size:11.5px}
 .dp-foot{display:flex;justify-content:space-between;margin-top:12px;padding-top:8px;border-top:1px solid #e6e6e2;font-size:10.5px;color:#777}
 .dt-foot-a{display:none}.dt-foot-b{margin-top:4px}
-@media (min-width:1024px){ .dt-foot-a{display:block} .dt-foot-b{display:none} }
+
+/* ---------- ajustes: menu da consulta, ajuda e editor no celular ---------- */
+.dt-who,.dt-ed-top{overflow:visible;position:relative;z-index:4}
+.dt-who{z-index:6}
+.dt-who .dd.open{z-index:30}
+.dt-help-list{list-style:none;display:grid;gap:8px;padding:0 14px 14px}
+.dt-help-list li{display:grid;grid-template-columns:32px minmax(0,1fr);gap:12px;align-items:center;background:var(--surface);border-radius:var(--r-sm);padding:10px 12px;font-size:14px;line-height:1.4;color:var(--ink-2)}
+.dt-help-list li b{color:var(--ink);font-weight:700}
+.dt-help-ic{width:32px;height:32px;border-radius:50%;background:var(--card);display:grid;place-items:center}
+.dt-help-ic.blue{background:var(--blue);color:var(--blue-ink)} .dt-help-ic.yellow{background:var(--yellow-2)} .dt-help-ic.green{background:var(--green)}
+.dt-help-ic.yellow b{font-size:13px;color:var(--ink)}
+.dt-help-ic .ico{width:16px;height:16px}
+.dt-ed-mh{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:12px;align-items:center}
+.dt-ed-ico{width:48px;height:48px;border-radius:50%;background:var(--mc);display:grid;place-items:center;flex:none}
+.dt-ed-mf{display:flex;gap:8px;align-items:center;min-width:0}
+.dt-ed-mf .dt-in-name{flex:1;height:46px}
+.dt-ed-time{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border-radius:12px;padding:0 12px;height:46px;flex:none;color:var(--muted);cursor:pointer;box-shadow:inset 0 0 0 1.5px transparent;transition:box-shadow .2s}
+.dt-ed-time:focus-within{box-shadow:inset 0 0 0 1.5px var(--ink)}
+.dt-ed-time .ico{width:16px;height:16px}
+.dt-ed-time .dt-in-time{-webkit-appearance:none;appearance:none;background:transparent;border:0;padding:0;width:74px;min-width:0;height:46px;line-height:46px;font-size:16px;font-weight:700;color:var(--ink);box-shadow:none;text-align:left;display:block}
+.dt-ed-time .dt-in-time::-webkit-date-and-time-value{text-align:left;margin:0}
+.dt-ed-time .dt-in-time::-webkit-calendar-picker-indicator{display:none}
+@media (max-width:560px){
+  .dt-ed-meal{padding:14px}
+  .dt-ed-mh{align-items:start;gap:10px}
+  .dt-ed-mf{flex-direction:column;align-items:stretch;gap:6px}
+  .dt-ed-time{align-self:flex-start;height:38px;padding:0 10px}
+  .dt-ed-time .dt-in-time{height:38px;line-height:38px;width:68px}
+  .dt-ed-var{padding:8px}
+  .dt-ed-food{grid-template-columns:minmax(0,1fr) 34px;grid-template-areas:"n x" "q x";background:var(--card);border-radius:14px;padding:6px;gap:4px 4px}
+  .dt-ed-food .dt-in-food{grid-area:n;font-weight:600}
+  .dt-ed-food .dt-in-qty{grid-area:q;color:var(--ink-2)}
+  .dt-ed-food>.dt-x{grid-area:x}
+  .dt-ed-food .dt-ed-subs{grid-column:1 / -1}
+  .dt-ed-var .dt-ed-food .dt-in{background:var(--surface)}
+  .dt-in{font-size:16px}
+  .dt-ed-food .dt-in{padding:8px 10px}
+  .dt-ed-food .dt-in-qty{font-size:15px}
+}.dt-who .fields{grid-template-columns:minmax(0,1fr)}
+.dt-who .field{min-width:0}
+.dt-who .dd,.dt-who .dd-btn{min-width:0;max-width:100%}
+.dt-who .dd-btn{width:100%}
+.dt-who .dd-val{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+@media (max-width:560px){ .dt-who .dd-val{font-size:17px} }
+@media (min-width:640px){ .dt-who .fields{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} }
