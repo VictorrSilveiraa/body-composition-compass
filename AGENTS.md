@@ -33,3 +33,4 @@ use the editor.
 - Keep pure source calculations separate from the mounted UI runtime; coefficients remain independently testable.
 - Persist patient, assessment and draft rows through the generated browser Cloud client with owner-scoped RLS; never store computed results.
 - Use one shared authenticated layout and individual content routes, plus a session-aware public home, to preserve URLs without duplicate root routes.
+- Store assessment photo metadata in the owner-scoped photo table and files in a private bucket under the user's first path segment; this keeps file access aligned with metadata access.

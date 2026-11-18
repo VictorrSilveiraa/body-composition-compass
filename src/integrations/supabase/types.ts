@@ -76,6 +76,57 @@ export type Database = {
           },
         ]
       }
+      fotos_avaliacao: {
+        Row: {
+          altura: number | null
+          avaliacao_id: string
+          caminho: string
+          created_at: string
+          id: string
+          largura: number | null
+          owner_id: string
+          paciente_id: string
+          pose: string
+        }
+        Insert: {
+          altura?: number | null
+          avaliacao_id: string
+          caminho: string
+          created_at?: string
+          id?: string
+          largura?: number | null
+          owner_id?: string
+          paciente_id: string
+          pose: string
+        }
+        Update: {
+          altura?: number | null
+          avaliacao_id?: string
+          caminho?: string
+          created_at?: string
+          id?: string
+          largura?: number | null
+          owner_id?: string
+          paciente_id?: string
+          pose?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fotos_avaliacao_avaliacao_id_fkey"
+            columns: ["avaliacao_id"]
+            isOneToOne: false
+            referencedRelation: "avaliacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fotos_avaliacao_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pacientes: {
         Row: {
           altura_cm: number | null
