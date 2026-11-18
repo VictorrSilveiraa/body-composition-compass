@@ -13,7 +13,7 @@ export const dietFileName = (d: Diet, m: DietMeta, ext: string) => `plano-alimen
 
 /* ---------- PDF ---------- */
 export function dietPrintHtml(d: Diet, m: DietMeta) {
-  const s = dietStats(d), shop = shoppingList(d);
+  const s = dietStats(d), shop = d.hideShopping ? [] : shoppingList(d);
   const meals = d.meals.map((ml) => {
     const k = mealKind(ml.name, ml.time);
     return `<section class="dp-meal" style="--mc:${KIND_COLOR[k]}">

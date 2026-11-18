@@ -2200,3 +2200,69 @@ button.kpi:active{scale:.97}
 .dt-who .dd-val{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
 @media (max-width:560px){ .dt-who .dd-val{font-size:17px} }
 @media (min-width:640px){ .dt-who .fields{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} }
+/* ---------- refeições na largura toda no celular: horário no topo do cartão ---------- */
+.dt-when-in{display:none;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.dt-when-in b{display:inline-flex;align-items:center;gap:6px;background:var(--surface);box-shadow:0 0 0 2px var(--mc);border-radius:99px;padding:5px 12px 5px 9px;font-size:14px;font-weight:700}
+.dt-when-in b .ico{width:15px;height:15px;color:var(--ink-2)}
+@container dt (max-width:599px){
+  .dt-tl{gap:12px}
+  .dt-tl::before{display:none}
+  .dt-meal{grid-template-columns:minmax(0,1fr);gap:0}
+  .dt-when{display:none}
+  .dt-when-in{display:flex}
+  .dt-mcard{padding:14px 14px 10px 16px;border-radius:24px}
+  .dt-meal.now .dt-mcard,.dt-meal.next .dt-mcard{box-shadow:0 0 0 2px var(--mc)}
+  .dt-mhead{gap:10px}
+  .dt-mico{width:40px;height:40px}
+  .dt-food{column-gap:10px;padding:11px 0}
+}
+@media (max-width:420px){ .app:has(.dt) {padding-left:12px;padding-right:12px} }
+
+/* ---------- editor: trocas ---------- */
+.dt-ed-subs{grid-column:1 / -1;display:grid;gap:6px;padding:2px 0 2px 14px;margin-left:6px;border-left:2px solid var(--blue)}
+.dt-ed-sub{display:grid;grid-template-columns:22px minmax(0,1.6fr) minmax(0,1fr) 34px;gap:6px;align-items:center;background:none;padding:0;border-radius:0;font-size:inherit;color:inherit}
+.dt-ed-sub .dt-x{width:34px;height:34px}
+.dt-ed-subic{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--blue-ink)}
+.dt-ed-sub .dt-in{background:var(--blue);font-size:14px}
+.dt-ed-sub .dt-in::placeholder{color:var(--blue-ink);opacity:.7}
+.dt-addsub{justify-self:start;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--blue-ink);padding:6px 10px;border-radius:99px;transition:background-color .2s}
+.dt-addsub:hover{background:var(--blue)}
+.dt-addsub .ico{width:15px;height:15px}
+/* navegação entre as partes do editor */
+.dt-ed-nav{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;position:sticky;top:8px;z-index:8;margin:18px -4px 0;padding:6px;background:var(--surface);border-radius:99px;box-shadow:0 0 0 1px var(--line),var(--shadow)}
+.dt-ed-nav button{flex:1 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:99px;background:var(--card);font-size:13.5px;font-weight:600;white-space:nowrap;transition:background-color .25s}
+.dt-ed-nav button:hover{background:var(--yellow)}
+.dt-ed-nav button .ico{width:16px;height:16px}
+.dt-ed-nav em{font-style:normal;font-size:11px;font-weight:700;background:var(--surface);border-radius:99px;padding:1px 7px}
+#ed-meals,#ed-shop,#ed-recipes,#ed-notes{scroll-margin-top:84px}
+/* caixas do editor (compras, receitas, orientações) */
+.dt-ed-box{display:grid;gap:12px}
+.dt-ed-box .toggle{margin:0}
+.dt-ed-hint{line-height:1.45}
+.dt-ed-chips{display:flex;flex-wrap:wrap;gap:6px}
+.dt-ed-chips span{font-size:12.5px;background:var(--card);border-radius:99px;padding:5px 10px}
+.dt-ed-chips .more{background:var(--yellow);font-weight:700}
+.dt-ed-row{display:flex;flex-wrap:wrap;gap:8px}
+.dt-ed-row .tag{cursor:pointer;background:var(--card);padding:8px 12px;font-size:13px}
+.dt-ed-row .tag .ico{width:15px;height:15px}
+.dt-ed-shop{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px}
+.dt-ed-item{display:grid;grid-template-columns:22px minmax(0,1fr) 34px;gap:6px;align-items:center;background:var(--card);border-radius:14px;padding:4px 4px 4px 10px}
+.dt-ed-item .dt-in{background:transparent;padding:5px 4px}
+.dt-ed-shop{gap:4px}
+.dt-box-o{width:18px;height:18px;border-radius:6px;box-shadow:inset 0 0 0 2px var(--line)}
+.dt-ed-rh{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:12px;align-items:center}
+.dt-ed-rh .dt-in-name{height:46px;background:var(--card)}
+.dt-ed-lbl{display:grid;gap:6px;font-size:13px;font-weight:700;color:var(--ink-2)}
+.dt-ed-lbl small{font-weight:500;color:var(--muted);margin-left:4px}
+.dt-ed-box .dt-in{background:var(--card)}
+.dt-ed-box textarea.dt-in{line-height:1.5}
+@media (max-width:560px){
+  .dt-ed-sub{grid-template-columns:minmax(0,1fr) 34px;grid-template-areas:"n x" "q x";gap:4px 6px;background:var(--blue);border-radius:12px;padding:4px}
+  .dt-ed-subic{display:none}
+  .dt-ed-sub .dt-in-subname{grid-area:n;font-size:16px} .dt-ed-sub .dt-in-subqty{grid-area:q;font-size:15px} .dt-ed-sub>.dt-x{grid-area:x}
+  .dt-ed-sub .dt-in{background:var(--surface);padding:7px 10px}
+  .dt-ed-subs{padding-left:8px;margin-left:2px}
+  .dt-ed-nav{margin:16px -6px 0}
+  .dt-ed-nav button{padding:8px 11px;font-size:13px}
+  .dt-ed-shop{grid-template-columns:minmax(0,1fr)}
+}

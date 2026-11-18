@@ -86,6 +86,7 @@ function mealHtml(m: DietMeal, ui: DietUi, idx: number, state: 'now' | 'next' | 
   return `<li class="dt-meal ${state}" style="--mc:${KIND_COLOR[k]};--i:${idx}" id="ref-${m.id}">
     <div class="dt-when"><b>${esc(m.time ?? '—')}</b>${badge}</div>
     <div class="dt-mcard">
+      <div class="dt-when-in"><b>${dtIcon('outra', 'sm')}${esc(m.time ?? 'Sem horário')}</b>${badge}</div>
       <div class="dt-mhead"><span class="dt-mico">${dtIcon(k)}</span><div class="grow"><h3>${esc(m.name)}</h3><small>${plural(v.foods.length, 'alimento', 'alimentos')}${g ? ` · ${g}` : ''}${m.variants.length > 1 ? ` · ${m.variants.length} opções` : ''}</small></div></div>
       ${opt}
       <ul class="dt-foods" data-key="v-${v.id}">${foods || '<li class="dt-empty small muted">Sem alimentos nesta opção.</li>'}</ul>
@@ -131,7 +132,7 @@ export function dietHtml(d: Diet, ui: DietUi, opts: DietViewOpts) {
   const cats = (Object.entries(s.cats) as [FoodCat, number][]).sort((a, b) => b[1] - a[1]);
   const tabs: [DietUi['tab'], string, string, number | null][] = [
     ['meals', 'Refeições', 'almoco', s.meals],
-    ['shop', 'Compras', 'cart', shoppingList(d).length || null],
+    ...(d.hideShopping ? [] : [['shop', 'Compras', 'cart', shoppingList(d).length || null] as [DietUi['tab'], string, string, number | null]]),
     ...(d.recipes.length ? [['recipes', 'Receitas', 'pot', d.recipes.length] as [DietUi['tab'], string, string, number]] : []),
     ...(hasInfo(d) ? [['info', 'Orientações', 'info', null] as [DietUi['tab'], string, string, null]] : []),
   ];

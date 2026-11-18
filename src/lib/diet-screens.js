@@ -1,5 +1,5 @@
 import { esc, fmt, num, fmtDate, today, firstName, clone } from './calculos.js';
-import { parseDiet, dietProblems, dietStats, emptyDiet, did, normTxt, normTime, splitName, mealKind } from './diet-parse';
+import { parseDiet, dietProblems, dietStats, emptyDiet, did, normTxt, normTime, splitName, mealKind, shoppingList } from './diet-parse';
 import { dietHtml, dietMini, dietAct, newDietUi, nowMinutes, dtIcon, KIND_COLOR } from './diet-view';
 import { exportDietPdf, dietImage, dietFileName, shareOrDownload } from './diet-export';
 
@@ -209,7 +209,13 @@ function viewImport(){
           ${inp(`f.${m.id}.${v.id}.${f.id}.name`, f.name + (f.detail?` (${f.detail})`:''), 'Alimento', 'dt-in-food')}
           ${inp(`f.${m.id}.${v.id}.${f.id}.qty`, f.qty, 'Quantidade', 'dt-in-qty')}
           <button class="dt-x" data-act="dtDelFood" data-m="${m.id}" data-v="${v.id}" data-f="${f.id}" aria-label="Remover alimento">${ic('x','sm')}</button>
-          ${f.subs.length?`<div class="dt-ed-subs">${ic('swap','sm')}${f.subs.map((x,si)=>`<span class="dt-ed-sub">${esc(x.name)}${x.qty?` · ${esc(x.qty)}`:''}<button data-act="dtDelSub" data-m="${m.id}" data-v="${v.id}" data-f="${f.id}" data-i="${si}" aria-label="Remover troca">${ic('x','sm')}</button></span>`).join('')}</div>`:''}
+          <div class="dt-ed-subs">${f.subs.map((x,si)=>`<div class="dt-ed-sub" data-key="es-${f.id}-${si}-${f.subs.length}">
+              <span class="dt-ed-subic" aria-hidden="true">${si===0?'ou':''}</span>
+              ${inp(`s.${m.id}.${v.id}.${f.id}.${si}.name`, x.name + (x.detail?` (${x.detail})`:''), 'Trocar por…', 'dt-in-subname')}
+              ${inp(`s.${m.id}.${v.id}.${f.id}.${si}.qty`, x.qty, 'Quantidade', 'dt-in-subqty')}
+              <button class="dt-x" data-act="dtDelSub" data-m="${m.id}" data-v="${v.id}" data-f="${f.id}" data-i="${si}" aria-label="Remover troca">${ic('x','sm')}</button></div>`).join('')}
+            <button class="dt-addsub" data-act="dtAddSub" data-m="${m.id}" data-v="${v.id}" data-f="${f.id}">${ic('swap','sm')}${f.subs.length ? 'Mais uma troca' : 'Adicionar troca'}</button>
+          </div>
         </div>`).join('')}</div>
         <div class="dt-ed-add"><button class="tag" data-act="dtAddFood" data-m="${m.id}" data-v="${v.id}">${ic('plus','sm')}Alimento</button></div>
         <textarea class="dt-in dt-in-notes" data-dk="n.${m.id}.${v.id}" rows="2" placeholder="Observação desta ${m.variants.length>1?'opção':'refeição'} (opcional)">${esc(v.notes)}</textarea>
@@ -228,14 +234,61 @@ function viewImport(){
       </div>
       <button class="toggle" data-act="dtImpVis"><span><b>Mostrar no portal do paciente</b><br><span class="small muted">Dá para ocultar depois, a qualquer momento</span></span><span class="switch ${imp.visible?'on':''}"></span></button>
     </div>
-    <h2 class="sec">Refeições <span class="sec-note">${s.meals}</span></h2>
+    <nav class="dt-ed-nav" aria-label="Partes do plano">
+      <button data-act="dtJump" data-t="ed-meals">${dtIcon('almoco','sm')}Refeições<em>${s.meals}</em></button>
+      <button data-act="dtJump" data-t="ed-shop">${dtIcon('cart','sm')}Compras<em>${d.hideShopping?'—':shoppingList(d).length}</em></button>
+      <button data-act="dtJump" data-t="ed-recipes">${dtIcon('pot','sm')}Receitas<em>${d.recipes.length}</em></button>
+      <button data-act="dtJump" data-t="ed-notes">${dtIcon('info','sm')}Orientações<em>${d.sections.length + (d.notes.trim()?1:0)}</em></button>
+    </nav>
+    <h2 class="sec" id="ed-meals">Refeições <span class="sec-note">${s.meals}</span></h2>
     <div class="dt-ed">${meals || '<div class="card empty"><p>Nenhuma refeição ainda.</p></div>'}</div>
     <button class="btn ghost dt-ed-addmeal" data-act="dtAddMeal">${ic('plus','sm')} Adicionar refeição</button>
-    <h2 class="sec">Orientações gerais</h2>
-    <textarea class="dt-in dt-in-notes big" data-dk="notes" rows="3" placeholder="Hidratação, horários, dicas… aparecem na aba Orientações do paciente">${esc(d.notes)}</textarea>
-    ${d.sections.length?`<p class="small muted dt-secnote">${dtIcon('info','sm')}${d.sections.length} ${d.sections.length===1?'seção extra lida do PDF':'seções extras lidas do PDF'} (${esc(d.sections.map(x=>x.title).join(', '))}) também aparecem em Orientações.</p>`:''}
+    ${shopEditor(d)}
+    ${recipesEditor(d)}
+    ${notesEditor(d)}
     ${saveBar(editing)}`;
 }
+/* ---------- editor: lista de compras, receitas e orientações ---------- */
+const edIn = (k, v, ph, cls='', type='text') => `<input class="dt-in ${cls}" data-dk="${k}" type="${type}" value="${esc(v??'')}" placeholder="${ph}" autocomplete="off">`;
+const edTa = (k, v, ph, rows=3, cls='') => `<textarea class="dt-in dt-in-notes ${cls}" data-dk="${k}" rows="${rows}" placeholder="${ph}">${esc(v??'')}</textarea>`;
+function shopEditor(d){
+  const auto = shoppingList({ ...d, shopping: [] });
+  let body = '';
+  if (!d.hideShopping){
+    if (d.shopping.length) body = `<div class="dt-ed-shop">${d.shopping.map((x,i)=>`<div class="dt-ed-item" data-key="sh-${i}-${d.shopping.length}"><span class="dt-box-o"></span>${edIn(`sh.${i}`, x, 'Item da lista')}<button class="dt-x" data-act="dtDelShop" data-i="${i}" aria-label="Remover item">${ic('x','sm')}</button></div>`).join('')}</div>
+      <div class="dt-ed-row"><button class="tag" data-act="dtAddShop">${ic('plus','sm')}Item</button><button class="tag" data-act="dtShopAuto">${dtIcon('spark','sm')}Usar lista automática</button></div>`;
+    else body = `<p class="small muted dt-ed-hint">Lista automática: <b>${auto.length} itens</b> montados com todos os alimentos e trocas do plano. Ela se atualiza sozinha quando você muda as refeições.</p>
+      ${auto.length?`<div class="dt-ed-chips">${auto.slice(0,10).map(x=>`<span>${esc(x)}</span>`).join('')}${auto.length>10?`<span class="more">+${auto.length-10}</span>`:''}</div>`:''}
+      <div class="dt-ed-row"><button class="tag" data-act="dtShopCustom">${ic('edit','sm')}Personalizar a lista</button></div>`;
+  }
+  return `<h2 class="sec" id="ed-shop">Lista de compras</h2>
+  <div class="card white dt-ed-box">
+    <button class="toggle" data-act="dtShopOn"><span><b>Incluir lista de compras</b><br><span class="small muted">${d.hideShopping?'Retirada: o paciente não vê a aba Compras':'O paciente marca os itens no mercado'}</span></span><span class="switch ${d.hideShopping?'':'on'}"></span></button>
+    ${body}
+  </div>`;
+}
+function recipesEditor(d){
+  return `<h2 class="sec" id="ed-recipes">Receitas <span class="sec-note">${d.recipes.length || 'nenhuma'}</span></h2>
+  <div class="dt-ed">${d.recipes.map(r=>`<section class="card white dt-ed-box dt-ed-recipe" data-key="er-${r.id}">
+      <div class="dt-ed-rh"><span class="dt-ed-ico" style="--mc:var(--peach)">${dtIcon('pot')}</span>${edIn(`r.${r.id}.name`, r.name, 'Nome da receita', 'dt-in-name')}<button class="icon-btn sm" data-act="dtDelRecipe" data-r="${r.id}" aria-label="Excluir receita">${ic('trash','sm')}</button></div>
+      <label class="dt-ed-lbl"><span>Rendimento</span>${edIn(`r.${r.id}.yield`, r.yield, 'Ex.: 3 porções')}</label>
+      <label class="dt-ed-lbl"><span>Ingredientes <small>um por linha</small></span>${edTa(`r.${r.id}.ing`, r.ingredients.join('\n'), 'Peito de frango — 240 g\nAzeite — 1 colher de sopa', 4)}</label>
+      <label class="dt-ed-lbl"><span>Modo de preparo <small>um passo por linha</small></span>${edTa(`r.${r.id}.steps`, r.steps.join('\n'), 'Tempere o frango\nGrelhe em frigideira com azeite', 4)}</label>
+    </section>`).join('')}</div>
+  <button class="btn ghost dt-ed-addmeal" data-act="dtAddRecipe">${ic('plus','sm')} Adicionar receita</button>`;
+}
+function notesEditor(d){
+  return `<h2 class="sec" id="ed-notes">Orientações</h2>
+  <div class="card white dt-ed-box">
+    <label class="dt-ed-lbl"><span>Orientações gerais <small>aparecem na aba Orientações do paciente</small></span>${edTa('notes', d.notes, 'Hidratação, horários, temperos liberados, dicas…', 3, 'big')}</label>
+  </div>
+  <div class="dt-ed">${d.sections.map(x=>`<section class="card white dt-ed-box" data-key="ex-${x.id}">
+      <div class="dt-ed-rh"><span class="dt-ed-ico" style="--mc:var(--blue)">${dtIcon('info')}</span>${edIn(`sec.${x.id}.title`, x.title, 'Título da seção', 'dt-in-name')}<button class="icon-btn sm" data-act="dtDelSec" data-s="${x.id}" aria-label="Excluir seção">${ic('trash','sm')}</button></div>
+      ${edTa(`sec.${x.id}.lines`, x.lines.join('\n'), 'Texto da seção (um parágrafo por linha)', 3)}
+    </section>`).join('')}</div>
+  <button class="btn ghost dt-ed-addmeal" data-act="dtAddSec">${ic('plus','sm')} Adicionar seção de orientação</button>`;
+}
+
 function saveBar(editing){
   return `<div class="wiz-bar form-bar dt-bar"><div class="in">
     <button class="btn ghost" data-act="dtPreview">${ic(imp.preview?'edit':'image','sm')} ${imp.preview?'Editar':'Prévia'}</button>
@@ -278,6 +331,10 @@ function onInput(el){
   else if (parts[0]==='m'){ const m = meal(parts[1]); if (m){ if (parts[2]==='time') m.time = normTime(v); else m.name = v; } }
   else if (parts[0]==='v'){ const x = varOf(parts[1],parts[2]); if (x) x.label = v; }
   else if (parts[0]==='n'){ const x = varOf(parts[1],parts[2]); if (x) x.notes = v; }
+  else if (parts[0]==='s'){ const f = varOf(parts[1],parts[2])?.foods.find(x=>x.id===parts[3]); const sb = f?.subs[+parts[4]]; if (sb){ if (parts[5]==='qty') sb.qty = v; else { const sp = splitName(v); sb.name = sp.name; if (sp.detail) sb.detail = sp.detail; else delete sb.detail; } } }
+  else if (parts[0]==='sh'){ if (d.shopping[+parts[1]]!=null) d.shopping[+parts[1]] = v; }
+  else if (parts[0]==='r'){ const r = d.recipes.find(x=>x.id===parts[1]); if (r){ const lines = v.split('\n').map(x=>x.trim()).filter(Boolean); if (parts[2]==='name') r.name = v; else if (parts[2]==='yield') r.yield = v; else if (parts[2]==='ing') r.ingredients = lines; else r.steps = lines; } }
+  else if (parts[0]==='sec'){ const x = d.sections.find(y=>y.id===parts[1]); if (x){ if (parts[2]==='title') x.title = v; else x.lines = v.split('\n').map(y=>y.trim()).filter(Boolean); } }
   else if (parts[0]==='f'){ const f = varOf(parts[1],parts[2])?.foods.find(x=>x.id===parts[3]); if (f){ if (parts[4]==='qty') f.qty = v; else { const sp = splitName(v); f.name = sp.name; if (sp.detail) f.detail = sp.detail; else delete f.detail; } } }
   return true;
 }
@@ -299,6 +356,18 @@ const acts = {
   dtPreview: async () => { imp.preview = !imp.preview; render(); window.scrollTo({top:0,behavior:'smooth'}); },
   dtAddFood: async b => { const { v } = findVar(b); if (!v) return; v.foods.push({ id:did('f'), name:'', qty:'', subs:[] }); render(); setTimeout(()=>ctx.app().querySelector(`[data-dk="f.${b.dataset.m}.${b.dataset.v}.${v.foods.at(-1).id}.name"]`)?.focus(), 60); },
   dtDelFood: async b => { const { v } = findVar(b); if (!v) return; v.foods = v.foods.filter(f=>f.id!==b.dataset.f); render(); },
+  dtAddSub: async b => { const { v } = findVar(b); const f = v?.foods.find(x=>x.id===b.dataset.f); if (!f) return; f.subs.push({ name:'', qty:'' }); render(); setTimeout(()=>ctx.app().querySelector(`[data-dk="s.${b.dataset.m}.${b.dataset.v}.${f.id}.${f.subs.length-1}.name"]`)?.focus(), 60); },
+  dtShopOn: async () => { imp.diet.hideShopping = !imp.diet.hideShopping; render(); },
+  dtShopCustom: async () => { const d = imp.diet; d.shopping = shoppingList({ ...d, shopping: [] }); if (!d.shopping.length) d.shopping = ['']; render(); },
+  dtShopAuto: async () => { imp.diet.shopping = []; render(); },
+  dtAddShop: async () => { const d = imp.diet; d.shopping.push(''); render(); setTimeout(()=>ctx.app().querySelector(`[data-dk="sh.${d.shopping.length-1}"]`)?.focus(), 60); },
+  dtDelShop: async b => { imp.diet.shopping.splice(+b.dataset.i, 1); render(); },
+  dtAddRecipe: async () => { const r = { id:did('r'), name:'', yield:'', ingredients:[], steps:[] }; imp.diet.recipes.push(r); render(); setTimeout(()=>{ const el = ctx.app().querySelector(`[data-dk="r.${r.id}.name"]`); el?.focus(); el?.scrollIntoView({block:'center',behavior:'smooth'}); }, 60); },
+  dtDelRecipe: async b => { const d = imp.diet, r = d.recipes.find(x=>x.id===b.dataset.r); if (!r) return; const drop = () => { d.recipes = d.recipes.filter(x=>x!==r); render(); };
+    if (r.name.trim() || r.ingredients.length) return sheet(`Excluir a receita ${r.name.trim() ? '“'+r.name.trim()+'”' : ''}?`, 'Ela sai do plano do paciente.', [{label:'Excluir receita', cls:'danger', fn:async()=>drop()},{label:'Cancelar'}]); drop(); },
+  dtAddSec: async () => { const x = { id:did('s'), title:'', lines:[] }; imp.diet.sections.push(x); render(); setTimeout(()=>ctx.app().querySelector(`[data-dk="sec.${x.id}.title"]`)?.focus(), 60); },
+  dtDelSec: async b => { imp.diet.sections = imp.diet.sections.filter(x=>x.id!==b.dataset.s); render(); },
+  dtJump: async b => { const el = document.getElementById(b.dataset.t); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 86, behavior:'smooth' }); },
   dtDelSub: async b => { const { v } = findVar(b); const f = v?.foods.find(x=>x.id===b.dataset.f); if (!f) return; f.subs.splice(+b.dataset.i,1); render(); },
   dtAddVar: async b => { const m = imp.diet.meals.find(x=>x.id===b.dataset.m); if (!m) return; m.variants.forEach((x,i)=>{ if (!x.label) x.label = i===0 ? 'Opção 1' : `Opção ${i+1}`; }); m.variants.push({ id:did('v'), label:`Opção ${m.variants.length+1}`, foods:[{ id:did('f'), name:'', qty:'', subs:[] }], notes:'' }); render(); },
   dtDelVar: async b => { const m = imp.diet.meals.find(x=>x.id===b.dataset.m); if (!m || m.variants.length<2) return; m.variants = m.variants.filter(x=>x.id!==b.dataset.v); if (m.variants.length===1) m.variants[0].label=''; render(); },
@@ -312,8 +381,11 @@ const acts = {
     if (!imp.pid || !P(imp.pid)) return toast('Escolha o paciente');
     // limpa linhas vazias e organiza por horário
     d.title = (d.title||'').trim() || 'Plano alimentar';
-    for (const m of d.meals){ m.name = (m.name||'').trim() || 'Refeição'; for (const v of m.variants){ v.foods = v.foods.filter(f=>f.name.trim()); v.label = (v.label||'').trim(); } m.variants = m.variants.filter((v,i)=>v.foods.length || i===0); }
+    for (const m of d.meals){ m.name = (m.name||'').trim() || 'Refeição'; for (const v of m.variants){ v.foods = v.foods.filter(f=>f.name.trim()); for (const f of v.foods) f.subs = f.subs.filter(x=>x.name.trim()); v.label = (v.label||'').trim(); } m.variants = m.variants.filter((v,i)=>v.foods.length || i===0); }
     d.meals = d.meals.filter(m=>m.variants.some(v=>v.foods.length));
+    d.shopping = d.shopping.map(x=>x.trim()).filter(Boolean);
+    d.recipes = d.recipes.filter(r=>r.name.trim() || r.ingredients.length || r.steps.length).map(r=>({ ...r, name: r.name.trim() || 'Receita' }));
+    d.sections = d.sections.filter(x=>x.title.trim() || x.lines.length).map(x=>({ ...x, title: x.title.trim() || 'Orientações' }));
     if (!d.meals.length) return toast('Adicione pelo menos uma refeição com alimento');
     d.meals.sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
     const prev = imp.editingId ? S.get(imp.editingId) : null;

@@ -28,6 +28,8 @@ export type Diet = {
   prescriber: string;
   meals: DietMeal[];
   shopping: string[];
+  /** o nutricionista tirou a lista de compras do plano */
+  hideShopping?: boolean;
   recipes: DietRecipe[];
   sections: DietSection[];
   /** orientações gerais escritas pelo nutricionista no app */
