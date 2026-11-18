@@ -79,32 +79,50 @@ export type Database = {
       pacientes: {
         Row: {
           altura_cm: number | null
+          arquivado: boolean
           created_at: string
+          email: string | null
           id: string
           nascimento: string
           nome: string
+          objetivo: string | null
+          observacoes: string | null
           owner_id: string
+          retorno_dias: number | null
           sexo: string
+          telefone: string | null
           updated_at: string
         }
         Insert: {
           altura_cm?: number | null
+          arquivado?: boolean
           created_at?: string
+          email?: string | null
           id?: string
           nascimento: string
           nome: string
+          objetivo?: string | null
+          observacoes?: string | null
           owner_id?: string
+          retorno_dias?: number | null
           sexo: string
+          telefone?: string | null
           updated_at?: string
         }
         Update: {
           altura_cm?: number | null
+          arquivado?: boolean
           created_at?: string
+          email?: string | null
           id?: string
           nascimento?: string
           nome?: string
+          objetivo?: string | null
+          observacoes?: string | null
           owner_id?: string
+          retorno_dias?: number | null
           sexo?: string
+          telefone?: string | null
           updated_at?: string
         }
         Relationships: []
