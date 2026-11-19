@@ -1,5 +1,6 @@
 import { esc, fmt, fmtDate, firstName } from './calculos.js';
-import { ANAMNESE_FORM, PRE_FORM, answerText, changedKeys, cleanAnswers, fieldsOf, filledCount, mergeAnswers, plural, preAlerts, sectionsProgress } from './forms';
+import { ANAMNESE_FORM, PRE_FORM, answerText, changedKeys, cleanAnswers, currentAnamnese, fieldsOf, filledCount, plural, preAlerts, sectionsProgress } from './forms';
+import { exportPdf } from './report.js';
 import { waSvg } from './wa-icon';
 import { motivo } from './motivo';
 
@@ -37,6 +38,32 @@ const SEC_SHORT = { remedios:'Remédios', alergias:'Alergias', sono:'Sono e águ
 /** anel de progresso (0–100) */
 const ring = (pct, label) => `<span class="an-ring" style="--p:${Math.round(pct)}" aria-hidden="true"><b>${label}</b></span>`;
 
+/* ---------- seções recolhíveis da ficha (lembradas neste aparelho, valem para todos os pacientes) ---------- */
+const FOLD_KEY = 'avf.fold';
+const folds = () => { try { return JSON.parse(localStorage.getItem(FOLD_KEY) || '{}'); } catch { return {}; } };
+const isClosed = k => !!folds()[k];
+/** título (h2) + cartão-resumo (fechada) + conteúdo (aberta). Abrir/fechar anima sem redesenhar a tela. */
+function fold(k, title, mini, body, o={}){
+  const closed = !o.force && isClosed(k);
+  return `<div class="fold${closed?' closed':''}" data-fold="${k}">
+    <h2 class="sec fold-h">${title}<button class="fold-btn" data-act="fold" data-k="${k}" aria-expanded="${!closed}" aria-label="Mostrar ou recolher">${ic('chev','sm')}</button></h2>
+    <div class="fold-mini-w"><div class="fold-in"><div class="card fold-mini" data-act="fold" data-k="${k}" role="button" tabindex="0" aria-label="Mostrar">${mini}<span class="fold-more">${ic('chev','sm')}</span></div></div></div>
+    <div class="fold-body"><div class="fold-in">${body}</div></div>
+  </div>`;
+}
+function toggleFold(b){
+  const el = b.closest('.fold'), k = el?.dataset.fold; if (!el || !k) return;
+  const closed = !el.classList.contains('closed'), all = folds();
+  if (closed) all[k] = 1; else delete all[k];
+  try { localStorage.setItem(FOLD_KEY, JSON.stringify(all)); } catch { /* ok */ }
+  el.classList.add('anim'); el.classList.toggle('closed', closed);
+  el.querySelector('.fold-btn')?.setAttribute('aria-expanded', String(!closed));
+  clearTimeout(el._t); el._t = setTimeout(()=>el.classList.remove('anim'), 520);
+  if (!closed && k==='pre'){ const p = P(state.param); const r = p && currentPre(p); if (r && !r.read) setTimeout(()=>markSeen([r]), 1200); }
+}
+/** linha do cartão-resumo */
+const miniRow = (ico, b, small, extra='') => `<span class="chip-ico">${ico}</span><span class="grow"><b>${b}</b><small>${small}</small></span>${extra}`;
+
 /* ---------- respostas ---------- */
 const pres = pid => R ? R.ofPatient(pid, 'pre_consulta') : [];
 const anams = pid => R ? R.ofPatient(pid, 'anamnese') : [];
@@ -50,8 +77,8 @@ function markSeen(list){ if (!R || !list.length) return; R.markRead(list.map(r=>
 /** anamnese atual = a revisada + o que o paciente enviou depois (ainda não revisado) */
 function anamOf(p){
   const base = p.plan?.anamnese || null;
-  const newer = anams(p.id).filter(r => !base?.at || r.createdAt > base.at).reverse(); // do mais antigo ao mais novo
-  const data = mergeAnswers(base?.data, ...newer.map(r=>r.data));
+  const cur = currentAnamnese(base, anams(p.id).map(r=>({ data:r.data, at:r.createdAt, r })));
+  const newer = cur.newer.map(x=>x.r), data = cur.data;
   return { base, data, newer, pending: newer.at(-1) || null, changed: newer.length ? changedKeys(ANAMNESE_FORM, base?.data, data) : [], n: filledCount(ANAMNESE_FORM, data) };
 }
 
@@ -75,18 +102,21 @@ function preCard(p, r, o={}){
     ${alerts.length?`<div class="fm-alerts" aria-label="Pontos de atenção">${alerts.map(a=>`<span>${icon('alert','sm')}${esc(a)}</span>`).join('')}</div>`:''}
     ${tiles.length?`<div class="fm-kpis">${tiles.join('')}</div>`:''}
     ${quotes.join('')}
+    ${o.acts===false ? '' : `<div class="fm-acts"><button class="btn ghost sm" data-act="fmPdf" data-id="${p.id}" data-r="${r.id}">${ic('pdf','sm')} PDF</button>${o.again?`<button class="btn ghost sm" data-act="fmSend" data-id="${p.id}" data-k="pre_consulta">${p.phone?waSvg('ico sm'):ic('link','sm')} Pedir de novo</button>`:''}<button class="btn ghost sm fm-del" data-act="fmDel" data-id="${p.id}" data-r="${r.id}">${ic('trash','sm')} Excluir</button></div>`}
   </div>`;
 }
 /** ficha: pré-consulta da próxima consulta (no topo, antes dos resultados) */
 function preSection(p){
   const r = currentPre(p); if (!r) return '';
-  if (!r.read) setTimeout(()=>markSeen([r]), 1200); // aberta na ficha = vista (o aviso some)
-  const n = pres(p.id).length;
-  return `<h2 class="sec">Pré-consulta <span class="sec-note">para a próxima consulta</span>${n>1?`<button data-act="fmHist" data-id="${p.id}">anteriores (${n-1})</button>`:''}</h2>${preCard(p, r)}`;
+  if (!r.read && !isClosed('pre')) setTimeout(()=>markSeen([r]), 1200); // aberta na ficha = vista (o aviso some)
+  const n = pres(p.id).length, al = preAlerts(r.data), ad = r.data.adesao;
+  const mini = miniRow(icon('form','sm'), [ad!=null?`Adesão ${ad}/5`:'Respondida', al.length?plural(al.length,'ponto de atenção','pontos de atenção'):'sem pontos de atenção'].join(' · '),
+    `Enviada ${agoTxt(r.createdAt)} · ${plural(filledCount(PRE_FORM, r.data),'resposta','respostas')}`, !r.read?'<span class="tag dark">Nova</span>':al.length?`<span class="fold-warn">${icon('alert','sm')}${al.length}</span>`:'');
+  return fold('pre', `Pré-consulta <span class="sec-note">para a próxima consulta</span>${n>1?`<button data-act="fmHist" data-id="${p.id}">anteriores (${n-1})</button>`:''}`, mini, preCard(p, r, {again:true}));
 }
 /** detalhe da avaliação e assistente: a pré-consulta respondida antes daquela consulta */
 function preForAssessment(p, a){ const r = preFor(p, a); return r ? `<h2 class="sec">Pré-consulta desta consulta</h2>${preCard(p, r,{compact:true})}` : ''; }
-function preForWizard(p){ const r = currentPre(p); return r ? `<div class="fm-wiz">${preCard(p, r,{compact:true, title:`Pré-consulta de ${esc(firstName(p.name))}`})}</div>` : ''; }
+function preForWizard(p){ const r = currentPre(p); return r ? `<div class="fm-wiz">${preCard(p, r,{compact:true, acts:false, title:`Pré-consulta de ${esc(firstName(p.name))}`})}</div>` : ''; }
 
 /* ---------- anamnese: cartão na ficha ---------- */
 const KEYS = [['doencas','heart','Doenças'],['medicamentos','pill','Medicamentos'],['suplementos','pill','Suplementos'],['alergias','alert','Alergias'],['aversoes','ban','Não come']];
@@ -104,13 +134,14 @@ function anamneseSection(p){
   const keys = KEYS.map(([k,ico,l])=>{ const t = answerText(FIELD[k], A.data);
     return `<div class="an-k${t?'':' none'}${A.changed.includes(k)?' chg':''}"><span class="an-k-ico">${icon(ico,'sm')}</span><span class="grow"><small>${l}</small><b>${t?esc(t):'não informado'}</b></span></div>`; }).join('');
   const secs = sectionsProgress(ANAMNESE_FORM, A.data).map(s=>`<span class="an-s${s.n?' on':''}" title="${esc(s.l)}: ${s.n} de ${s.total}">${s.n?ic('check','sm'):''}${esc(SEC_SHORT[s.k]||s.l)}</span>`).join('');
-  return `<h2 class="sec">Anamnese <button ${open}>abrir</button></h2>
+  const mini = miniRow(ring(A.n/ANAM_N*100, A.n), `${A.n} de ${ANAM_N} campos`, status, A.pending?'<span class="tag dark">Revisar</span>':'');
+  return fold('anam', `Anamnese <button ${open}>abrir</button>`, mini, `
     <div class="card an-card${A.pending?' pending':''}">${pend}
       <div class="an-head" ${open} role="button">${ring(A.n/ANAM_N*100, A.n)}<span class="grow"><b>${A.n} de ${ANAM_N} campos</b><small>${status}</small></span>${ic('right','sm')}</div>
       <div class="an-keys">${keys}</div>
       <div class="an-secs">${secs}</div>
       ${A.n < ANAM_N*0.6 && !A.pending && R?.available() ? `<div class="an-btns">${askBtn(p, `Pedir para ${fn} completar`)}</div>` : ''}
-    </div>`;
+    </div>`);
 }
 
 /* ---------- anamnese: editor completo (/pacientes/:id/anamnese) ---------- */
@@ -149,13 +180,19 @@ function viewAnamnese(pid){
       <div class="fm-fields">${s.fields.map(f=>fieldHtml(f, d.data, fn)).join('')}</div></section>`; }).join('');
   const pend = d.pending && d.changed?.length ? `<div class="card fm-got new"><span class="chip-ico">${icon('form','sm')}</span>
       <span class="grow"><b>${esc(fn)} ${A.base?'atualizou':'preencheu'} ${plural(d.changed.length,'campo','campos')} pelo portal</b><small>${A.pending?dLong(A.pending.createdAt)+' · ':''}Os campos destacados vieram dele. Ajuste o que precisar e salve para revisar.</small></span>
-      <div class="fm-got-btns"><button class="btn ghost sm" data-act="akReset" data-id="${p.id}">Desfazer mudanças</button></div></div>` : '';
+      <div class="fm-got-btns"><button class="btn ghost sm" data-act="akReset" data-id="${p.id}">Desfazer mudanças</button><button class="btn ghost sm fm-del" data-act="akDiscard" data-id="${p.id}">${ic('trash','sm')} Excluir envio</button></div></div>` : '';
   return `${head}
   <div class="card fm-sum">${ring(n/ANAM_N*100, n)}<span class="grow"><b>${n} de ${ANAM_N} campos preenchidos</b><small>${A.base?.at?`Última revisão em ${dLong(A.base.at)}`:'Ainda não revisada'}${A.newer.length?` · ${plural(A.newer.length,'envio','envios')} do paciente desde então`:''}</small></span></div>
   ${pend}
   <nav class="fm-toc" aria-label="Seções">${ANAMNESE_FORM.sections.map(s=>{ const k = s.fields.filter(f=>answerText(f, d.data)).length; return `<a href="#ak-${s.k}" data-act="akJump" data-s="${s.k}" class="${k?'ok':''}${s.fields.some(f=>d.changed?.includes(f.k))?' chg':''}">${k?ic('check','sm'):''}${esc(SEC_SHORT[s.k]||s.l)}</a>`; }).join('')}</nav>
   <div class="fm-grid">${secs}</div>
+  <div class="fm-foot"><button class="btn ghost sm" data-act="akPdf" data-id="${p.id}">${ic('pdf','sm')} Salvar em PDF</button>${A.base||A.newer.length?`<button class="btn ghost sm fm-del" data-act="akWipe" data-id="${p.id}">${ic('trash','sm')} Apagar anamnese</button>`:''}</div>
   ${ctx.formBar(`data-act="akBack" data-id="${p.id}"`, `data-act="akSave" data-id="${p.id}"`, d.pending ? 'Salvar e marcar revisada' : 'Salvar anamnese', 'Cancelar', 'akBack')}`;
+}
+
+/* ---------- PDF (mesmo relatório do app) ---------- */
+function pdf(p, def, answers, sentAt, status=''){
+  exportPdf('form', { p, def, answers, sentAt, status, list: [], ctx: { nutri: { name: ctx.nutriName() } } });
 }
 
 /* ---------- envio do link do formulário ---------- */
@@ -215,9 +252,22 @@ const acts = {
     go('patient', p.id); toast(`Anamnese ${fromPt?'revisada':'salva'} ✓ ${filledCount(ANAMNESE_FORM, data)} de ${ANAM_N} campos`);
   },
   fmSend: async b => sendForm(b.dataset.id, b.dataset.k || 'pre_consulta'),
+  fold: async b => toggleFold(b),
+  fmPdf: async b => { const p = P(b.dataset.id), r = p && pres(p.id).find(x=>x.id===b.dataset.r); if (r) pdf(p, PRE_FORM, r.data, r.createdAt); },
+  akPdf: async b => { const p = P(b.dataset.id); if (!p) return; const A = anamOf(p), d = state.ak?.pid===p.id ? cleanAnswers(ANAMNESE_FORM, state.ak.data) : A.data;
+    pdf(p, ANAMNESE_FORM, d, null, A.pending ? 'Com respostas do paciente ainda não revisadas' : A.base?.at ? `Revisada em ${dLong(A.base.at)}` : ''); },
+  fmDel: async b => { const p = P(b.dataset.id), r = p && pres(p.id).find(x=>x.id===b.dataset.r); if (!r) return;
+    sheet('Excluir esta pré-consulta?', `As respostas que ${firstName(p.name)} enviou em ${dLong(r.createdAt)} serão apagadas. Não dá para desfazer.`, [
+      {label:'Excluir pré-consulta', cls:'danger', fn:async()=>{ await R.remove([r.id]); render(); toast('Pré-consulta excluída'); }}, {label:'Cancelar'}]); },
+  akDiscard: async b => { const p = P(b.dataset.id); if (!p) return; const A = anamOf(p); if (!A.newer.length) return;
+    sheet(`Excluir o envio de ${firstName(p.name)}?`, 'A ficha volta para a última versão revisada por você. As respostas enviadas pelo portal serão apagadas.', [
+      {label:'Excluir envio', cls:'danger', fn:async()=>{ await R.remove(A.newer.map(r=>r.id)); state.ak = null; render(); toast('Envio excluído'); }}, {label:'Cancelar'}]); },
+  akWipe: async b => { const p = P(b.dataset.id); if (!p) return;
+    sheet('Apagar a anamnese?', `Todos os campos de ${firstName(p.name)} ficam em branco, inclusive as fichas enviadas pelo portal. Não dá para desfazer.`, [
+      {label:'Apagar anamnese', cls:'danger', fn:async()=>{ const ids = anams(p.id).map(r=>r.id); if (ids.length) await R.remove(ids); delete planOf(p).anamnese; state.ak = null; await ctx.save(); go('patient', p.id); toast('Anamnese apagada'); }}, {label:'Cancelar'}]); },
 };
 
-return { preSection, preForAssessment, preForWizard, anamneseSection, viewAnamnese, preLinkLine, unreadPatients, ptTag, answeredPre, onInput, acts,
+return { fold, isClosed, miniRow, preSection, preForAssessment, preForWizard, anamneseSection, viewAnamnese, preLinkLine, unreadPatients, ptTag, answeredPre, onInput, acts,
   has: () => !!R?.available(), forgetPatient: pid => R?.forgetPatient(pid),
   refresh: async () => { if (!R) return; try { if (await R.refresh()) render(); } catch (e) { console.warn('[respostas]', motivo(e,'')); } } };
 }

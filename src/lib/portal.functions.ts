@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
-import { isCode, normCode, type PortalAssessment, type PortalData, type PortalDiet, type PortalPhoto, type PortalResult, type SubmitResult } from './portal-code';
-import { ANAMNESE_FORM, FORMS, PRE_FORM, cleanAnswers, mergeAnswers, type FormKind } from './forms';
+import { isCode, normCode, type DeleteResult, type PortalAssessment, type PortalData, type PortalDiet, type PortalPhoto, type PortalResult, type SubmitResult } from './portal-code';
+import { ANAMNESE_FORM, FORMS, PRE_FORM, cleanAnswers, currentAnamnese, type FormKind } from './forms';
 
 /*
  * Portal do paciente — roda SÓ no servidor.
@@ -56,6 +56,32 @@ export const submitPortalForm = createServerFn({ method: 'POST' })
       const ins = await db.from('respostas_paciente').insert({ owner_id: a.owner_id, paciente_id: a.paciente_id, tipo: data.kind, dados: answers }).select('created_at').single();
       if (ins.error) return { ok: false, reason: 'unavailable' };
       return { ok: true, at: String((ins.data as { created_at: string }).created_at) };
+    } catch { return { ok: false, reason: 'unavailable' }; }
+  });
+
+/*
+ * O paciente apaga a própria pré-consulta mais recente (enviou errado ou quer refazer).
+ * Confere o código e o acesso ativo; devolve a pré-consulta que passa a valer (a anterior, se houver).
+ */
+export const deletePortalPre = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) => ({ code: normCode(String((input as { code?: unknown } | null)?.code ?? '')) }))
+  .handler(async ({ data }): Promise<DeleteResult> => {
+    try {
+      if (!isCode(data.code)) { await wait(500); return { ok: false, reason: 'invalid' }; }
+      const admin = (await import('@/integrations/supabase/client.server')).supabaseAdmin;
+      const db = admin as unknown as import('@supabase/supabase-js').SupabaseClient;
+      const acc = await db.from('acessos_paciente').select('paciente_id,owner_id,ativo').eq('codigo', data.code).maybeSingle();
+      const a = acc.data as { paciente_id: string; owner_id: string; ativo: boolean } | null;
+      if (acc.error) return { ok: false, reason: 'unavailable' };
+      if (!a || !a.ativo) { await wait(500); return { ok: false, reason: 'invalid' }; }
+      const q = () => db.from('respostas_paciente').select('id,dados,created_at').eq('paciente_id', a.paciente_id).eq('owner_id', a.owner_id).eq('tipo', 'pre_consulta').order('created_at', { ascending: false }).limit(1);
+      const last = await q();
+      if (last.error) return { ok: false, reason: 'unavailable' };
+      const row = (last.data as { id: string }[] | null)?.[0];
+      if (row) { const del = await db.from('respostas_paciente').delete().eq('id', row.id).eq('paciente_id', a.paciente_id); if (del.error) return { ok: false, reason: 'unavailable' }; }
+      const now = await q();
+      const prev = (now.data as { dados: unknown; created_at: string }[] | null)?.[0];
+      return { ok: true, pre: prev?.created_at ?? null, preData: prev ? cleanAnswers(PRE_FORM, prev.dados) : null };
     } catch { return { ok: false, reason: 'unavailable' }; }
   });
 
@@ -146,11 +172,11 @@ async function loadPortal(code: string): Promise<PortalResult> {
         const pl = await db.from('pacientes').select('plano').eq('id', access.paciente_id).eq('owner_id', access.owner_id).maybeSingle();
         // ficha atual = a revisada pelo nutricionista + o que o paciente enviou depois dela (ainda não revisado)
         const rev = pl.error ? null : (pl.data as { plano?: { anamnese?: { data?: unknown; at?: string } } } | null)?.plano?.anamnese ?? null;
-        const newer = rows.filter((r) => r.tipo === 'anamnese' && (!rev?.at || r.created_at > rev.at)).reverse();
-        const merged = mergeAnswers(rev?.data ? cleanAnswers(ANAMNESE_FORM, rev.data) : null, ...newer.map((r) => cleanAnswers(ANAMNESE_FORM, r.dados)));
+        const cur = currentAnamnese(rev?.data ? { data: cleanAnswers(ANAMNESE_FORM, rev.data), at: rev.at ?? null } : rev?.at ? { at: rev.at } : null,
+          rows.filter((r) => r.tipo === 'anamnese').map((r) => ({ data: cleanAnswers(ANAMNESE_FORM, r.dados), at: r.created_at })));
         forms = { pre: pre?.created_at ?? null, preData: pre ? cleanAnswers(PRE_FORM, pre.dados) : null,
-          anamnese: an?.created_at ?? null, anamneseData: Object.keys(merged).length ? merged : null,
-          anamneseAt: newer.at(-1)?.created_at ?? rev?.at ?? null, reviewed: !!rev?.at && !newer.length };
+          anamnese: an?.created_at ?? null, anamneseData: Object.keys(cur.data).length ? cur.data : null,
+          anamneseAt: cur.newer.at(-1)?.at ?? rev?.at ?? null, reviewed: !!rev?.at && !cur.pending };
       }
     } catch { /* sem formulários */ }
 

@@ -35,6 +35,12 @@ export function responseStore(available: boolean, initial: Resposta[]) {
     },
     /** busca de novo (ex.: ao voltar para a aba): respostas que chegaram enquanto o app estava aberto */
     async refresh() { const r = await loadResponses(); if (r.available) { available = true; list = r.list; } return r.available; },
+    /** apaga respostas (o nutricionista exclui uma pré-consulta ou descarta a ficha enviada) */
+    async remove(ids: string[]) {
+      if (!ids.length) return;
+      if (available) { const { error } = await loose.from(TABLE).delete().in('id', ids); if (error) throw error; }
+      list = list.filter((r) => !ids.includes(r.id));
+    },
     forgetPatient(pid: string) { list = list.filter((r) => r.patientId !== pid); },
   };
 }

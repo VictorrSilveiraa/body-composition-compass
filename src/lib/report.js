@@ -4,6 +4,7 @@
  */
 import {num,fmt,fmtDate,calc,bmiClass,bfClass,whrRisk,PROTOCOLS,FOLDS,CIRC_TRUNK,CIRC_LIMBS,foldVal,esc,initials,today,GROUPS} from './calculos.js';
 import {goalsStatus,GOAL_KINDS,activityLabel,adjustLabel} from './plano';
+import {answerText,preAlerts} from './forms';
 
 /*
  * Contexto extra de cada exportação (opcional — o relatório funciona sem ele):
@@ -431,6 +432,23 @@ function buildCover({p, list}){
   </div>`;
 }
 
+/* ficha de saúde ou pré-consulta respondida: seções com o que foi respondido + o que ficou em branco */
+function buildForm({def, answers = {}, p, sentAt, status}){
+  const a = answers, all = def.sections.flatMap(s => s.fields), n = all.filter(f => answerText(f, a)).length;
+  const alerts = def.k === 'pre_consulta' ? preAlerts(a) : [];
+  const secs = def.sections.map(s => {
+    const rows = s.fields.map(f => { const t = answerText(f, a); return `<tr><td>${esc(f.l)}</td><td class="${t?'':'rp-muted'}">${t ? esc(t).replace(/\n/g,'<br>') : '—'}</td></tr>`; }).join('');
+    return `<section class="rp-block rp-form-sec"><div class="rp-sec-h"><h3>${esc(s.l)}</h3><span class="rp-muted">${s.fields.filter(f=>answerText(f,a)).length} de ${s.fields.length}</span></div><table class="rp-table rp-form-t"><tbody>${rows}</tbody></table></section>`;
+  }).join('');
+  return `<div class="rp-page">
+    ${head(esc(def.title), sentAt ? 'Enviada em' : 'Gerado em', longDate(sentAt ? sentAt.slice(0,10) : today()), status ? esc(status) : '')}
+    ${personCard(p, [['Respondidas', `${n} de ${all.length}`], p.birth && ['Nascimento', fmtDate(p.birth,{day:'2-digit',month:'2-digit',year:'numeric'})], CTX.nutri?.name && ['Nutricionista', esc(CTX.nutri.name)]])}
+    ${alerts.length ? `<section class="rp-card rp-yellow"><b>Pontos de atenção:</b> ${alerts.map(esc).join(' · ')}</section>` : ''}
+    <div class="rp-form">${secs}</div>
+    ${footer().replace(/Valores estimados[^<]*/, 'Respostas informadas pelo paciente.')}
+  </div>`;
+}
+
 /* =========================================================
    Exportação: monta o documento e abre "Salvar como PDF"
    ========================================================= */
@@ -441,6 +459,7 @@ export function reportHtml(kind, data){
     case 'summary': return buildReport(data, {summary:true});
     case 'evolution': return buildEvolution({p, list});
     case 'compare': return buildCompare(data);
+    case 'form': return buildForm(data);
     case 'full': return buildCover({p, list})
       + (list.length > 1 ? buildEvolution({p, list}, {guide:false, foot:false}) : '')
       + list.map(a => buildReport({a, p, list}, {guide:false, foot:false, evo:false})).join('')
@@ -453,6 +472,7 @@ export function reportTitle(kind, data){
   switch (kind){
     case 'summary': return `Resumo da avaliação - ${n} - ${d(data.a.date)}`;
     case 'evolution': return `Evolução - ${n} - ${d(data.list[0].date)} a ${d(data.list.at(-1).date)}`;
+    case 'form': return `${data.def.title} - ${n}${data.sentAt ? ' - ' + d(data.sentAt.slice(0,10)) : ''}`;
     case 'compare': return `Comparativo - ${n} - ${d(data.A.date)} x ${d(data.B.date)}`;
     case 'full': return `Histórico completo - ${n}`;
     default: return `Avaliação física - ${n} - ${d(data.a.date)}`;

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { flushSync } from 'react-dom';
 import {
   Activity, ArrowDown, ArrowLeftRight, ArrowRight, ArrowUp, BookOpen, ChevronDown, CalendarClock, Camera, ChevronLeft, ChevronRight, ClipboardList,
-  Check, Droplet, Equal, Flame, Heart, House, KeyRound, LogOut, MapPin, MessageCircle, RefreshCw, Ruler, Scale, ShieldCheck, Target, TrendingUp, Zap,
+  Check, Droplet, Equal, Flame, Heart, House, KeyRound, LogOut, MapPin, MessageCircle, RefreshCw, Ruler, Scale, ShieldCheck, Target, TrendingUp, X, Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PhotoViewer, type ViewerSpec } from '@/components/photo-viewer';
@@ -14,10 +14,10 @@ const WaIcon = () => <svg className="ico sm wa-ico" viewBox="0 0 24 24" aria-hid
 import { calc, bmiClass, bfClass, whrRisk, fmt, fmtDate, toDate, today, ageAt, foldVal, CIRC_TRUNK, CIRC_LIMBS, FOLDS, PROTOCOLS, METRICS, GROUPS, firstName, initials } from '@/lib/calculos.js';
 import { poseLabel, POSES } from '@/lib/poses.js';
 import { fmtCode, isCode, normCode, type PortalData, type PortalPhoto } from '@/lib/portal-code';
-import { getPatientPortal, submitPortalForm } from '@/lib/portal.functions';
+import { deletePortalPre, getPatientPortal, submitPortalForm } from '@/lib/portal.functions';
 import { ANAMNESE_FORM, FORMS, anamMissing, filledCount, fieldsOf, fmtSent, type Answers, type FormKind } from '@/lib/forms';
 import { PortalForm } from '@/components/portal-form';
-import type { SubmitResult } from '@/lib/portal-code';
+import type { DeleteResult, SubmitResult } from '@/lib/portal-code';
 import { pageReady, ripple, scan, withPageTransition } from '@/lib/motion';
 import parseHtml from 'html-react-parser';
 import { Apple, Download } from 'lucide-react';
@@ -195,7 +195,7 @@ const readView = (): { tab: Tab; id: string | null } => {
   return { tab: v && v in ORDER ? v : 'inicio', id: q.get('id') };
 };
 
-function PortalApp({ data, code, onExit, onRefresh, submit }: { data: PortalData; code: string; onExit: () => void; onRefresh: () => void; submit: (kind: FormKind, a: Answers) => Promise<SubmitResult> }) {
+function PortalApp({ data, code, onExit, onRefresh, submit, remove }: { data: PortalData; code: string; onExit: () => void; onRefresh: () => void; submit: (kind: FormKind, a: Answers) => Promise<SubmitResult>; remove: () => Promise<DeleteResult> }) {
   const p = { sex: data.patient.sex, birth: data.patient.birth, height: data.patient.height };
   const sex = data.patient.sex;
   const list = useMemo(() => [...data.assessments].sort((x, y) => x.date.localeCompare(y.date)), [data]);
@@ -303,6 +303,13 @@ function PortalApp({ data, code, onExit, onRefresh, submit }: { data: PortalData
   const anamN = filledCount(ANAMNESE_FORM, forms?.anamneseData), ANAM_T = fieldsOf(ANAMNESE_FORM).length;
   const anamMiss = forms ? anamMissing(forms.anamneseData) : [];
   const anamAsk = !!forms && anamMiss.length > 0;
+  /* avisos da tela inicial que o paciente fechou: somem até ele entrar de novo no portal (sessionStorage) */
+  const HIDE_KEY = 'avf.pp.hide.' + code;
+  const [hidden, setHidden] = useState<string[]>(() => { try { return JSON.parse(sessionStorage.getItem(HIDE_KEY) || '[]') as string[]; } catch { return []; } });
+  const hide = (k: string) => { const n = [...hidden, k]; setHidden(n); try { sessionStorage.setItem(HIDE_KEY, JSON.stringify(n)); } catch { /* ok */ } };
+  const Close = ({ k, label }: { k: string; label: string }) => <button className="pf-x" aria-label={label} title="Fechar por agora" onClick={(e) => { e.stopPropagation(); const card = (e.currentTarget as HTMLElement).parentElement; card?.classList.add('out'); window.setTimeout(() => hide(k), 260); }}><X className="ico sm" /></button>;
+  const formPdf = (kind: FormKind, a: Answers, at: string | null) => exportPdf('form', { p: pp, def: FORMS[kind], answers: a, sentAt: at, list: [],
+    status: kind === 'anamnese' && at ? (forms?.reviewed ? `Revisada por ${nutriName}` : `Enviada · ${nutriName} ainda vai revisar`) : '', ctx: { nutri: { name: data.nutri.name, crn } } });
   /* PDF das avaliações (mesmo relatório do nutricionista, só com o que foi compartilhado) */
   const pdfCtx = () => {
     const photos: Record<string, Record<string, string>> = {};
@@ -434,12 +441,13 @@ function PortalApp({ data, code, onExit, onRefresh, submit }: { data: PortalData
       <button className="icon-btn" onClick={onExit} aria-label="Sair deste aparelho"><LogOut className="ico" /></button>
     </header>
     <h1 className="headline">{summary}</h1>
-    {preAsk && (
+    {preAsk && !hidden.includes('pre') && (
       <div className="card pf-cta" role="button" tabIndex={0} onClick={() => go('form', 'pre')} onKeyDown={(e) => { if (e.key === 'Enter') go('form', 'pre'); }}>
         <span className="pf-cta-ico"><ClipboardList className="ico" /></span>
         <div className="grow"><small>{left! < 0 ? 'Seu retorno já passou da data' : left === 0 ? 'Sua consulta é hoje' : `Sua consulta é em ${left} ${left === 1 ? 'dia' : 'dias'}`}</small>
           <b>Responda a pré-consulta</b><span>2 minutos. {firstName(nutriName) === 'seu' ? 'Seu nutricionista' : firstName(nutriName)} já chega sabendo como foram suas semanas.</span></div>
         <span className="pf-cta-go">Responder <ChevronRight className="ico sm" /></span>
+        <Close k="pre" label="Fechar aviso da pré-consulta" />
       </div>
     )}
     {preDone && left != null && left <= 10 && <div className="pf-ok"><Check className="ico sm" /> Pré-consulta enviada em {fmtDate(forms!.pre!.slice(0, 10), { day: 'numeric', month: 'long' })}. <button onClick={() => go('form', 'pre')}>Ver respostas</button></div>}
@@ -461,13 +469,14 @@ function PortalApp({ data, code, onExit, onRefresh, submit }: { data: PortalData
       );
     })()}
     {goalsHtml && <div className="pp-goals">{parseHtml(goalsHtml)}</div>}
-    {anamAsk && (
-      <button className="card pf-anam" onClick={() => go('form', 'anamnese')}>
+    {anamAsk && !hidden.includes('anam') && (
+      <div className="card pf-anam" role="button" tabIndex={0} onClick={() => go('form', 'anamnese')} onKeyDown={(e) => { if (e.key === 'Enter') go('form', 'anamnese'); }}>
         <span className="an-ring" style={{ ['--p' as string]: Math.round((anamN / ANAM_T) * 100) }} aria-hidden="true">{anamN ? <b>{anamN}</b> : <Heart className="ico sm" />}</span>
         <span className="grow"><small>Ficha de saúde · {anamN} de {ANAM_T}</small><b>{anamN ? 'Complete sua ficha de saúde' : 'Preencha sua ficha de saúde'}</b>
           <span>{anamN ? `Falta: ${anamMiss.map((m) => ({ saude: 'saúde', remedios: 'remédios', alergias: 'alergias', rotina: 'rotina' })[m.k] ?? m.l.toLowerCase()).join(', ')}` : 'Doenças, remédios, alergias e rotina · uns 5 minutos'}</span></span>
         <ChevronRight className="ico" />
-      </button>
+        <Close k="anam" label="Fechar aviso da ficha de saúde" />
+      </div>
     )}
     {!last ? empty(`Assim que ${nutriName} registrar sua primeira avaliação, tudo aparece aqui.`) : (<>
       <div className="dash">
@@ -839,9 +848,11 @@ function PortalApp({ data, code, onExit, onRefresh, submit }: { data: PortalData
     return <PortalForm def={FORMS[kind]} draftKey={`avf.pp.form.${code}.${kind}`} nutri={nutriName}
       initial={isA ? forms.anamneseData : forms.preData ?? null} sentAt={isA ? forms.anamnese : forms.pre} reviewed={!!forms.reviewed} current={isA || preDone}
       onSubmit={(a) => submit(kind, a)} onBack={() => go('inicio')}
+      onPdf={(a) => formPdf(kind, a, isA ? forms.anamneseAt ?? forms.anamnese : forms.pre)}
+      {...(!isA && preDone ? { onDelete: async () => { const r = await remove(); if (!r.ok) return false; setForms((f) => (f ? { ...f, pre: r.pre, preData: r.preData } : f)); go('inicio'); return true; } } : {})}
       onSent={(at, ans) => {
         const n = Object.keys(ans).length;
-        setForms((f) => (f ? { ...f, ...(isA ? { anamnese: at, anamneseAt: at, anamneseData: { ...(f.anamneseData ?? {}), ...ans }, reviewed: false } : { pre: at, preData: ans }) } : f));
+        setForms((f) => (f ? { ...f, ...(isA ? { anamnese: at, anamneseAt: at, anamneseData: ans, reviewed: false } : { pre: at, preData: ans }) } : f));
         go('inicio');
         window.setTimeout(() => setNews({ tone: 'green', confetti: true, icon: <Check className="ico" />, kicker: kind === 'anamnese' ? 'Ficha de saúde' : 'Pré-consulta',
           title: 'Respostas enviadas!', text: `${n} ${n === 1 ? 'resposta chegou' : 'respostas chegaram'} para ${nutriName}. ${isA ? 'Sua ficha já está atualizada aqui no portal.' : 'Assim a consulta já começa do ponto certo.'}`, dismiss: 'Fechar' }), 450);
@@ -874,7 +885,8 @@ function PortalApp({ data, code, onExit, onRefresh, submit }: { data: PortalData
 /* ---------- tela principal ---------- */
 type SubmitFn = (code: string, kind: FormKind, data: Answers) => Promise<SubmitResult>;
 const defaultSubmit: SubmitFn = (code, kind, data) => submitPortalForm({ data: { code, kind, data } });
-export function PatientPortal({ load = (code: string) => getPatientPortal({ data: { code } }), submit = defaultSubmit }: { load?: (code: string) => ReturnType<typeof getPatientPortal>; submit?: SubmitFn }) {
+const defaultRemove = (code: string) => deletePortalPre({ data: { code } });
+export function PatientPortal({ load = (code: string) => getPatientPortal({ data: { code } }), submit = defaultSubmit, remove = defaultRemove }: { load?: (code: string) => ReturnType<typeof getPatientPortal>; submit?: SubmitFn; remove?: (code: string) => Promise<DeleteResult> }) {
   const [phase, setPhase] = useState<'boot' | 'entry' | 'loading' | 'ready' | 'down'>('boot');
   const [data, setData] = useState<PortalData | null>(null);
   const [error, setError] = useState('');
@@ -912,6 +924,6 @@ export function PatientPortal({ load = (code: string) => getPatientPortal({ data
       <Button variant="original" className="btn dark" style={{ margin: '16px auto 0', display: 'inline-flex' }} onClick={() => void enter(code.current || read())}><RefreshCw size={16} /> Tentar de novo</Button>
       <button className="btn ghost sm" style={{ margin: '10px auto 0', display: 'flex' }} onClick={exit}>Usar outro código</button></div></div></main>
   );
-  if (phase === 'ready' && data) return <PortalApp data={data} code={code.current} onExit={exit} onRefresh={() => void enter(code.current)} submit={(kind, a) => submit(code.current, kind, a)} />;
+  if (phase === 'ready' && data) return <PortalApp data={data} code={code.current} onExit={exit} onRefresh={() => void enter(code.current)} submit={(kind, a) => submit(code.current, kind, a)} remove={() => remove(code.current)} />;
   return <Entry onEnter={(c) => void enter(c)} error={error} />;
 }

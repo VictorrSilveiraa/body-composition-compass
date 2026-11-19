@@ -165,6 +165,17 @@ function energySection(p){
     ${p.plan?.energy ? '' : `<p class="small muted en-hint">Cálculo padrão: atividade moderada e sem déficit. Toque para escolher a fórmula, o nível de atividade e os macros.</p>`}`;
 }
 const tdeeOf = (p, a) => energyOfP(p, a)?.tdee ?? null;
+/* resumos para as seções recolhidas da ficha: [ícone, título, linha de baixo, etiqueta] */
+function goalsMini(p){
+  const st = statusAll(p); if (!st.length) return null;
+  const done = st.filter(s=>s.done).length, avg = Math.round(st.reduce((t,s)=>t+(s.done?1:s.pct),0)/st.length*100);
+  return [`<span class="an-ring" style="--p:${avg}" aria-hidden="true"><b>${avg}%</b></span>`, st.map(s=>`${GOAL_KINDS[s.goal.k].short} ${s.done?'✓':Math.round(s.pct*100)+'%'}`).join(' · '),
+    `${st.length} ${st.length===1?'meta':'metas'}${done?` · ${done} ${done===1?'alcançada':'alcançadas'}`:''} · progresso médio`, ''];
+}
+function energyMini(p){
+  const last = listOf(p.id).at(-1), e = last && energyOfP(p, last); if (!e) return null;
+  return [ic('flame','sm'), `Meta ${kcal(e.target)} kcal`, `Gasto ${kcal(e.tdee)} kcal · P ${Math.round(e.macros.p.g)} g · C ${Math.round(e.macros.c.g)} g · G ${Math.round(e.macros.f.g)} g`, ''];
+}
 
 function viewEnergy(pid){
   const p = P(pid);
@@ -417,5 +428,5 @@ function energyChip(pid){
   return `<button class="tag" data-act="go" data-to="energy" data-id="${p.id}">${ic('flame','sm')}Meta ${kcal(e.target)} kcal · P ${Math.round(e.macros.p.g)} g</button>`;
 }
 
-return { energyFor: energyOfP, goalsSection, homeGoals, detailGoals, goalTag, goalReached, goalsLine, goalFor, openGoals, energyChip, energySection, tdeeOf, viewEnergy, viewReturns, returnsBanner, pendingCount, onInput, acts };
+return { goalsMini, energyMini, energyFor: energyOfP, goalsSection, homeGoals, detailGoals, goalTag, goalReached, goalsLine, goalFor, openGoals, energyChip, energySection, tdeeOf, viewEnergy, viewReturns, returnsBanner, pendingCount, onInput, acts };
 }

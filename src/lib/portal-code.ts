@@ -66,3 +66,5 @@ export type PortalData = {
 };
 export type PortalResult = { ok: true; data: PortalData } | { ok: false; reason: 'invalid' | 'unavailable' };
 export type SubmitResult = { ok: true; at: string } | { ok: false; reason: 'invalid' | 'unavailable' | 'empty' | 'limit' };
+/** paciente apagou a pré-consulta: a que passa a valer (ou nenhuma) */
+export type DeleteResult = { ok: true; pre: string | null; preData: import('./forms').Answers | null } | { ok: false; reason: 'invalid' | 'unavailable' };

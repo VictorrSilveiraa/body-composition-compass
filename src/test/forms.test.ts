@@ -49,3 +49,24 @@ describe('Anamnese única e pontos de atenção', () => {
     expect(plural(3, 'resposta', 'respostas')).toBe('3 respostas');
   });
 });
+
+import { currentAnamnese } from '@/lib/forms';
+import { reportHtml } from '@/lib/report.js';
+describe('Ficha de saúde como envio completo e PDF', () => {
+  it('o envio mais novo que a revisão vale como está (inclusive campos apagados)', () => {
+    const rev = { data: { medicamentos: 'losartana', sono_h: 7 }, at: '2026-11-10T00:00:00Z' };
+    const sent = [{ data: { sono_h: 6 }, at: '2026-11-12T00:00:00Z' }, { data: { medicamentos: 'nenhum' }, at: '2026-11-09T00:00:00Z' }];
+    const c = currentAnamnese(rev, sent);
+    expect(c.pending).toBe(true);
+    expect(c.data).toEqual({ sono_h: 6 });
+    expect(changedKeys(ANAMNESE_FORM, rev.data, c.data).sort()).toEqual(['medicamentos', 'sono_h']);
+    expect(currentAnamnese(rev, sent.slice(1))).toMatchObject({ pending: false, data: rev.data });
+  });
+  it('PDF da pré-consulta: respostas, em branco e pontos de atenção', () => {
+    const html = reportHtml('form', { p: { name: 'Ana Lima', birth: '1990-01-01' }, def: PRE_FORM, answers: { adesao: 2, peso: 70 }, sentAt: '2026-11-18T12:00:00Z', list: [] });
+    expect(html).toContain('Pré-consulta');
+    expect(html).toContain('70 kg');
+    expect(html).toContain('Dificuldade com o plano');
+    expect(html).toContain('2 de 11');
+  });
+});

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
-import { Apple, Check, ChevronLeft, ChevronRight, ClipboardList, Clock, Droplet, Heart, Lock, MessageCircle, Moon, Pencil, Pill, Scale, Send, Target, TriangleAlert, Zap } from 'lucide-react';
+import { Apple, Check, ChevronLeft, ChevronRight, ClipboardList, Clock, Droplet, FileDown, Heart, Lock, MessageCircle, Moon, Pencil, Pill, RotateCcw, Scale, Send, Target, Trash2, TriangleAlert, Zap } from 'lucide-react';
 import { answerText, cleanAnswers, fieldsOf, fmtSent, type Answers, type Field, type FormDef } from '@/lib/forms';
 import type { SubmitResult } from '@/lib/portal-code';
 
@@ -20,7 +20,7 @@ const SIcon = ({ k }: { k: string }) => { const I = ICONS[k] ?? ClipboardList; r
 const Ring = ({ pct, label }: { pct: number; label: string | number }) => <span className="an-ring" style={{ ['--p' as string]: Math.round(pct) }} aria-hidden="true"><b>{label}</b></span>;
 const top = () => { try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch { /* ok */ } };
 
-export function PortalForm({ def, draftKey, initial, sentAt, reviewed, current, nutri, onSubmit, onBack, onSent }: {
+export function PortalForm({ def, draftKey, initial, sentAt, reviewed, current, nutri, onSubmit, onBack, onSent, onPdf, onDelete }: {
   def: FormDef; draftKey: string;
   /** respostas atuais (ficha de saúde: a ficha completa; pré-consulta: a última enviada) */
   initial: Answers | null; sentAt: string | null;
@@ -30,14 +30,24 @@ export function PortalForm({ def, draftKey, initial, sentAt, reviewed, current, 
   current: boolean;
   nutri: string;
   onSubmit: (a: Answers) => Promise<SubmitResult>; onBack: () => void; onSent: (at: string, a: Answers) => void;
+  /** salva em PDF (respostas que estão na tela) */
+  onPdf: (a: Answers) => void;
+  /** apaga as respostas enviadas (só a pré-consulta); devolve se deu certo */
+  onDelete?: () => Promise<boolean>;
 }) {
   const isAnam = def.k === 'anamnese', S = def.sections, N = S.length;
   // rascunho só conta se tiver alguma resposta
-  const draft = useMemo(() => { try { const d = JSON.parse(localStorage.getItem(draftKey) || 'null') as Answers | null; return d && Object.keys(d).length ? d : null; } catch { return null; } }, [draftKey]);
-  const [a, setA] = useState<Answers>(() => draft ?? (isAnam ? { ...(initial ?? {}) } : {}));
+  const [draft, setDraft] = useState<Answers | null>(() => { try { const d = JSON.parse(localStorage.getItem(draftKey) || 'null') as Answers | null; return d && Object.keys(d).length ? d : null; } catch { return null; } });
+  const hasData = !!initial && Object.keys(initial).length > 0, startSum = current && hasData;
+  const base = () => (isAnam ? { ...(initial ?? {}) } : {});
+  const [a, setA] = useState<Answers>(() => (!startSum && draft ? draft : base()));
   const filledIn = (x: Answers, i: number) => S[i]!.fields.filter((f) => answerText(f, cleanAnswers(def, x))).length;
-  const [mode, setMode] = useState<'sum' | 'edit'>(() => (!draft && current && initial && Object.keys(initial).length ? 'sum' : 'edit'));
-  const [step, setStep] = useState(() => { if (!isAnam) return 0; const i = S.findIndex((_, k) => !filledIn(draft ?? initial ?? {}, k)); return i < 0 ? 0 : i; });
+  const firstGap = (x: Answers) => { const i = S.findIndex((_, k) => !filledIn(x, k)); return i < 0 ? 0 : i; };
+  const [mode, setMode] = useState<'sum' | 'edit'>(() => (startSum ? 'sum' : 'edit'));
+  const [step, setStep] = useState(() => (isAnam ? firstGap((!startSum && draft) || initial || {}) : 0));
+  /** confirmação aberta: refazer do zero, apagar respostas ou descartar o rascunho */
+  const [ask, setAsk] = useState<'' | 'redo' | 'del' | 'discard'>('');
+  const [onDraft, setOnDraft] = useState(() => !startSum && !!draft);
   const [fromSum, setFromSum] = useState(false);
   const [dir, setDir] = useState(1);
   const [busy, setBusy] = useState(false), [err, setErr] = useState('');
@@ -48,14 +58,16 @@ export function PortalForm({ def, draftKey, initial, sentAt, reviewed, current, 
   const all = fieldsOf(def), done = all.filter((f) => answerText(f, clean)).length;
   const set = (k: string, v: Answers[string] | '') => { touched.current = true; setErr(''); setA((s) => { const n = { ...s }; if (v === '' || (Array.isArray(v) && !v.length)) delete n[k]; else n[k] = v; return n; }); };
   const goStep = (i: number) => { setDir(i >= step ? 1 : -1); setStep(i); top(); };
-  const edit = (i: number) => { setFromSum(true); setMode('edit'); setDir(1); setStep(i); if (!isAnam && !draft) setA({}); top(); };
+  const edit = (i: number, from: Answers = base()) => { setFromSum(true); setMode('edit'); setDir(1); setStep(i); setA(from); setAsk(''); top(); };
+  const dropDraft = () => { try { localStorage.removeItem(draftKey); } catch { /* ok */ } touched.current = false; setDraft(null); setOnDraft(false); };
+  const discard = () => { dropDraft(); setAsk(''); if (fromSum || hasData && current) { setMode('sum'); top(); } else { setA(base()); setStep(0); } };
 
   const send = async () => {
     if (!Object.keys(clean).length) { setErr(MSG['empty']!); return; }
     setBusy(true); setErr('');
     try {
       const r = await onSubmit(clean);
-      if (r.ok) { try { localStorage.removeItem(draftKey); } catch { /* ok */ } onSent(r.at, clean); }
+      if (r.ok) { dropDraft(); onSent(r.at, clean); }
       else setErr(MSG[r.reason] ?? MSG['unavailable']!);
     } catch { setErr(MSG['unavailable']!); }
     finally { setBusy(false); }
@@ -85,16 +97,33 @@ export function PortalForm({ def, draftKey, initial, sentAt, reviewed, current, 
   /* ---------- resumo ---------- */
   if (mode === 'sum') {
     const x = cleanAnswers(def, initial ?? {}), n = all.filter((f) => answerText(f, x)).length, firstEmpty = S.findIndex((_, i) => !rows(x, i).length);
+    const dn = draft ? all.filter((f) => answerText(f, cleanAnswers(def, draft))).length : 0;
     return (<>
       <header className="top">
         <button className="icon-btn" onClick={onBack} aria-label="Voltar"><ChevronLeft className="ico" /></button>
         <div className="title-block"><small>{isAnam ? 'Anamnese' : 'Antes do retorno'}</small><b>{isAnam ? 'Sua ficha de saúde' : 'Sua pré-consulta'}</b></div>
+        <div className="grow" />
+        <button className="icon-btn" onClick={() => onPdf(x)} aria-label="Salvar em PDF" title="Salvar em PDF"><FileDown className="ico" /></button>
       </header>
+      {draft && (
+        <div className="card pf-draft">
+          <span className="pf-draft-ico"><Pencil className="ico sm" /></span>
+          <div className="grow"><b>Você parou no meio</b><small>{dn} {dn === 1 ? 'resposta' : 'respostas'} ainda não {dn === 1 ? 'enviada' : 'enviadas'}, salvas neste aparelho</small></div>
+          <div className="pf-draft-btns"><button className="btn ghost sm" onClick={dropDraft}>Descartar</button><button className="btn dark sm" onClick={() => { setOnDraft(true); edit(isAnam ? firstGap(draft) : 0, draft); }}>Continuar</button></div>
+        </div>
+      )}
       <div className="card pf-sum">
         <Ring pct={(n / all.length) * 100} label={n} />
         <div className="grow"><b>{n} de {all.length} {isAnam ? 'itens preenchidos' : 'perguntas respondidas'}</b>
           <small>{sentAt ? `Enviada em ${fmtSent(sentAt)}` : 'Preenchida com seu nutricionista'}{isAnam && sentAt ? (reviewed ? ` · revisada por ${nfn}` : ` · ${nfn} ainda vai revisar`) : ''}</small></div>
         <button className="btn dark sm" onClick={() => edit(isAnam && firstEmpty >= 0 ? firstEmpty : 0)}>{isAnam ? <><Pencil className="ico sm" /> {firstEmpty >= 0 ? 'Completar' : 'Atualizar'}</> : 'Responder de novo'}</button>
+        <div className="pf-more">
+          <button onClick={() => onPdf(x)}><FileDown className="ico sm" /> Salvar em PDF</button>
+          {isAnam && <button onClick={() => setAsk(ask === 'redo' ? '' : 'redo')}><RotateCcw className="ico sm" /> Refazer do zero</button>}
+          {!isAnam && onDelete && <button className="del" onClick={() => setAsk(ask === 'del' ? '' : 'del')}><Trash2 className="ico sm" /> Apagar respostas</button>}
+        </div>
+        {ask === 'redo' && <div className="pf-confirm" role="alert"><p>Começar uma ficha nova em branco? A atual continua valendo até você enviar a nova.</p><div><button className="btn ghost sm" onClick={() => setAsk('')}>Cancelar</button><button className="btn dark sm" onClick={() => edit(0, {})}>Começar do zero</button></div></div>}
+        {ask === 'del' && <div className="pf-confirm" role="alert"><p>Apagar a pré-consulta que você enviou{sentAt ? ` em ${fmtSent(sentAt)}` : ''}? {nfn === 'seu nutricionista' ? 'Seu nutricionista' : nfn} deixa de ver estas respostas.</p><div><button className="btn ghost sm" onClick={() => setAsk('')}>Cancelar</button><button className="btn danger sm" disabled={busy} onClick={async () => { setBusy(true); const ok = await onDelete!().catch(() => false); setBusy(false); if (!ok) setErr(MSG['unavailable']!); }}>{busy ? 'Apagando…' : 'Apagar'}</button></div>{err && <p className="pf-err">{err}</p>}</div>}
       </div>
       <div className="fm-grid pf-sumgrid">
         {S.map((s, i) => { const r = rows(x, i); return (
@@ -115,7 +144,11 @@ export function PortalForm({ def, draftKey, initial, sentAt, reviewed, current, 
     <header className="top">
       <button className="icon-btn" onClick={back} aria-label="Voltar"><ChevronLeft className="ico" /></button>
       <div className="title-block"><small>{def.title} · {review ? 'revisão' : `etapa ${step + 1} de ${N}`}</small><b>{review ? 'Confira e envie' : s.l}</b></div>
+      <div className="grow" />
+      {(onDraft || touched.current) && <button className="pf-discard" onClick={() => setAsk(ask === 'discard' ? '' : 'discard')}>Descartar</button>}
     </header>
+    {ask === 'discard' && <div className="card pf-confirm" role="alert"><p>Descartar o que você preencheu agora? O que já foi enviado continua igual.</p><div><button className="btn ghost sm" onClick={() => setAsk('')}>Continuar preenchendo</button><button className="btn danger sm" onClick={discard}>Descartar</button></div></div>}
+    {onDraft && !ask && step === firstGap(a) && <p className="pf-resume"><Pencil className="ico sm" /> Continuando de onde você parou.</p>}
     <div className="pf-steps" role="tablist" aria-label="Etapas">
       {S.map((x, i) => <button key={x.k} role="tab" aria-selected={i === step} aria-label={x.l} className={(i === step ? 'on ' : '') + (filledIn(a, i) ? 'done' : '')} onClick={() => goStep(i)} />)}
       <button role="tab" aria-selected={review} aria-label="Revisão" className={'rev' + (review ? ' on' : '')} onClick={() => goStep(N)} />

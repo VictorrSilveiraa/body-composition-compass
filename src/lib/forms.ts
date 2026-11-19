@@ -154,10 +154,19 @@ export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 
 export function mergeAnswers(base: Answers | null | undefined, ...newer: (Answers | null | undefined)[]): Answers {
   return newer.reduce<Answers>((acc, n) => ({ ...acc, ...(n ?? {}) }), { ...(base ?? {}) });
 }
-/** campos cujo texto mudou de uma versão para outra (só os que existem na mais nova) */
+/** campos cujo texto mudou de uma versão para outra (inclusive os apagados) */
 export function changedKeys(def: FormDef, before: Answers | null | undefined, after: Answers | null | undefined): string[] {
   const b = before ?? {}, a = after ?? {};
-  return fieldsOf(def).filter((f) => { const t = answerText(f, a); return !!t && t !== answerText(f, b); }).map((f) => f.k);
+  return fieldsOf(def).filter((f) => answerText(f, a) !== answerText(f, b)).map((f) => f.k);
+}
+/**
+ * Ficha de saúde atual: cada envio do paciente é a ficha inteira (ele parte da ficha atual, pré-preenchida),
+ * então o envio mais novo que a revisão do nutricionista vale como está; sem envio novo, vale a revisada.
+ */
+export function currentAnamnese(reviewed: { data?: Answers | null; at?: string | null } | null | undefined, sent: { data: Answers; at: string }[]) {
+  const newer = sent.filter((s) => !reviewed?.at || s.at > reviewed.at).sort((x, y) => (x.at < y.at ? -1 : 1));
+  const last = newer.at(-1);
+  return { data: last ? last.data : { ...(reviewed?.data ?? {}) }, newer, pending: !!last };
 }
 /** progresso por seção */
 export function sectionsProgress(def: FormDef, a: Answers | null | undefined) {

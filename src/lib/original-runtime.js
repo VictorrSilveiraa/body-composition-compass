@@ -1017,8 +1017,10 @@ function viewPatient(id){
     </div></section>`;
   }
   const goals = CS.goalsSection(p), energy = CS.energySection(p), diet = DS.patientSection(p);
-  if (goals) h += `<section class="pt-sec pt-s-goals">${goals}</section>`;
-  if (energy) h += `<section class="pt-sec pt-s-energy">${energy}</section>`;
+  /* metas e energia podem ser recolhidas (fica só um cartão-resumo); o editor de metas aberto nunca recolhe */
+  const foldSec = (k, html, mini, force) => { const m = html.match(/^\s*<h2 class="sec">([\s\S]*?)<\/h2>/); return m && mini ? FS.fold(k, m[1], FS.miniRow(...mini), html.slice(m[0].length), {force}) : html; };
+  if (goals) h += `<section class="pt-sec pt-s-goals">${foldSec('goals', goals, CS.goalsMini(p), state.gl?.pid===p.id)}</section>`;
+  if (energy) h += `<section class="pt-sec pt-s-energy">${foldSec('energy', energy, CS.energyMini(p))}</section>`;
   if (diet) h += `<section class="pt-sec pt-s-diet">${diet}</section>`;
   if (last) h += `<section class="pt-sec pt-s-hist"><h2 class="sec">Avaliações <button data-act="openAs" data-to="list" data-id="${p.id}">Ver todas (${list.length})</button></h2>
     <div class="alist">${list.slice(-4).reverse().map((a,i)=>aItem(a,p,i===0)).join('')}</div></section>`;
