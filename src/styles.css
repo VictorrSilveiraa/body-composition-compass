@@ -2353,3 +2353,18 @@ button.kpi:active{scale:.97}
 .pg-toggle{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:8px;padding:12px;border-radius:var(--r-md);background:var(--card);font-size:14px;font-weight:600;color:var(--ink-2);transition:background-color .25s}
 .pg-toggle:hover{background:var(--card-2)}
 .pg-up{transform:rotate(180deg)}
+/* ---------- relatórios em PDF: fotos, antes e depois, profissional ---------- */
+.rp-photos{break-inside:avoid}
+.rp-ph{display:grid;gap:8px;grid-template-columns:repeat(4,minmax(0,1fr))}
+.rp-ph1,.rp-ph2{grid-template-columns:repeat(2,minmax(0,1fr));max-width:60%}
+.rp-ph figure,.rp-pair figure{margin:0;break-inside:avoid}
+.rp-ph img,.rp-pair img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:12px;background:#eeeeea}
+.rp-ph figcaption,.rp-pair figcaption{font-size:10.5px;color:#6b6b66;text-align:center;margin-top:3px;font-weight:600}
+.rp-pairs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
+.rp-pair{break-inside:avoid;background:#f6f6f3;border-radius:14px;padding:8px}
+.rp-pair h4{font-size:11.5px;font-weight:700;margin:0 0 6px 2px}
+.rp-pair>div{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.rp-foot:has(.rp-pro){flex-wrap:wrap}
+.rp-pro{font-size:10.5px;color:#4a4a46;margin:0;flex-basis:100%;order:-1;padding-bottom:6px;border-bottom:1px solid #e6e6e2}
+.rp-diet td:first-child{width:56px}
+.rp-diet td:nth-child(2){width:30%}

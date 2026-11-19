@@ -20,6 +20,7 @@ import { Apple, Download, FileText } from 'lucide-react';
 import { dietAct, dietHtml, dietMini, newDietUi, nowMinutes, variantOf, KIND_COLOR, dtIcon, type DietUi } from '@/lib/diet-view';
 import { mealKind, qtyParts, fmtAmount } from '@/lib/diet-parse';
 import { dietFileName, dietImage, exportDietPdf, shareOrDownload } from '@/lib/diet-export';
+import { exportPdf } from '@/lib/report.js';
 
 /*
  * Portal do paciente: entrada com o código que o nutricionista compartilhou e um app SOMENTE de leitura,
@@ -238,6 +239,18 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
   /* próximo retorno e frase de resumo */
   const every = data.patient.returnDays ?? data.nutri.returnDays ?? 30;
   const next = last ? addDays(last.date, every) : null, left = next ? daysTo(next) : null;
+  /* PDF das avaliações (mesmo relatório do nutricionista, só com o que foi compartilhado) */
+  const pdfCtx = () => {
+    const photos: Record<string, Record<string, string>> = {};
+    if (data.share.photos) for (const ph of data.photos) (photos[ph.assessmentId] ||= {})[ph.pose] = ph.url;
+    return { photos, goal: data.patient.goal ? GOAL[data.patient.goal] ?? '' : '', nextReturn: next,
+      nutri: { name: data.nutri.name, crn, phone: data.nutri.phone, place: data.nutri.place },
+      diets: diets.map((d) => ({ title: d.title, prescribedAt: d.prescribedAt, assessmentId: d.assessmentId, data: d.data })) };
+  };
+  const pp = { name: data.patient.name, sex: data.patient.sex, birth: data.patient.birth, height: data.patient.height };
+  const PdfBtn = ({ kind, a, label }: { kind: 'assessment' | 'evolution' | 'full'; a?: A; label: string }) => (
+    <button className="icon-btn" aria-label={label} title={label} onClick={() => exportPdf(kind, { p: pp, list, a, ctx: pdfCtx() })}><FileText className="ico" /></button>
+  );
   const summary = (() => {
     if (!last || !first || list.length < 2) return last ? `${fn}, sua primeira avaliação está registrada!` : `${fn}, seu acompanhamento começa aqui.`;
     const parts: string[] = [];
@@ -407,7 +420,7 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
     const fill = m?.dir === 1 ? 'var(--green)' : m?.dir === -1 ? 'var(--yellow)' : 'var(--blue)';
     const A = list.find((x) => x.id === cmpA) ?? list.at(-2) ?? list[0], B = list.find((x) => x.id === cmpB) ?? list.at(-1);
     return (<>
-      <Head title="Evolução" sub={data.patient.name} back={() => go('inicio')} />
+      <Head title="Evolução" sub={data.patient.name} back={() => go('inicio')} right={list.length > 1 ? <PdfBtn kind="evolution" label="Salvar evolução em PDF" /> : undefined} />
       <div className="seg full" style={{ marginBottom: 16 }}>
         <button className={evoTab === 'evo' ? 'on' : ''} onClick={() => setEvoTab('evo')}>Linha do tempo</button>
         <button className={evoTab === 'ab' ? 'on' : ''} onClick={() => setEvoTab('ab')}>Comparar</button>
@@ -553,7 +566,7 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
   };
 
   const Assessments = () => (<>
-    <Head title="Avaliações" sub={data.patient.name} back={() => go('inicio')} />
+    <Head title="Avaliações" sub={data.patient.name} back={() => go('inicio')} right={list.length ? <PdfBtn kind="full" label="Salvar histórico completo em PDF" /> : undefined} />
     {!list.length ? empty(`Assim que ${nutriName} registrar sua primeira avaliação, ela aparece aqui.`) : (<>
       <p className="muted small" style={{ margin: '-8px 2px 14px' }}>{list.length} {list.length > 1 ? 'avaliações registradas' : 'avaliação registrada'}</p>
       <div className="alist">{list.slice().reverse().slice(0, avShown).map((a, i) => { const r = rOf(a), pv = list[list.indexOf(a) - 1]; return (
@@ -582,7 +595,7 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
     const bio = [row('% Gordura', num(a.extra.bf), '%'), row('Massa muscular', num(a.extra.muscle), 'kg'), row('Gordura visceral', num(a.extra.visceral), ''), row('Água corporal', num(a.extra.water), '%')].filter(Boolean);
     const phs = data.share.photos ? POSES.filter((P) => photoOf(a.id, P.k)) : [];
     return (<>
-      <Head title={dLong(a.date)} sub="Avaliação" back={() => go('avaliacoes')} />
+      <Head title={dLong(a.date)} sub="Avaliação" back={() => go('avaliacoes')} right={<PdfBtn kind="assessment" a={a} label="Salvar esta avaliação em PDF" />} />
       <div className="dash detail-dash">
         <div className="card blue span2 span2-d hero">
           <div className="left"><div className="card-head"><span className="chip-ico"><Flame className="ico" /></span><span className="label">Gordura corporal<br /><span className="small">{String(r['bfSource'] ?? 'sem dados suficientes')}</span></span></div>

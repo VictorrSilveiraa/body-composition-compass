@@ -1336,6 +1336,19 @@ function download(name, content, type){
   setTimeout(()=>URL.revokeObjectURL(url), 1000);
 }
 
+/* ---------- PDFs das avaliações: junta fotos, profissional, objetivo, retorno e planos alimentares ---------- */
+async function pdfExport(kind, data){
+  const p = data.p, list = data.list || listOf(p.id);
+  const ids = kind==='compare' ? [data.A.id, data.B.id] : kind==='evolution' ? [list[0]?.id, list.at(-1)?.id] : kind==='full' ? list.map(a=>a.id) : kind==='summary' ? [] : [data.a.id];
+  const photos = {};
+  if (PH) for (const id of ids.filter(Boolean)) for (const m of phOf(id)) { const u = await PH.url(m).catch(()=>''); if (u) (photos[id] ||= {})[m.pose] = u; }
+  const st = pStatus(p);
+  const ctx = { photos, goal: goalLabel(p.goal) || '', nextReturn: !p.archived && st.next ? st.next : null,
+    nutri: { name: (nutri.name||'').trim(), crn: crnLabel(), phone: fmtPhone(nutri.phone), place: (nutri.place||'').trim() },
+    diets: options.diets ? options.diets.ofPatient(p.id).map(r=>({ title:r.title, prescribedAt:r.prescribedAt, assessmentId:r.assessmentId, data:r.data })) : [] };
+  if (Object.keys(photos).length) toast('Preparando o PDF com as fotos…');
+  exportPdf(kind, { ...data, ctx });
+}
 /* ---------- plano alimentar (src/lib/diet-screens.js) ---------- */
 const DS = dietScreens({
   options, state, ic, go, render, toast, sheet, dropdown, dpill, paged, findA, listOf, prof, setActive, nutriName, crnLabel,
@@ -1491,20 +1504,20 @@ const ACT = {
     const p = db.profiles.find(x=>x.id===a.profileId) || prof(), list = listOf(p.id), i = list.findIndex(x=>x.id===a.id), prev = i>0 ? list[i-1] : null;
     const isLast = i === list.length-1, quem = state.route==='detail' ? 'Esta avaliação' : 'Última avaliação';
     const opts = [
-      {label:`${quem} — relatório completo`, cls:'dark', fn:async()=>exportPdf('assessment',{a,p,list})},
-      {label:`${quem} — resumo em 1 página`, fn:async()=>exportPdf('summary',{a,p,list})},
-      prev && {label:`Comparativo com a anterior (${fmtDate(prev.date,{day:'2-digit',month:'2-digit'})} × ${fmtDate(a.date,{day:'2-digit',month:'2-digit'})})`, fn:async()=>exportPdf('compare',{p,A:prev,B:a})},
-      list.length>1 && {label:`Evolução — todas as ${list.length} avaliações`, fn:async()=>exportPdf('evolution',{p,list})},
-      {label:'Histórico completo — tudo em um PDF', fn:async()=>exportPdf('full',{p,list})},
+      {label:`${quem} — relatório completo`, cls:'dark', fn:async()=>pdfExport('assessment',{a,p,list})},
+      {label:`${quem} — resumo em 1 página`, fn:async()=>pdfExport('summary',{a,p,list})},
+      prev && {label:`Comparativo com a anterior (${fmtDate(prev.date,{day:'2-digit',month:'2-digit'})} × ${fmtDate(a.date,{day:'2-digit',month:'2-digit'})})`, fn:async()=>pdfExport('compare',{p,A:prev,B:a})},
+      list.length>1 && {label:`Evolução — todas as ${list.length} avaliações`, fn:async()=>pdfExport('evolution',{p,list})},
+      {label:'Histórico completo — tudo em um PDF', fn:async()=>pdfExport('full',{p,list})},
       {label:'Cancelar'},
     ].filter(Boolean);
     sheet('Exportar PDF', `${p.name} ·${list.length} ${list.length===1?'avaliação':'avaliações'}${isLast||state.route!=='detail'?'':' · avaliação de '+fmtDate(a.date)}. Na janela que abrir, escolha "Salvar como PDF".`, opts);
   },
   exportCmp: async () => {
     const p = prof(), list = listOf(p.id);
-    if (state.cmpTab==='ab'){ const A = findA(state.cmpA), B = findA(state.cmpB); if (A && B) return exportPdf('compare',{p,A,B}); }
+    if (state.cmpTab==='ab'){ const A = findA(state.cmpA), B = findA(state.cmpB); if (A && B) return pdfExport('compare',{p,A,B}); }
     if (list.length < 2) return toast('A evolução precisa de pelo menos 2 avaliações');
-    exportPdf('evolution',{p,list});
+    pdfExport('evolution',{p,list});
   },
   evo: async b => { state.evo = b.dataset.m; state.cmpTab = 'evo'; if (state.route!=='compare') go('compare'); else render(); },
   cmpTab: async b => { state.cmpTab = b.dataset.v; render(); },

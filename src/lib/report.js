@@ -4,6 +4,41 @@
  */
 import {num,fmt,fmtDate,calc,bmiClass,bfClass,whrRisk,PROTOCOLS,FOLDS,CIRC_TRUNK,CIRC_LIMBS,foldVal,esc,initials,today,GROUPS} from './calculos.js';
 
+/*
+ * Contexto extra de cada exportação (opcional — o relatório funciona sem ele):
+ *  nutri {name, crn, phone, place} · goal (texto) · nextReturn (AAAA-MM-DD)
+ *  photos {[avaliaçãoId]: {front, back, right, left: url}} · diets [{title, prescribedAt, assessmentId, data}]
+ */
+let CTX = {};
+const POSE_L = [['front','Frente'],['back','Costas'],['right','Lado direito'],['left','Lado esquerdo']];
+const photosOf = id => (CTX.photos && CTX.photos[id]) || {};
+const proLine = () => { const n = CTX.nutri || {}; return [n.name, n.crn].filter(Boolean).join(' · '); };
+const extraFacts = () => [CTX.goal && ['Objetivo', esc(CTX.goal)], CTX.nextReturn && ['Próximo retorno', fmtDate(CTX.nextReturn,{day:'2-digit',month:'short',year:'numeric'})]].filter(Boolean);
+/** fotos de uma avaliação (as 4 poses) */
+function photosBlock(a, title='Fotos de acompanhamento'){
+  const ph = photosOf(a.id), have = POSE_L.filter(([k])=>ph[k]);
+  if (!have.length) return '';
+  return `<section class="rp-block rp-photos"><div class="rp-sec-h"><h3>${ic('image')} ${title}</h3><span class="rp-muted">${fmtDate(a.date,{day:'2-digit',month:'short',year:'numeric'})}</span></div>
+    <div class="rp-ph rp-ph${have.length}">${have.map(([k,l])=>`<figure><img src="${ph[k]}" alt="${l}"><figcaption>${l}</figcaption></figure>`).join('')}</div></section>`;
+}
+/** antes × depois, pose a pose (só as poses com foto nas duas datas) */
+function photosPairs(A, B, title='Antes e depois'){
+  const pa = photosOf(A.id), pb = photosOf(B.id), both = POSE_L.filter(([k])=>pa[k] && pb[k]);
+  if (!both.length) return '';
+  return `<section class="rp-block rp-photos"><div class="rp-sec-h"><h3>${ic('image')} ${title}</h3><span class="rp-muted">${fmtDate(A.date,{day:'2-digit',month:'short',year:'numeric'})} → ${fmtDate(B.date,{day:'2-digit',month:'short',year:'numeric'})}</span></div>
+    <div class="rp-pairs">${both.map(([k,l])=>`<div class="rp-pair"><h4>${l}</h4><div><figure><img src="${pa[k]}" alt="${l} antes"><figcaption>Antes</figcaption></figure><figure><img src="${pb[k]}" alt="${l} depois"><figcaption>Depois</figcaption></figure></div></div>`).join('')}</div></section>`;
+}
+/** plano alimentar entregue nesta consulta (resumo: horários e refeições) */
+function dietBlock(a){
+  const d = (CTX.diets || []).find(x => x.assessmentId === a.id);
+  if (!d || !d.data?.meals?.length) return '';
+  const meals = d.data.meals.map(m => { const v = m.variants?.[0]; const foods = (v?.foods || []).map(f => f.name).join(', ');
+    return `<tr><td class="rp-v">${esc(m.time || '—')}</td><td><b>${esc(m.name)}</b>${m.variants?.length > 1 ? ` <span class="rp-pill">${m.variants.length} opções</span>` : ''}</td><td class="rp-muted">${esc(foods)}</td></tr>`; }).join('');
+  return `<section class="rp-block"><div class="rp-sec-h"><h3>${ic('note')} Plano alimentar desta consulta</h3><span class="rp-muted">${esc(d.title || 'Plano alimentar')}${d.prescribedAt ? ' · ' + fmtDate(d.prescribedAt,{day:'2-digit',month:'2-digit',year:'numeric'}) : ''}</span></div>
+    <table class="rp-table rp-tight rp-diet"><thead><tr><th>Horário</th><th>Refeição</th><th>Alimentos (opção principal)</th></tr></thead><tbody>${meals}</tbody></table>
+    <p class="rp-legend-s">O plano completo, com quantidades, trocas e lista de compras, está no PDF do plano alimentar e no portal do paciente.</p></section>`;
+}
+
 const ICON = {
   heart:'<path d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 8 3.5C20 15.4 12 20 12 20z"/>',
   flame:'<path d="M12 21a7 7 0 0 0 7-7c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-4-2 2-5 5-5 8a7 7 0 0 0 7 7z"/>',
@@ -17,6 +52,7 @@ const ICON = {
   swap:'<path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>',
   book:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.5" r=".9" fill="currentColor"/>',
   note:'<rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 4V3h6v1M9 11h6M9 15h4"/>',
+  image:'<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
 };
 const ic = n => `<svg class="rp-ico" viewBox="0 0 24 24">${ICON[n]||''}</svg>`;
 
@@ -96,6 +132,7 @@ export function buildReport({a, p, list}, o = {}){
         <span><small>Peso</small>${fmt(num(a.weight))} kg</span>
         <span><small>Protocolo</small>${esc(pr.name)}</span>
         ${ex.evaluator?`<span><small>Avaliador(a)</small>${esc(ex.evaluator)}</span>`:''}
+        ${extraFacts().map(([l,v])=>`<span><small>${l}</small>${v}</span>`).join('')}
       </div>
     </div>
   </section>`;
@@ -189,7 +226,7 @@ export function buildReport({a, p, list}, o = {}){
   const folds = FOLDS.filter(f=>foldVal(a,f.k)!=null).map(f=>`<tr><td>${f.l} ${need.includes(f.k)?`<span class="rp-pill">${pr.short}</span>`:''}</td><td class="rp-muted">${reads(f.k)}</td><td class="rp-v">${fmt(foldVal(a,f.k))} mm</td><td>${prev?delta(foldVal(a,f.k),foldVal(prev,f.k),-1,1,''):''}</td></tr>`).join('');
   const bio = [['% de gordura (bio)',num(ex.bf),'%'],['Massa muscular',num(ex.muscle),'kg'],['Gordura visceral',num(ex.visceral),'nível'],['Água corporal',num(ex.water),'%']].filter(x=>x[1]!=null);
 
-  const measures = (trunk||limbs||folds) ? `<section class="rp-measures">
+  const measures = (trunk||limbs||folds||bio.length) ? `<section class="rp-measures">
     <div class="rp-sec-h"><h3>${ic('ruler')} Medidas coletadas</h3></div>
     <div class="rp-cols">
       <div>
@@ -229,7 +266,7 @@ export function buildReport({a, p, list}, o = {}){
   const foot = o.foot === false ? '' : footer(ex.evaluator);
   if (o.summary) return `<div class="rp-page">${header}${person}${hero}${comp}${scales}${indicators}${foot}</div>`;
   return `<div class="rp-page">${header}${person}${hero}${comp}${scales}${indicators}</div>
-    <div class="rp-page">${compare}${o.evo === false ? '' : evo}${measures}${notes}${o.guide === false ? '' : guide}${foot}</div>`;
+    <div class="rp-page">${compare}${o.evo === false ? '' : evo}${measures}${notes}${photosBlock(a)}${dietBlock(a)}${o.guide === false ? '' : guide}${foot}</div>`;
 }
 
 /* =========================================================
@@ -241,7 +278,8 @@ const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 864e5);
 
 function footer(evaluator){
   return `<footer class="rp-foot">
-    <div class="rp-signature"><span></span><small>${evaluator ? esc(evaluator) : 'Avaliador(a)'}</small></div>
+    <div class="rp-signature"><span></span><small>${evaluator ? esc(evaluator) : proLine() ? esc(proLine()) : 'Avaliador(a)'}</small></div>
+    ${CTX.nutri?.name ? `<p class="rp-pro"><b>Nutricionista responsável:</b> ${esc(proLine())}${CTX.nutri.phone ? ' · ' + esc(CTX.nutri.phone) : ''}${CTX.nutri.place ? ' · ' + esc(CTX.nutri.place) : ''}</p>` : ''}
     <p>Relatório gerado em ${longDate(today())}. Valores estimados por equações de referência; este documento é informativo e não substitui avaliação profissional.</p>
   </footer>`;
 }
@@ -283,6 +321,9 @@ const EVO = [
   {k:'hip',l:'Quadril',u:'cm',dir:-1,get:(a)=>num(a.circ?.hip),col:'oklch(0.502 0.069 215)'},
   {k:'sum',l:'Soma das dobras',u:'mm',dir:-1,get:(a,r)=>r.sumAll,col:'oklch(0.536 0.103 99)'},
   {k:'whr',l:'Relação cintura/quadril',u:'',dir:-1,d:2,get:(a,r)=>r.whr,col:'oklch(0.45 0.05 260)'},
+  {k:'muscle',l:'Massa muscular (bio)',u:'kg',dir:1,get:(a)=>num(a.extra?.muscle),col:'oklch(0.55 0.129 134)'},
+  {k:'visc',l:'Gordura visceral (bio)',u:'',dir:-1,get:(a)=>num(a.extra?.visceral),col:'oklch(0.55 0.143 40)'},
+  {k:'water',l:'Água corporal (bio)',u:'%',dir:0,get:(a)=>num(a.extra?.water),col:'oklch(0.502 0.069 215)'},
 ];
 
 /** Relatório de evolução: todas as avaliações da pessoa. */
@@ -294,7 +335,7 @@ export function buildEvolution({p, list}, o = {}){
   const val = (m, x) => m.get(x.a, x.r);
 
   const hd = head('Relatório de evolução', 'Período', `${fmtDate(first.a.date)} → ${fmtDate(last.a.date)}`, `${list.length} avaliações · ${days} dias`);
-  const person = personCard(p, [['Sexo', sex==='F'?'Feminino':'Masculino'], ['Idade atual', `${last.r.age ?? '—'} anos`], num(p.height)!=null && ['Altura', fmt(num(p.height),0)+' cm'], ['Primeira avaliação', longDate(first.a.date)], ['Última avaliação', longDate(last.a.date)]]);
+  const person = personCard(p, [['Sexo', sex==='F'?'Feminino':'Masculino'], ['Idade atual', `${last.r.age ?? '—'} anos`], num(p.height)!=null && ['Altura', fmt(num(p.height),0)+' cm'], ['Primeira avaliação', longDate(first.a.date)], ['Última avaliação', longDate(last.a.date)], ...extraFacts()]);
 
   // frase-resumo
   const parts = [];
@@ -327,7 +368,7 @@ export function buildEvolution({p, list}, o = {}){
     ${folds?`<div class="rp-grp"><h4>Dobras cutâneas (mm)</h4><table class="rp-table rp-tight">${th}<tbody>${folds}</tbody></table></div>`:''}</div>${legendLine}</section>` : '';
 
   return `<div class="rp-page">${hd}${person}${headline}${kpis}<section><div class="rp-sec-h"><h3>${ic('chart')} Gráficos de evolução</h3><span class="rp-muted">valor inicial → atual</span></div><div class="rp-charts rp-charts2">${charts}</div></section></div>
-    <div class="rp-page">${table}${fl}${o.guide === false ? '' : glossary()}${o.foot === false ? '' : footer()}</div>`;
+    <div class="rp-page">${table}${fl}${photosPairs(first.a, last.a, 'Antes e depois: primeira × última avaliação')}${o.guide === false ? '' : glossary()}${o.foot === false ? '' : footer()}</div>`;
 }
 
 /** Comparativo entre duas avaliações (A = antes, B = depois). */
@@ -336,7 +377,7 @@ export function buildCompare({p, A, B}){
   const rA = calc(A, p), rB = calc(B, p);
   const days = daysBetween(A.date, B.date);
   const hd = head('Comparativo entre avaliações', 'Antes → Depois', `${fmtDate(A.date)} → ${fmtDate(B.date)}`, `${Math.abs(days)} dias entre as avaliações`);
-  const person = personCard(p, [['Sexo', sex==='F'?'Feminino':'Masculino'], ['Idade', `${rB.age ?? '—'} anos`], num(B.height)!=null && ['Altura', fmt(num(B.height),0)+' cm'], ['Antes (A)', longDate(A.date)], ['Depois (B)', longDate(B.date)]]);
+  const person = personCard(p, [['Sexo', sex==='F'?'Feminino':'Masculino'], ['Idade', `${rB.age ?? '—'} anos`], num(B.height)!=null && ['Altura', fmt(num(B.height),0)+' cm'], ['Antes (A)', longDate(A.date)], ['Depois (B)', longDate(B.date)], ...extraFacts()]);
 
   const kpis = `<section class="rp-kpis rp-kpis4">${EVO.slice(0,4).map(m => { const a = m.get(A,rA), b = m.get(B,rB); return `
     <div class="rp-card rp-kpi ${m.k==='lean'?'rp-green':m.k==='fat'?'rp-yellow':m.k==='bf'?'rp-blue':''}"><div class="rp-label">${m.l}</div>
@@ -355,7 +396,8 @@ export function buildCompare({p, A, B}){
   const tables = `<section><div class="rp-sec-h"><h3>${ic('swap')} Todas as medidas</h3><span class="rp-muted">A = ${shortDate(A.date)} · B = ${shortDate(B.date)}</span></div>
     <div class="rp-cols"><div>${groups.slice(0, half).join('')}</div><div>${groups.slice(half).join('')}</div></div>${legendLine}</section>`;
 
-  return `<div class="rp-page">${hd}${person}${kpis}${comp}${tables}${footer(B.extra?.evaluator)}</div>`;
+  const pics = photosPairs(A, B);
+  return `<div class="rp-page">${hd}${person}${kpis}${comp}${tables}${pics ? '' : footer(B.extra?.evaluator)}</div>${pics ? `<div class="rp-page">${pics}${footer(B.extra?.evaluator)}</div>` : ''}`;
 }
 
 /** Capa + índice do histórico completo. */
@@ -366,7 +408,7 @@ function buildCover({p, list}){
   return `<div class="rp-page rp-cover">
     ${head('Histórico completo', 'Gerado em', longDate(today()))}
     <section class="rp-card rp-blue rp-cover-hero"><small>Relatório completo de avaliações físicas</small><h1>${esc(p.name)}</h1>
-      <div class="rp-facts"><span><small>Sexo</small>${sex==='F'?'Feminino':'Masculino'}</span><span><small>Idade atual</small>${last.r.age ?? '—'} anos</span>${num(p.height)!=null?`<span><small>Altura</small>${fmt(num(p.height),0)} cm</span>`:''}<span><small>Avaliações</small>${list.length}</span><span><small>Período</small>${fmtDate(first.a.date)} → ${fmtDate(last.a.date)}</span></div></section>
+      <div class="rp-facts"><span><small>Sexo</small>${sex==='F'?'Feminino':'Masculino'}</span><span><small>Idade atual</small>${last.r.age ?? '—'} anos</span>${num(p.height)!=null?`<span><small>Altura</small>${fmt(num(p.height),0)} cm</span>`:''}<span><small>Avaliações</small>${list.length}</span><span><small>Período</small>${fmtDate(first.a.date)} → ${fmtDate(last.a.date)}</span>${extraFacts().map(([l,v])=>`<span><small>${l}</small>${v}</span>`).join('')}${proLine()?`<span><small>Nutricionista</small>${esc(proLine())}</span>`:''}</div></section>
     <section class="rp-block"><div class="rp-sec-h"><h3>${ic('note')} Conteúdo</h3></div>
       <ol class="rp-toc">${list.length>1?'<li><b>Evolução</b><span>gráficos, tabela de todas as avaliações e primeira × última</span></li>':''}${R.map((x,i)=>`<li><b>Avaliação ${i+1} — ${longDate(x.a.date)}</b><span>${fmt(num(x.a.weight))} kg · ${x.r.bf!=null?fmt(x.r.bf)+'% de gordura':'sem % de gordura'} · ${esc(PROTOCOLS[x.a.protocol||'jp7'].name)}</span></li>`).join('')}<li><b>Entenda os indicadores</b><span>glossário e metodologia</span></li></ol></section>
   </div>`;
@@ -377,6 +419,7 @@ function buildCover({p, list}){
    ========================================================= */
 export function reportHtml(kind, data){
   const {p, list = []} = data;
+  CTX = data.ctx || {};
   switch (kind){
     case 'summary': return buildReport(data, {summary:true});
     case 'evolution': return buildEvolution({p, list});
@@ -409,5 +452,9 @@ export function exportPdf(kind, data){
   const done = () => { document.body.classList.remove('printing-report'); document.title = oldTitle; window.removeEventListener('afterprint', done); };
   window.addEventListener('afterprint', done);
   // fora da impressão o relatório fica escondido; só o título precisa voltar (no 'afterprint')
-  (document.fonts?.ready ?? Promise.resolve()).then(() => requestAnimationFrame(() => window.print()));
+  // espera as fontes e as fotos carregarem (no máximo 8 s) para nada sair em branco no PDF
+  const imgs = [...root.querySelectorAll('img')];
+  const loaded = Promise.all(imgs.map(i => i.complete ? null : new Promise(res => { i.onload = i.onerror = res; })));
+  Promise.all([document.fonts?.ready ?? Promise.resolve(), Promise.race([loaded, new Promise(res => setTimeout(res, 8000))])])
+    .then(() => requestAnimationFrame(() => window.print()));
 }
