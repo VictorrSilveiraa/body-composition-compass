@@ -1,0 +1,2 @@
+ALTER TABLE public.pacientes ADD COLUMN IF NOT EXISTS plano jsonb;
+COMMENT ON COLUMN public.pacientes.plano IS 'Metas do paciente (peso, % gordura, cintura, massa magra, com prazo) e configuração do gasto energético (fórmula, nível de atividade, ajuste calórico, macros). Opcional; as políticas de RLS da própria linha (owner_id = auth.uid()) continuam valendo.';

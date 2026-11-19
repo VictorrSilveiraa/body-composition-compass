@@ -234,6 +234,7 @@ export type Database = {
           objetivo: string | null
           observacoes: string | null
           owner_id: string
+          plano: Json | null
           retorno_dias: number | null
           sexo: string
           telefone: string | null
@@ -250,6 +251,7 @@ export type Database = {
           objetivo?: string | null
           observacoes?: string | null
           owner_id?: string
+          plano?: Json | null
           retorno_dias?: number | null
           sexo: string
           telefone?: string | null
@@ -266,6 +268,7 @@ export type Database = {
           objetivo?: string | null
           observacoes?: string | null
           owner_id?: string
+          plano?: Json | null
           retorno_dias?: number | null
           sexo?: string
           telefone?: string | null

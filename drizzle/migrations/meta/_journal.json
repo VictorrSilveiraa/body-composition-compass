@@ -43,6 +43,20 @@
       "when": 1795036541553,
       "tag": "0005_create_dietas",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795100548943,
+      "tag": "0006_pacientes_plano_column",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795100574776,
+      "tag": "0007_verify_plano_column",
+      "breakpoints": true
     }
   ]
 }
