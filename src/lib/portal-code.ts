@@ -56,6 +56,9 @@ export type PortalData = {
   photos: PortalPhoto[];
   diets: PortalDiet[];
   share: { photos: boolean; notes: boolean };
+  /** formulários (null = banco ainda sem a tabela de respostas): quando cada um foi enviado por último e a ficha atual para pré-preencher */
+  forms?: { pre: string | null; anamnese: string | null; anamneseData: import('./forms').Answers | null } | null;
   updatedAt: string | null;
 };
 export type PortalResult = { ok: true; data: PortalData } | { ok: false; reason: 'invalid' | 'unavailable' };
+export type SubmitResult = { ok: true; at: string } | { ok: false; reason: 'invalid' | 'unavailable' | 'empty' | 'limit' };

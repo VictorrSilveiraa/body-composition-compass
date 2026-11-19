@@ -30,6 +30,7 @@ import { Route as AuthenticatedPerfilEditarRouteImport } from './routes/_authent
 import { Route as AuthenticatedPessoaNovaRouteImport } from './routes/_authenticated/pessoa.nova'
 import { Route as AuthenticatedAvaliacoesIdEditarRouteImport } from './routes/_authenticated/avaliacoes.$id.editar'
 import { Route as AuthenticatedDietasIdEditarRouteImport } from './routes/_authenticated/dietas.$id.editar'
+import { Route as AuthenticatedPacientesIdAnamneseRouteImport } from './routes/_authenticated/pacientes.$id.anamnese'
 import { Route as AuthenticatedPacientesIdEnergiaRouteImport } from './routes/_authenticated/pacientes.$id.energia'
 import { Route as AuthenticatedPessoaIdEditarRouteImport } from './routes/_authenticated/pessoa.$id.editar'
 
@@ -142,6 +143,12 @@ const AuthenticatedDietasIdEditarRoute =
     path: '/editar',
     getParentRoute: () => AuthenticatedDietasIdRoute,
   } as any)
+const AuthenticatedPacientesIdAnamneseRoute =
+  AuthenticatedPacientesIdAnamneseRouteImport.update({
+    id: '/anamnese',
+    path: '/anamnese',
+    getParentRoute: () => AuthenticatedPacientesIdRoute,
+  } as any)
 const AuthenticatedPacientesIdEnergiaRoute =
   AuthenticatedPacientesIdEnergiaRouteImport.update({
     id: '/energia',
@@ -176,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/pessoa/nova': typeof AuthenticatedPessoaNovaRoute
   '/avaliacoes/$id/editar': typeof AuthenticatedAvaliacoesIdEditarRoute
   '/dietas/$id/editar': typeof AuthenticatedDietasIdEditarRoute
+  '/pacientes/$id/anamnese': typeof AuthenticatedPacientesIdAnamneseRoute
   '/pacientes/$id/energia': typeof AuthenticatedPacientesIdEnergiaRoute
   '/pessoa/$id/editar': typeof AuthenticatedPessoaIdEditarRoute
 }
@@ -200,6 +208,7 @@ export interface FileRoutesByTo {
   '/pessoa/nova': typeof AuthenticatedPessoaNovaRoute
   '/avaliacoes/$id/editar': typeof AuthenticatedAvaliacoesIdEditarRoute
   '/dietas/$id/editar': typeof AuthenticatedDietasIdEditarRoute
+  '/pacientes/$id/anamnese': typeof AuthenticatedPacientesIdAnamneseRoute
   '/pacientes/$id/energia': typeof AuthenticatedPacientesIdEnergiaRoute
   '/pessoa/$id/editar': typeof AuthenticatedPessoaIdEditarRoute
 }
@@ -226,6 +235,7 @@ export interface FileRoutesById {
   '/_authenticated/pessoa/nova': typeof AuthenticatedPessoaNovaRoute
   '/_authenticated/avaliacoes/$id/editar': typeof AuthenticatedAvaliacoesIdEditarRoute
   '/_authenticated/dietas/$id/editar': typeof AuthenticatedDietasIdEditarRoute
+  '/_authenticated/pacientes/$id/anamnese': typeof AuthenticatedPacientesIdAnamneseRoute
   '/_authenticated/pacientes/$id/energia': typeof AuthenticatedPacientesIdEnergiaRoute
   '/_authenticated/pessoa/$id/editar': typeof AuthenticatedPessoaIdEditarRoute
 }
@@ -252,6 +262,7 @@ export interface FileRouteTypes {
     | '/pessoa/nova'
     | '/avaliacoes/$id/editar'
     | '/dietas/$id/editar'
+    | '/pacientes/$id/anamnese'
     | '/pacientes/$id/energia'
     | '/pessoa/$id/editar'
   fileRoutesByTo: FileRoutesByTo
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/pessoa/nova'
     | '/avaliacoes/$id/editar'
     | '/dietas/$id/editar'
+    | '/pacientes/$id/anamnese'
     | '/pacientes/$id/energia'
     | '/pessoa/$id/editar'
   id:
@@ -301,6 +313,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pessoa/nova'
     | '/_authenticated/avaliacoes/$id/editar'
     | '/_authenticated/dietas/$id/editar'
+    | '/_authenticated/pacientes/$id/anamnese'
     | '/_authenticated/pacientes/$id/energia'
     | '/_authenticated/pessoa/$id/editar'
   fileRoutesById: FileRoutesById
@@ -463,6 +476,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDietasIdEditarRouteImport
       parentRoute: typeof AuthenticatedDietasIdRoute
     }
+    '/_authenticated/pacientes/$id/anamnese': {
+      id: '/_authenticated/pacientes/$id/anamnese'
+      path: '/anamnese'
+      fullPath: '/pacientes/$id/anamnese'
+      preLoaderRoute: typeof AuthenticatedPacientesIdAnamneseRouteImport
+      parentRoute: typeof AuthenticatedPacientesIdRoute
+    }
     '/_authenticated/pacientes/$id/energia': {
       id: '/_authenticated/pacientes/$id/energia'
       path: '/energia'
@@ -535,11 +555,14 @@ const AuthenticatedDietasRouteWithChildren =
   AuthenticatedDietasRoute._addFileChildren(AuthenticatedDietasRouteChildren)
 
 interface AuthenticatedPacientesIdRouteChildren {
+  AuthenticatedPacientesIdAnamneseRoute: typeof AuthenticatedPacientesIdAnamneseRoute
   AuthenticatedPacientesIdEnergiaRoute: typeof AuthenticatedPacientesIdEnergiaRoute
 }
 
 const AuthenticatedPacientesIdRouteChildren: AuthenticatedPacientesIdRouteChildren =
   {
+    AuthenticatedPacientesIdAnamneseRoute:
+      AuthenticatedPacientesIdAnamneseRoute,
     AuthenticatedPacientesIdEnergiaRoute: AuthenticatedPacientesIdEnergiaRoute,
   }
 

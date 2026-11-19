@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
-import { isCode, normCode, type PortalAssessment, type PortalData, type PortalDiet, type PortalPhoto, type PortalResult } from './portal-code';
+import { isCode, normCode, type PortalAssessment, type PortalData, type PortalDiet, type PortalPhoto, type PortalResult, type SubmitResult } from './portal-code';
+import { ANAMNESE_FORM, FORMS, cleanAnswers, type FormKind } from './forms';
 
 /*
  * Portal do paciente — roda SÓ no servidor.
@@ -25,6 +26,37 @@ export const getPatientPortal = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<PortalResult> => {
     // qualquer falha inesperada (ex.: servidor sem a chave de serviço) vira "indisponível", nunca vaza detalhes
     try { return await loadPortal(data.code); } catch { return { ok: false, reason: 'unavailable' }; }
+  });
+
+/*
+ * O paciente envia um formulário (pré-consulta ou ficha de saúde). Só grava se o código for válido e o acesso
+ * estiver ativo; as respostas são limpas pela mesma descrição do formulário (forms.ts) e há limite de envios por dia.
+ */
+export const submitPortalForm = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) => {
+    const i = (input ?? {}) as { code?: unknown; kind?: unknown; data?: unknown };
+    const kind: FormKind = i.kind === 'anamnese' ? 'anamnese' : 'pre_consulta';
+    return { code: normCode(String(i.code ?? '')), kind, data: i.data };
+  })
+  .handler(async ({ data }): Promise<SubmitResult> => {
+    try {
+      if (!isCode(data.code)) { await wait(500); return { ok: false, reason: 'invalid' }; }
+      const answers = cleanAnswers(FORMS[data.kind], data.data);
+      if (!Object.keys(answers).length) return { ok: false, reason: 'empty' };
+      const admin = (await import('@/integrations/supabase/client.server')).supabaseAdmin;
+      const db = admin as unknown as import('@supabase/supabase-js').SupabaseClient;
+      const acc = await db.from('acessos_paciente').select('paciente_id,owner_id,ativo').eq('codigo', data.code).maybeSingle();
+      const a = acc.data as { paciente_id: string; owner_id: string; ativo: boolean } | null;
+      if (acc.error) return { ok: false, reason: 'unavailable' };
+      if (!a || !a.ativo) { await wait(500); return { ok: false, reason: 'invalid' }; }
+      const since = new Date(Date.now() - 864e5).toISOString();
+      const n = await db.from('respostas_paciente').select('id', { count: 'exact', head: true }).eq('paciente_id', a.paciente_id).gte('created_at', since);
+      if (n.error) return { ok: false, reason: 'unavailable' };
+      if ((n.count ?? 0) >= 10) return { ok: false, reason: 'limit' };
+      const ins = await db.from('respostas_paciente').insert({ owner_id: a.owner_id, paciente_id: a.paciente_id, tipo: data.kind, dados: answers }).select('created_at').single();
+      if (ins.error) return { ok: false, reason: 'unavailable' };
+      return { ok: true, at: String((ins.data as { created_at: string }).created_at) };
+    } catch { return { ok: false, reason: 'unavailable' }; }
   });
 
 async function loadPortal(code: string): Promise<PortalResult> {
@@ -103,6 +135,20 @@ async function loadPortal(code: string): Promise<PortalResult> {
       }
     } catch { /* sem plano */ }
 
+    // formulários (pré-consulta e ficha de saúde): sem a tabela de respostas, o portal segue sem eles
+    let forms: PortalData['forms'] = null;
+    try {
+      const rs = await db.from('respostas_paciente').select('tipo,dados,created_at').eq('paciente_id', access.paciente_id).eq('owner_id', access.owner_id).order('created_at', { ascending: false }).limit(30);
+      if (!rs.error) {
+        const rows = (rs.data ?? []) as { tipo: string; dados: unknown; created_at: string }[];
+        const pre = rows.find((r) => r.tipo === 'pre_consulta'), an = rows.find((r) => r.tipo === 'anamnese');
+        // ficha para pré-preencher: a revisada pelo nutricionista ou, se não houver, a última enviada pelo paciente
+        const pl = await db.from('pacientes').select('plano').eq('id', access.paciente_id).eq('owner_id', access.owner_id).maybeSingle();
+        const reviewed = (pl.error ? null : (pl.data as { plano?: { anamnese?: { data?: unknown } } } | null)?.plano?.anamnese?.data) ?? an?.dados ?? null;
+        forms = { pre: pre?.created_at ?? null, anamnese: an?.created_at ?? null, anamneseData: reviewed ? cleanAnswers(ANAMNESE_FORM, reviewed) : null };
+      }
+    } catch { /* sem formulários */ }
+
     // perfil profissional do nutricionista (nome, CRN, especialidade, contato de atendimento)
     let nutri: PortalData['nutri'] = { name: '', crn: '', specialty: '', phone: '', place: '', returnDays: null };
     try {
@@ -118,7 +164,7 @@ async function loadPortal(code: string): Promise<PortalResult> {
       ok: true,
       data: {
         patient: { name: String(p['nome'] ?? ''), sex: p['sexo'] === 'F' ? 'F' : 'M', birth: String(p['nascimento'] ?? ''), height: n(p['altura_cm']), goal: (p['objetivo'] as string) ?? null, returnDays: n(p['retorno_dias']), plan },
-        nutri, assessments, photos, diets, share: { photos: sharePhotos, notes: shareNotes }, updatedAt,
+        nutri, assessments, photos, diets, share: { photos: sharePhotos, notes: shareNotes }, updatedAt, forms,
       },
     };
 }

@@ -256,7 +256,12 @@ function msgFor(r){
   const t = (ctx.nutri().returnMsg?.[r.st.k] || '').trim() || DEF_MSG[r.st.k];
   const since = r.last ? -daysTo(r.last.date) : 0;
   const when = r.st.left===0 ? 'hoje' : fmtDate(r.st.next,{weekday:'long',day:'numeric',month:'long'});
-  return t.replaceAll('{nome}', firstName(r.p.name)).replaceAll('{dias}', plural(since,'dia','dias')).replaceAll('{data}', when).replaceAll('{nutri}', ctx.nutriName());
+  // link da pré-consulta: no lugar de {link}, ou numa linha antes da assinatura (só se o paciente tem acesso ao portal e ainda não respondeu)
+  const link = ctx.preLink?.(r.p.id) && !ctx.answeredPre?.(r.p.id) ? ctx.preLink(r.p.id) : '';
+  let m = t.replaceAll('{nome}', firstName(r.p.name)).replaceAll('{dias}', plural(since,'dia','dias')).replaceAll('{data}', when);
+  if (m.includes('{link}')) m = m.replaceAll('{link}', link);
+  else if (link) m = m.includes('{nutri}') ? m.replace('{nutri}', `Antes da consulta, responda a pré-consulta (2 minutos):\n${link}\n\n{nutri}`) : `${m}\n\nAntes da consulta, responda a pré-consulta (2 minutos):\n${link}`;
+  return m.replaceAll('{nutri}', ctx.nutriName());
 }
 function pendingCount(){ return retRows().filter(r=>!sentOf(r)).length; }
 function returnsBanner(){
@@ -277,7 +282,7 @@ function retRow(r){
     : `<button type="button" class="rt-btn" data-act="rtSend" data-id="${r.p.id}" title="Sem telefone: copia a mensagem">${ic('clip','sm')}<span>Copiar</span></button>`;
   return `<div class="rt-row ${late?'late':'soon'}${sent?' sent':''}" data-key="rt-${r.p.id}">
     <button type="button" class="rt-who" data-act="go" data-to="patient" data-id="${r.p.id}">${pAvatar(r.p)}<span class="rt-name"><b>${esc(r.p.name)}</b><small>${sub}</small></span></button>
-    <span class="rt-when">${ic('clock','sm')}${when}</span>
+    <span class="rt-when">${ic('clock','sm')}${when}${ctx.answeredPre?.(r.p.id) ? ' · respondeu a pré-consulta' : ''}</span>
     ${btn}
     ${!phone && !sent ? `<button type="button" class="rt-add" data-act="go" data-to="onboard" data-id="${r.p.id}">${ic('plus','sm')}Adicionar telefone</button>` : ''}
   </div>`;
@@ -292,7 +297,7 @@ function viewReturns(){
   const editor = `<details class="card rt-msgs"><summary><span class="chip-ico">${ic('chat','sm')}</span><span class="grow"><b>Mensagens prontas</b><small>Personalize o texto que vai no WhatsApp</small></span>${ic('chev','sm rt-chev')}</summary>
     <label class="field"><div class="f-top"><span class="f-label">Retorno atrasado</span></div><div class="f-input"><textarea data-rk="late" rows="5">${esc(msgs.late || DEF_MSG.late)}</textarea></div></label>
     <label class="field"><div class="f-top"><span class="f-label">Retorno nos próximos 7 dias</span></div><div class="f-input"><textarea data-rk="soon" rows="5">${esc(msgs.soon || DEF_MSG.soon)}</textarea></div></label>
-    <p class="rt-vars"><span><code>{nome}</code> primeiro nome</span><span><code>{dias}</code> desde a última avaliação</span><span><code>{data}</code> do retorno</span><span><code>{nutri}</code> seu nome</span></p>
+    <p class="rt-vars"><span><code>{nome}</code> primeiro nome</span><span><code>{dias}</code> desde a última avaliação</span><span><code>{data}</code> do retorno</span><span><code>{nutri}</code> seu nome</span><span><code>{link}</code> link da pré-consulta (entra sozinho se você não usar)</span></p>
     ${msgs.late || msgs.soon ? `<button type="button" class="btn ghost sm" data-act="rtReset">Voltar aos textos originais</button>` : ''}
   </details>`;
   if (!total) return `${head}<div class="card green empty rt-empty"><div class="e-ico">${ic('check')}</div><h3>Nenhum retorno pendente</h3><p>Todos os pacientes ativos estão em dia. Quando um retorno atrasar ou estiver a 7 dias, ele aparece aqui com a mensagem pronta para o WhatsApp.</p>

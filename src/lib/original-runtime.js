@@ -5,6 +5,7 @@ import {POSES,POSE_KEYS,poseLabel,poseSvg} from "./poses.js";
 import {exportPdf} from "./report.js";
 import {dietScreens} from "./diet-screens.js";
 import {careScreens} from "./care-screens.js";
+import {formScreens} from "./forms-screens.js";
 import {waSvg} from "./wa-icon";
 const FOLD_NAME=Object.fromEntries(FOLDS.map(f=>[f.k,f.l]));
 export function mountOriginal(options){
@@ -739,6 +740,7 @@ function viewDetail(id){
   </div>
 
   ${phSection(a)}
+  ${FS.preForAssessment(p, a)}
   ${CS.detailGoals(p, a)}
   ${DS.assessmentSection(a)}
 
@@ -867,7 +869,7 @@ function ptCard({p, st, list}){
   const stIco = st.k==='ok' ? ic('check','sm') : (st.k==='late'||st.k==='soon') ? ic('clock','sm') : st.k==='arch' ? ic('archive','sm') : '';
   return `<div class="pt-cell" data-key="pt-${p.id}"><button class="pt-card ${on?'on':''}" data-act="go" data-to="patient" data-id="${p.id}">
     <span class="pt-top">${pAvatar(p)}<span class="pt-name"><b>${esc(p.name)}</b><small>${esc(pMeta(p))}</small></span>${ic('right','sm')}</span>
-    <span class="pt-tags"><span class="tag ${st.cls}">${stIco}${st.l}</span>${p.goal?`<span class="tag">${esc(goalLabel(p.goal))}</span>`:''}${CS.goalTag(p)}${on?`<span class="tag dark">Atual</span>`:''}</span>
+    <span class="pt-tags"><span class="tag ${st.cls}">${stIco}${st.l}</span>${p.goal?`<span class="tag">${esc(goalLabel(p.goal))}</span>`:''}${CS.goalTag(p)}${FS.ptTag(p)}${on?`<span class="tag dark">Atual</span>`:''}</span>
     <span class="pt-nums">${last
       ? `<span><small>Peso</small><b>${fmt(num(last.weight))}<small>kg</small></b></span><span><small>Gordura</small><b>${r.bf!=null?fmt(r.bf)+'<small>%</small>':'—'}</b></span><span><small>${plural(list.length,'avaliação','avaliações')}</small><b class="d">${ago(last.date)}</b></span>`
       : `<span class="pt-none">Nenhuma avaliação registrada ainda</span>`}</span>
@@ -1001,6 +1003,7 @@ function viewPatient(id){
      → quanto deve comer (energia) → o que come (plano) → histórico. Cada bloco é uma seção própria:
      no computador a coluna lateral (agenda, observações, portal, gerenciar) fica ao lado; no celular
      as seções seguem a ordem definida no CSS (observações sobem para perto do plano). */
+  { const pre = FS.preSection(p); if (pre) h += `<section class="pt-sec pt-s-pre">${pre}</section>`; } /* respostas do paciente para a próxima consulta: primeiro */
   if (!last){
     h += `<section class="pt-sec pt-s-res"><div class="card empty" style="margin-top:16px"><div class="e-ico">${ic('clip')}</div><h3>Nenhuma avaliação ainda</h3><p>Registre a primeira avaliação de ${esc(firstName(p.name))} para acompanhar peso, gordura e medidas a cada retorno.</p>
       <button class="btn dark" style="margin:18px auto 0;display:inline-flex" data-act="newFor" data-id="${p.id}">${ic('plus','sm')} Fazer a primeira avaliação</button></div></section>`;
@@ -1027,7 +1030,9 @@ function viewPatient(id){
       <div class="kv-row"><span class="k">Primeira avaliação</span><span class="t">${first?fmtDate(first.date):'—'}</span></div>
       <div class="kv-row"><span class="k">Cadastro</span><span class="t">${p.createdAt?fmtDate(isoOf(new Date(p.createdAt))):'—'}</span></div>
     </div>
-    ${(st.k==='late'||st.k==='soon') ? `<button class="act-row rt-remind" data-act="rtSend" data-id="${p.id}"><span class="chip-ico">${p.phone?waSvg('ico sm'):ic('clip','sm')}</span><span class="grow"><b>Lembrar do retorno</b><span>${p.phone?'Mensagem pronta no WhatsApp':'Copia a mensagem pronta'}</span></span>${ic('right','sm')}</button>` : ''}</section>
+    ${(st.k==='late'||st.k==='soon') ? `<button class="act-row rt-remind" data-act="rtSend" data-id="${p.id}"><span class="chip-ico">${p.phone?waSvg('ico sm'):ic('clip','sm')}</span><span class="grow"><b>Lembrar do retorno</b><span>${p.phone?'Mensagem pronta no WhatsApp':'Copia a mensagem pronta'}</span></span>${ic('right','sm')}</button>` : ''}
+    ${FS.has() && last && !p.archived && !FS.answeredPre(p.id) ? `<button class="act-row fm-send" data-act="fmSend" data-id="${p.id}" data-k="pre_consulta"><span class="chip-ico">${ic('clip','sm')}</span><span class="grow"><b>Enviar pré-consulta</b><span>${esc(firstName(p.name))} responde pelo portal antes do retorno</span></span>${ic('right','sm')}</button>` : ''}</section>
+    <section class="pt-sec pt-s-anam">${FS.anamneseSection(p)}</section>
     <section class="pt-sec pt-s-notes"><h2 class="sec">Observações <button data-act="go" data-to="onboard" data-id="${p.id}">editar</button></h2>
     <div class="notes ${p.notes?'':'muted'}">${p.notes?esc(p.notes):'Sem observações. Registre histórico clínico, restrições e combinados.'}</div></section>
     <section class="pt-sec pt-s-access">${paSection(p)}</section>
@@ -1171,6 +1176,7 @@ function viewWizard(){
           <span class="avatar" style="background:var(--surface)">${esc(initials(p.name))}</span>
           <div class="grow"><b style="font-weight:600">${esc(p.name)}</b><div class="small">${p.sex==='F'?'Feminino':'Masculino'} · <span data-live="age">${r.age??'—'}</span> anos na data</div></div>
           <button class="tag" data-act="go" data-to="patients">Trocar</button></div>
+        ${state.editingId ? '' : FS.preForWizard(p)}
         <div class="fields two">
           <label class="field"><div class="f-top"><span class="f-label">Data da avaliação</span></div>
             <div class="f-input text"><input type="date" data-k="date" value="${esc(draft.date)}" max="${today()}"></div></label>
@@ -1291,7 +1297,7 @@ function updateLive(){
    RENDER / ROUTER
    ========================================================= */
 let app = options.app;
-const ORDER = {home:0,patients:1,returns:1.5,patient:2,energy:2.5,list:3,detail:4,compare:5,diets:5.3,diet:5.5,profile:6,nutri:7,onboard:8,wizard:9,dietNew:9,dietEdit:9};
+const ORDER = {home:0,patients:1,returns:1.5,patient:2,energy:2.5,anamnese:2.6,list:3,detail:4,compare:5,diets:5.3,diet:5.5,profile:6,nutri:7,onboard:8,wizard:9,dietNew:9,dietEdit:9};
 let lastRoute = null;
 function render(){
   // sem pacientes: primeiro o perfil do nutricionista (1º acesso), depois o cadastro do paciente
@@ -1316,13 +1322,14 @@ function render(){
     case 'patients': html = viewPatients(); break;
     case 'patient': html = viewPatient(state.param); break;
     case 'energy': html = CS.viewEnergy(state.param); break;
+    case 'anamnese': html = `<div class="narrow fm-narrow">${FS.viewAnamnese(state.param)}</div>`; break;
     case 'returns': html = CS.viewReturns(); break;
     case 'wizard': html = viewWizard(); break;
     default: html = viewHome();
   }
-  const showNav = !['wizard','onboard','nutri','dietNew','dietEdit'].includes(state.route);
+  const showNav = !['wizard','onboard','nutri','dietNew','dietEdit','anamnese'].includes(state.route);
   let navHtml='';
-  if(showNav){ const tabs=[['home','home','Início'],['patients','users','Pacientes'],['list','cal','Avaliações'],['compare','chart','Evolução'],...(DS.has()?[['diets','leaf','Dieta']]:[]),['profile','user','Perfil','',CS.pendingCount()]]; /* celular: o Perfil leva aos Retornos, então carrega o aviso */ const cur={detail:'list',patient:'patients',energy:'patients',diet:'diets'}[state.route]||state.route;
+  if(showNav){ const tabs=[['home','home','Início'],['patients','users','Pacientes','',FS.unreadPatients()],['list','cal','Avaliações'],['compare','chart','Evolução'],...(DS.has()?[['diets','leaf','Dieta']]:[]),['profile','user','Perfil','',CS.pendingCount()]]; /* celular: o Perfil leva aos Retornos, então carrega o aviso */ const cur={detail:'list',patient:'patients',energy:'patients',anamnese:'patients',diet:'diets'}[state.route]||state.route;
   // No celular: só os botões (pílula flutuante). No computador vira barra lateral com marca, paciente atual, atalho e nutricionista.
   const p = prof(), n = p ? listOf(p.id).length : 0;
   // Computador: bloco geral (Início, Pacientes) + bloco do paciente atual (cartão, os menus dele e Nova avaliação); nutricionista no rodapé.
@@ -1348,12 +1355,12 @@ function render(){
   options.render(html, navHtml, key, dir);
   maybeTour();
 }
-function routePath(route,param){const paths={home:'/',patients:'/pacientes',patient:'/pacientes/'+param,energy:'/pacientes/'+param+'/energia',returns:'/retornos',nutri:'/perfil/editar',list:'/avaliacoes',detail:'/avaliacoes/'+param,compare:'/evolucao',profile:'/perfil',diets:'/dietas',diet:'/dietas/'+param,dietNew:'/dietas/nova',dietEdit:'/dietas/'+param+'/editar',wizard:state.editingId?'/avaliacoes/'+state.editingId+'/editar':'/nova',onboard:param?'/pessoa/'+param+'/editar':'/pessoa/nova'};return paths[route]||'/';}
+function routePath(route,param){const paths={home:'/',patients:'/pacientes',patient:'/pacientes/'+param,energy:'/pacientes/'+param+'/energia',anamnese:'/pacientes/'+param+'/anamnese',returns:'/retornos',nutri:'/perfil/editar',list:'/avaliacoes',detail:'/avaliacoes/'+param,compare:'/evolucao',profile:'/perfil',diets:'/dietas',diet:'/dietas/'+param,dietNew:'/dietas/nova',dietEdit:'/dietas/'+param+'/editar',wizard:state.editingId?'/avaliacoes/'+state.editingId+'/editar':'/nova',onboard:param?'/pessoa/'+param+'/editar':'/pessoa/nova'};return paths[route]||'/';}
 // Muda a URL e deixa o syncPath desenhar a tela nova numa única passada (sem piscar a tela antiga).
 function go(route,param=null,push=true){state.route=route;state.param=param;state.dd=null;state.gl=null;try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} const to=routePath(route,param); if(push && to!==window.location.pathname) options.navigate(to); else render();}
 function syncPath(path){
  let route='home',param=null;
- if(path==='/avaliacoes') route='list'; else if(path==='/evolucao')route='compare';else if(path==='/perfil')route='profile';else if(path==='/perfil/editar')route='nutri';else if(path==='/pacientes')route='patients';else if(path==='/retornos')route='returns';else if(path.startsWith('/pacientes/')){route=path.endsWith('/energia')?'energy':'patient';param=path.split('/')[2];if(db.profiles.some(p=>p.id===param))setActive(param);}else if(path==='/nova')route='wizard';else if(path.startsWith('/pessoa/')){route='onboard';param=path.endsWith('/editar')?path.split('/')[2]:null;}else if(path.startsWith('/avaliacoes/')){param=path.split('/')[2];route=path.endsWith('/editar')?'wizard':'detail';}else if(path==='/dietas')route='diets';else if(path==='/dietas/nova')route='dietNew';else if(path.startsWith('/dietas/')){param=path.split('/')[2];route=path.endsWith('/editar')?'dietEdit':'diet';const r=options.diets?.get(param);if(r&&db.profiles.some(p=>p.id===r.profileId))setActive(r.profileId);}
+ if(path==='/avaliacoes') route='list'; else if(path==='/evolucao')route='compare';else if(path==='/perfil')route='profile';else if(path==='/perfil/editar')route='nutri';else if(path==='/pacientes')route='patients';else if(path==='/retornos')route='returns';else if(path.startsWith('/pacientes/')){route=path.endsWith('/energia')?'energy':path.endsWith('/anamnese')?'anamnese':'patient';param=path.split('/')[2];if(db.profiles.some(p=>p.id===param))setActive(param);}else if(path==='/nova')route='wizard';else if(path.startsWith('/pessoa/')){route='onboard';param=path.endsWith('/editar')?path.split('/')[2]:null;}else if(path.startsWith('/avaliacoes/')){param=path.split('/')[2];route=path.endsWith('/editar')?'wizard':'detail';}else if(path==='/dietas')route='diets';else if(path==='/dietas/nova')route='dietNew';else if(path.startsWith('/dietas/')){param=path.split('/')[2];route=path.endsWith('/editar')?'dietEdit':'diet';const r=options.diets?.get(param);if(r&&db.profiles.some(p=>p.id===r.profileId))setActive(r.profileId);}
  if(route==='dietNew'||route==='dietEdit'){const r2=DS.prepare(route,param);if(r2!==route){route=r2;param=null;}}
  if(route==='wizard' && !draft){if(param&&findA(param)){draft=clone(findA(param));state.editingId=param;db.activeId=draft.profileId;}else if(prof()){draft=newDraft();state.editingId=null;} }
  initForm(route,param); state.dd=null;
@@ -1488,6 +1495,14 @@ Object.assign(DD_PICK, DS.ddPick);
 const CS = careScreens({
   options, state, ic, go, render, toast, sheet, listOf, pStatus, pAvatar, waLink, daysTo, ring, nutriName, paCopyText,
   db: () => db, save, nutri: () => nutri, setNutri: n => { nutri = n; },
+  preLink: pid => FS.preLinkLine(pid), answeredPre: pid => FS.answeredPre(pid),
+});
+/* ---------- pré-consulta e anamnese (src/lib/forms-screens.js) ---------- */
+const FS = formScreens({
+  options, state, ic, go, render, toast, sheet, listOf, nutriName, paCopyText, waLink, formBar,
+  db: () => db, save, fmtCode: fmtAccessCode,
+  // acesso ao portal do paciente: undefined enquanto carrega, null se não tem
+  access: pid => { paLoad(pid); const s = PA[pid]; return s?.loaded ? (s.access || null) : undefined; },
 });
 
 /* ---------- ações ---------- */
@@ -1709,7 +1724,7 @@ const ACT = {
   skipSetup: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} state.setup = true; go('onboard'); },
   setupLater: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} state.setup = false; go('home'); toast('Tudo pronto! Cadastre o paciente quando quiser.'); },
   delProfile: async b => { const p = db.profiles.find(x=>x.id===b.dataset.id) || prof(); sheet(`Excluir ${p.name}?`, `Isso remove o paciente e ${plural(listOf(p.id).length,'avaliação','avaliações')}. Não pode ser desfeito — se quiser só tirar da lista, use “Arquivar”.`, [
-    {label:'Excluir definitivamente', cls:'danger', fn:async ()=>{ for (const a of listOf(p.id)) PH?.removeAssessment(a.id); db.assessments = db.assessments.filter(a=>a.profileId!==p.id); db.profiles = db.profiles.filter(x=>x.id!==p.id); if (db.activeId===p.id) db.activeId = (db.profiles.find(x=>!x.archived)||db.profiles[0])?.id||null; if (draft?.profileId===p.id){ draft=null; saveDraft(); } DS.forgetPatient(p.id); await save(); go(db.profiles.length?'patients':'home'); toast('Paciente excluído'); }},
+    {label:'Excluir definitivamente', cls:'danger', fn:async ()=>{ for (const a of listOf(p.id)) PH?.removeAssessment(a.id); db.assessments = db.assessments.filter(a=>a.profileId!==p.id); db.profiles = db.profiles.filter(x=>x.id!==p.id); if (db.activeId===p.id) db.activeId = (db.profiles.find(x=>!x.archived)||db.profiles[0])?.id||null; if (draft?.profileId===p.id){ draft=null; saveDraft(); } DS.forgetPatient(p.id); FS.forgetPatient(p.id); await save(); go(db.profiles.length?'patients':'home'); toast('Paciente excluído'); }},
     {label:'Cancelar'}]); },
   export: async () => { download(`avaliacao-fisica-backup-${today()}.json`, JSON.stringify({app:'avaliacao-fisica', version:1, exportedAt:new Date().toISOString(), ...db}, null, 2), 'application/json'); toast('Backup exportado'); },
   import: async () => document.getElementById('importFile').click(),
@@ -1733,6 +1748,7 @@ const ACT = {
   },
   ...DS.acts,
   ...CS.acts,
+  ...FS.acts,
 };
 const click = async e => {
   // menu aberto + clique fora dele: fecha
@@ -1748,6 +1764,7 @@ const input = e => {
   if (e.target.id==='pt-q'){ state.pq = e.target.value; render(); return; }
   if (e.target.dataset?.dk && DS.onInput(e.target)) return;
   if ((e.target.dataset?.gk || e.target.dataset?.rk) && CS.onInput(e.target)) return;
+  if (e.target.dataset?.ak && FS.onInput(e.target)) return;
   if (e.target.dataset?.mask==='phone'){
     const el = e.target, v = fmtPhone(el.value);
     // apagando: não recoloca o traço/parêntese que a pessoa acabou de remover

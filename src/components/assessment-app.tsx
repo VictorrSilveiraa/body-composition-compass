@@ -10,6 +10,7 @@ import { DoneSheet, type DoneSpec } from '@/components/done-sheet';
 import { composeComparison, loadPhotos, photoStore } from '@/lib/photos';
 import { getAccess, issueCode, updateAccess } from '@/lib/portal-access';
 import { dietStore, loadDiets } from '@/lib/diets';
+import { loadResponses, responseStore } from '@/lib/respostas';
 import { supabase } from '@/integrations/supabase/client';
 import { cloudRepository, loadCloud, saveNutri, type Nutri } from '@/lib/cloud-data';
 import { motivo } from '@/lib/motivo';
@@ -130,10 +131,11 @@ export function AssessmentApp() {
         if (!user) { dropLive(); await navigate({ to: '/login' }); return; }
         if (live) { if (live.userId === user.id) return; dropLive(); setFrame(null); }
         // fotos carregam junto (se falharem, o app abre normalmente sem elas)
-        const [loaded, pics, diets] = await Promise.all([
+        const [loaded, pics, diets, answers] = await Promise.all([
           queryClient.fetchQuery({ queryKey: ['assessment-data', user.id], queryFn: () => loadCloud(user.id), staleTime: 0 }),
           loadPhotos(user.id).catch(() => ({ cloud: false, metas: [] })),
           loadDiets(user.id).catch(() => ({ cloud: false, list: [] })),
+          loadResponses(),
         ]);
         if (cancelled || !host.current || live) return;
         const repo = cloudRepository(user.id, loaded.db, loaded.fichaCloud, loaded.planCloud);
@@ -148,6 +150,7 @@ export function AssessmentApp() {
           photos: photoStore(user.id, pics.cloud, pics.metas), composeComparison,
           portalAccess: { get: getAccess, issue: issueCode, update: updateAccess },
           diets: dietStore(user.id, diets.cloud, diets.list),
+          responses: responseStore(answers.available, answers.list),
           camera: (c: CameraSpec) => bridge.camera(c),
           viewer: (v: ViewerSpec) => bridge.viewer(v),
           done: (d: DoneSpec) => bridge.done(d),

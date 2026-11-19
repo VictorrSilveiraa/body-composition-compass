@@ -2861,3 +2861,140 @@ button.kpi:active{scale:.97}
 /* portal do paciente: metas no topo do início e energia depois dos resultados */
 .pp .pp-goals{margin-bottom:14px}
 .pp .pp-energy{margin-top:12px}
+
+/* =========================================================
+   PRÉ-CONSULTA E ANAMNESE (forms.ts · forms-screens.js · portal)
+   ========================================================= */
+/* respostas em lista (resumo da anamnese, portal) */
+.fa{display:grid;gap:12px}
+.fa-sec h4{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 2px 6px}
+.fa-sec dl{display:grid;gap:4px}
+.fa-row{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:10px;align-items:baseline;background:var(--surface);border-radius:var(--r-sm);padding:9px 12px}
+.fa-row dt{font-size:13px;color:var(--ink-2)}
+.fa-row dd{font-size:14px;font-weight:600;text-align:right;overflow-wrap:anywhere}
+.fa-row.new{box-shadow:inset 0 0 0 1.5px var(--blue-2)}
+.fa-dots{display:inline-flex;gap:3px;margin-right:6px;vertical-align:middle}
+.fa-dots i{width:8px;height:8px;border-radius:50%;background:oklch(0.182 0 0 / .14)}
+.fa-dots i.on{background:var(--green-ink)}
+/* pré-consulta (ficha, detalhe da avaliação e assistente) */
+.fm-pre{background:var(--blue);display:flex;flex-direction:column;gap:12px}
+.fm-pre.compact{background:var(--card)}
+.fm-pre-h{display:flex;align-items:center;gap:12px}
+.fm-pre-h .chip-ico{width:42px;height:42px;border-radius:50%;background:var(--surface);display:grid;place-items:center;flex:none}
+.fm-pre-h .grow{min-width:0}
+.fm-pre-h b{display:block;font-weight:600;font-size:16px}
+.fm-pre-h small{font-size:13px;color:var(--ink-2)}
+.fm-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.fm-k{background:var(--surface);border-radius:var(--r-sm);padding:10px 12px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.fm-k small{font-size:12px;color:var(--muted);line-height:1.2}
+.fm-k b{font-size:16px;font-weight:600}
+.fm-k .fa-dots{margin:3px 0 1px}
+.fm-k .fa-dots i{width:10px;height:10px}
+.fm-q{background:oklch(1 0 0 / .7);border-radius:var(--r-sm);padding:10px 13px;border-left:3px solid var(--blue-ink)}
+.fm-pre.compact .fm-q{background:var(--surface)}
+.fm-q small{display:block;font-size:12px;font-weight:600;color:var(--blue-ink);margin-bottom:3px}
+.fm-q p{font-size:14.5px;line-height:1.45}
+.fm-wiz{margin-bottom:12px}
+[data-rv="in"] .fm-k{animation:rvUp .55s var(--ease) calc(var(--d) + .2s) backwards}
+/* anamnese na ficha */
+.fm-anam{display:flex;flex-direction:column;gap:12px;cursor:pointer}
+.fm-anam-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted)}
+.fm-anam-empty p{font-size:14px;color:var(--ink-2);line-height:1.45}
+.fm-anam-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.fm-anam-btns .btn{flex:none}
+.fm-new{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface);box-shadow:0 0 0 1.5px var(--blue-2);border-radius:var(--r-lg);padding:12px 14px;margin-bottom:10px;transition:scale .22s var(--ease),box-shadow .3s}
+.fm-new:active{scale:.985}
+.fm-new-dot{width:10px;height:10px;border-radius:50%;background:var(--red-ink);flex:none;box-shadow:0 0 0 4px oklch(0.542 0.143 29 / .16);animation:fmPing 2s ease-in-out infinite}
+@keyframes fmPing{50%{box-shadow:0 0 0 7px oklch(0.542 0.143 29 / .04)}}
+.fm-new .grow{min-width:0}
+.fm-new b{display:block;font-weight:600;font-size:14.5px}
+.fm-new small{font-size:12.5px;color:var(--muted)}
+.tag.fm-tag{background:var(--blue-2)}
+.fm-send{margin-top:10px}
+.fm-send .chip-ico{background:var(--blue)}
+/* editor da anamnese */
+.fm-narrow{max-width:1040px}
+.fm-got{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.fm-got.new{background:var(--blue)}
+.fm-got .chip-ico{width:42px;height:42px;border-radius:50%;background:var(--surface);display:grid;place-items:center;flex:none}
+.fm-got .grow{min-width:200px;flex:1}
+.fm-got b{display:block;font-weight:600}
+.fm-got small{font-size:13px;color:var(--ink-2)}
+.fm-got-btns{display:flex;gap:8px;flex-wrap:wrap}
+.fm-got-btns .btn{flex:none}
+.fm-toc{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px 12px;padding:6px 16px;position:sticky;top:0;z-index:6;background:linear-gradient(var(--surface) 75%,transparent)}
+.fm-toc::-webkit-scrollbar{display:none}
+.fm-toc a{flex:none;padding:8px 13px;border-radius:99px;background:var(--card);font-size:13px;font-weight:600;color:var(--ink);text-decoration:none;white-space:nowrap}
+.fm-grid{display:grid;gap:12px;padding-bottom:20px}
+.fm-sec{display:flex;flex-direction:column;gap:12px;scroll-margin-top:64px}
+.fm-sh{display:flex;align-items:center;gap:10px}
+.fm-sh .chip-ico{width:38px;height:38px;border-radius:50%;background:var(--surface);display:grid;place-items:center;flex:none}
+.fm-sh b{flex:1;font-weight:600;font-size:16px}
+.fm-sh small{font-size:12px;font-weight:600;color:var(--muted);background:var(--surface);padding:3px 9px;border-radius:99px}
+.fm-sh small.ok{background:var(--green);color:var(--green-ink)}
+.fm-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.fm-f{display:flex;flex-direction:column;gap:6px;min-width:0}
+.fm-f.wide{grid-column:1 / -1}
+.fm-l{font-size:13.5px;font-weight:600;color:var(--ink-2);padding-left:2px}
+.f-input.fm-in{margin:0;padding:8px 12px}
+.f-input.fm-in input{font-size:17px;font-weight:500}
+.f-input.fm-in textarea{min-height:78px;font-size:15px;line-height:1.4}
+.fm-scale{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.fm-scale button{height:46px;border-radius:14px;background:var(--surface);font-weight:700;font-size:16px;transition:background-color .2s,color .2s,scale .2s var(--ease)}
+.fm-scale button.on{background:var(--ink);color:var(--surface)}
+.fm-scale button:active{scale:.94}
+.fm-ends{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);padding:0 2px}
+.fm-chips{display:flex;flex-wrap:wrap;gap:6px}
+.fm-chips .chip{background:var(--surface);display:inline-flex;align-items:center;gap:5px;padding:9px 13px}
+.fm-chips .chip.on{background:var(--ink);color:var(--surface)}
+.fm-chips .chip .ico{width:14px;height:14px;stroke-width:2.6}
+.fm-other{margin-top:2px}
+@media (max-width:1023px){ .pt-s-anam{order:1} }
+@media (max-width:639px){
+  .fm-fields{grid-template-columns:1fr}
+  .fm-ask span{display:none}
+  .fm-ask{width:48px;padding:0;justify-content:center}
+  .fa-row{grid-template-columns:1fr;gap:2px}
+  .fa-row dd{text-align:left}
+  .fm-got-btns{width:100%}
+  .fm-got-btns .btn{flex:1}
+}
+@media (min-width:1024px){
+  .fm-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+  .fm-toc{margin:0 0 14px;padding:6px 0}
+  .fm-toc a:hover{background:var(--card-2)}
+  .fm-new:hover{box-shadow:0 0 0 1.5px var(--blue-ink)}
+}
+@media (prefers-reduced-motion:reduce){ .fm-new-dot{animation:none} }
+/* portal: chamada da pré-consulta, ficha de saúde e tela do formulário */
+.pf-cta{display:flex;align-items:center;gap:14px;background:var(--blue);cursor:pointer;margin-bottom:14px;box-shadow:0 0 0 2px var(--blue-2);transition:scale .22s var(--ease)}
+.pf-cta:active{scale:.985}
+.pf-cta-ico{width:50px;height:50px;border-radius:16px;background:var(--surface);display:grid;place-items:center;flex:none}
+.pf-cta .grow{min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.pf-cta small{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--blue-ink)}
+.pf-cta b{font-size:18px;font-weight:600;margin:3px 0 2px}
+.pf-cta .grow span{font-size:13.5px;color:var(--ink-2)}
+.pf-cta-go{display:inline-flex;align-items:center;gap:2px;background:var(--ink);color:var(--surface);padding:10px 12px 10px 16px;border-radius:99px;font-weight:600;font-size:14px;flex:none}
+.pf-cta-go .ico{width:16px;height:16px}
+[data-rv="in"] .pf-cta-ico{animation:pop .65s var(--spring) calc(var(--d) + .14s) backwards}
+.pf-ok{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:13.5px;color:var(--green-ink);font-weight:600;background:var(--green);border-radius:var(--r-md);padding:10px 14px;margin-bottom:14px}
+.pf-ok .ico{width:16px;height:16px}
+.pf-ok button{margin-left:auto;font-size:13px;font-weight:600;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.pf-anam{margin-bottom:14px;box-shadow:inset 0 0 0 1.5px var(--pink)}
+.pf-anam .chip-ico{background:oklch(0.93 0.04 20)}
+.pf-intro{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.pf-intro p{font-size:14px;color:var(--ink-2)}
+.pf-intro b{color:var(--ink)}
+.pf-prog{height:8px;border-radius:99px;background:var(--surface);overflow:hidden}
+.pf-prog i{display:block;height:100%;border-radius:99px;background:var(--green-ink);transition:width .5s var(--ease)}
+.pf-lock{display:flex;align-items:flex-start;gap:6px;font-size:12.5px!important;color:var(--muted)!important}
+.pf-lock .ico{width:15px;height:15px;flex:none;margin-top:1px}
+.pf-hint{font-size:12px;color:var(--muted);margin:-3px 0 0 2px}
+.pf-err{margin:4px 4px 12px;color:var(--red-ink);font-weight:600;font-size:14px}
+.pf-grid{padding-bottom:90px}
+@media (max-width:639px){
+  .pf-cta{flex-wrap:wrap}
+  .pf-cta-go{width:100%;justify-content:center}
+}
+/* formulário do portal no celular: o menu sai para os botões Depois/Enviar ficarem à mão */
+@media (max-width:1023px){ .pp-form .nav{display:none} .pp-form .pf-grid{padding-bottom:110px} }

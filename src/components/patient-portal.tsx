@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { flushSync } from 'react-dom';
 import {
   Activity, ArrowDown, ArrowLeftRight, ArrowRight, ArrowUp, BookOpen, ChevronDown, CalendarClock, Camera, ChevronLeft, ChevronRight, ClipboardList,
-  Droplet, Equal, Flame, Heart, House, KeyRound, LogOut, MapPin, MessageCircle, RefreshCw, Ruler, Scale, ShieldCheck, Target, TrendingUp, Zap,
+  Check, Droplet, Equal, Flame, Heart, House, KeyRound, LogOut, MapPin, MessageCircle, RefreshCw, Ruler, Scale, ShieldCheck, Target, TrendingUp, Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PhotoViewer, type ViewerSpec } from '@/components/photo-viewer';
@@ -14,7 +14,10 @@ const WaIcon = () => <svg className="ico sm wa-ico" viewBox="0 0 24 24" aria-hid
 import { calc, bmiClass, bfClass, whrRisk, fmt, fmtDate, toDate, today, ageAt, foldVal, CIRC_TRUNK, CIRC_LIMBS, FOLDS, PROTOCOLS, METRICS, GROUPS, firstName, initials } from '@/lib/calculos.js';
 import { poseLabel, POSES } from '@/lib/poses.js';
 import { fmtCode, isCode, normCode, type PortalData, type PortalPhoto } from '@/lib/portal-code';
-import { getPatientPortal } from '@/lib/portal.functions';
+import { getPatientPortal, submitPortalForm } from '@/lib/portal.functions';
+import { FORMS, type Answers, type FormKind } from '@/lib/forms';
+import { PortalForm } from '@/components/portal-form';
+import type { SubmitResult } from '@/lib/portal-code';
 import { pageReady, ripple, scan, withPageTransition } from '@/lib/motion';
 import parseHtml from 'html-react-parser';
 import { Apple, Download } from 'lucide-react';
@@ -185,14 +188,14 @@ function Entry({ onEnter, error }: { onEnter: (c: string) => void; error: string
 }
 
 /* ---------- app do paciente ---------- */
-type Tab = 'inicio' | 'evolucao' | 'medidas' | 'fotos' | 'avaliacoes' | 'guia' | 'avaliacao' | 'dieta';
-const ORDER: Record<Tab, number> = { inicio: 0, dieta: 0.5, evolucao: 1, medidas: 2, fotos: 3, avaliacoes: 4, avaliacao: 5, guia: 6 };
+type Tab = 'inicio' | 'evolucao' | 'medidas' | 'fotos' | 'avaliacoes' | 'guia' | 'avaliacao' | 'dieta' | 'form';
+const ORDER: Record<Tab, number> = { inicio: 0, dieta: 0.5, evolucao: 1, medidas: 2, fotos: 3, avaliacoes: 4, avaliacao: 5, guia: 6, form: 7 };
 const readView = (): { tab: Tab; id: string | null } => {
   const q = new URLSearchParams(window.location.search), v = q.get('v') as Tab | null;
   return { tab: v && v in ORDER ? v : 'inicio', id: q.get('id') };
 };
 
-function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: string; onExit: () => void; onRefresh: () => void }) {
+function PortalApp({ data, code, onExit, onRefresh, submit }: { data: PortalData; code: string; onExit: () => void; onRefresh: () => void; submit: (kind: FormKind, a: Answers) => Promise<SubmitResult> }) {
   const p = { sex: data.patient.sex, birth: data.patient.birth, height: data.patient.height };
   const sex = data.patient.sex;
   const list = useMemo(() => [...data.assessments].sort((x, y) => x.date.localeCompare(y.date)), [data]);
@@ -292,6 +295,11 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
   /* próximo retorno e frase de resumo */
   const every = data.patient.returnDays ?? data.nutri.returnDays ?? 30;
   const next = last ? addDays(last.date, every) : null, left = next ? daysTo(next) : null;
+  /* formulários: a pré-consulta é pedida quando o retorno está a 10 dias ou menos (ou atrasado) e ainda não foi respondida desde a última avaliação */
+  const [forms, setForms] = useState(data.forms ?? null);
+  const preDone = !!(forms?.pre && last && forms.pre.slice(0, 10) >= last.date);
+  const preAsk = !!forms && !!last && left != null && left <= 10 && !preDone;
+  const anamAsk = !!forms && !forms.anamnese && !forms.anamneseData;
   /* PDF das avaliações (mesmo relatório do nutricionista, só com o que foi compartilhado) */
   const pdfCtx = () => {
     const photos: Record<string, Record<string, string>> = {};
@@ -331,7 +339,7 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
     { k: 'inicio', l: 'Início', I: House }, ...(hasDiet ? [{ k: 'dieta' as Tab, l: 'Dieta', I: Apple }] : []), { k: 'evolucao', l: 'Evolução', I: TrendingUp }, { k: 'medidas', l: 'Medidas', I: Ruler },
     ...(hasPhotos ? [{ k: 'fotos' as Tab, l: 'Fotos', I: Camera }] : []), { k: 'avaliacoes', l: 'Avaliações', I: ClipboardList },
   ];
-  const cur: Tab = view.tab === 'avaliacao' ? 'avaliacoes' : view.tab === 'guia' ? 'medidas' : view.tab;
+  const cur: Tab = view.tab === 'avaliacao' ? 'avaliacoes' : view.tab === 'guia' ? 'medidas' : view.tab === 'form' ? 'inicio' : view.tab;
 
   /* ---------- tour de boas-vindas: na 1ª entrada com este código (dá para rever em "Como usar o portal") ---------- */
   const TOUR_KEY = 'avf.pp.tour.' + code;
@@ -423,6 +431,15 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
       <button className="icon-btn" onClick={onExit} aria-label="Sair deste aparelho"><LogOut className="ico" /></button>
     </header>
     <h1 className="headline">{summary}</h1>
+    {preAsk && (
+      <div className="card pf-cta" role="button" tabIndex={0} onClick={() => go('form', 'pre')} onKeyDown={(e) => { if (e.key === 'Enter') go('form', 'pre'); }}>
+        <span className="pf-cta-ico"><ClipboardList className="ico" /></span>
+        <div className="grow"><small>{left! < 0 ? 'Seu retorno já passou da data' : left === 0 ? 'Sua consulta é hoje' : `Sua consulta é em ${left} ${left === 1 ? 'dia' : 'dias'}`}</small>
+          <b>Responda a pré-consulta</b><span>2 minutos. {firstName(nutriName) === 'seu' ? 'Seu nutricionista' : firstName(nutriName)} já chega sabendo como foram suas semanas.</span></div>
+        <span className="pf-cta-go">Responder <ChevronRight className="ico sm" /></span>
+      </div>
+    )}
+    {preDone && left != null && left <= 10 && <div className="pf-ok"><Check className="ico sm" /> Pré-consulta enviada em {fmtDate(forms!.pre!.slice(0, 10), { day: 'numeric', month: 'long' })}. <button onClick={() => go('form', 'pre')}>Responder de novo</button></div>}
     {hasDiet && (() => {
       const d = diets[0]!, mini = dietMini(d.data, nowMin), cur = mini.cur;
       const v = cur ? variantOf(cur.meal, uiFor(d.id)).v : null;
@@ -441,6 +458,9 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
       );
     })()}
     {goalsHtml && <div className="pp-goals">{parseHtml(goalsHtml)}</div>}
+    {anamAsk && (
+      <button className="act-row pf-anam" onClick={() => go('form', 'anamnese')}><span className="chip-ico"><Heart className="ico sm" /></span><span className="grow"><b>Complete sua ficha de saúde</b><span>Doenças, remédios, alergias, rotina e treino · uns 5 minutos</span></span><em className="row-badge">novo</em><ChevronRight className="ico sm" /></button>
+    )}
     {!last ? empty(`Assim que ${nutriName} registrar sua primeira avaliação, tudo aparece aqui.`) : (<>
       <div className="dash">
         <div className="card blue span2 span2-d hero" onClick={() => go('medidas')} style={{ cursor: 'pointer' }}>
@@ -516,6 +536,8 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
       <button className="act-row" onClick={() => go('medidas')}><span className="chip-ico"><Ruler className="ico sm" /></span><span className="grow"><b>Medidas</b><span>Composição, índices, circunferências e dobras</span></span><ChevronRight className="ico sm" /></button>
       {hasPhotos && <button className="act-row" onClick={() => go('fotos')}><span className="chip-ico"><Camera className="ico sm" /></span><span className="grow"><b>Fotos</b><span>Antes e depois, lado a lado</span></span><ChevronRight className="ico sm" /></button>}
       <button className="act-row" onClick={() => go('avaliacoes')}><span className="chip-ico"><ClipboardList className="ico sm" /></span><span className="grow"><b>Avaliações</b><span>{list.length} {list.length === 1 ? 'registro' : 'registros'} com todos os detalhes</span></span>{!!badges.avaliacoes && <em className="row-badge">{badges.avaliacoes === 1 ? 'nova' : `${badges.avaliacoes} novas`}</em>}<ChevronRight className="ico sm" /></button>
+      {forms && <button className="act-row" onClick={() => go('form', 'pre')}><span className="chip-ico"><ClipboardList className="ico sm" /></span><span className="grow"><b>Pré-consulta</b><span>{preDone ? `Enviada em ${fmtDate(forms.pre!.slice(0, 10), { day: 'numeric', month: 'short' })} · dá para responder de novo` : 'Como foram suas semanas, antes do retorno'}</span></span>{preAsk && <em className="row-badge">pendente</em>}<ChevronRight className="ico sm" /></button>}
+      {forms && <button className="act-row" onClick={() => go('form', 'anamnese')}><span className="chip-ico"><Heart className="ico sm" /></span><span className="grow"><b>Ficha de saúde</b><span>{forms.anamnese || forms.anamneseData ? 'Atualize se algo mudou (remédios, exames, rotina)' : 'Saúde, remédios, alergias, rotina e treino'}</span></span><ChevronRight className="ico sm" /></button>}
       <button className="act-row" onClick={() => go('guia')}><span className="chip-ico"><BookOpen className="ico sm" /></span><span className="grow"><b>Entenda seus números</b><span>O que cada medida significa e as faixas de referência</span></span><ChevronRight className="ico sm" /></button>
       <button className="act-row" onClick={startTour}><span className="chip-ico"><Target className="ico sm" /></span><span className="grow"><b>Como usar o portal</b><span>Reveja em 30 segundos o tour de apresentação</span></span><ChevronRight className="ico sm" /></button>
     </div>
@@ -798,9 +820,25 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
     </>);
   };
 
-  const screens: Record<Tab, () => ReactNode> = { inicio: Home, dieta: hasDiet ? DietScreen : Home, evolucao: Evolution, medidas: Measures, fotos: hasPhotos ? Photos : Home, avaliacoes: Assessments, avaliacao: Detail, guia: Guide };
+  /* pré-consulta (?v=form&id=pre) e ficha de saúde (?v=form&id=anamnese) */
+  const FormView = () => {
+    const kind: FormKind = view.id === 'anamnese' ? 'anamnese' : 'pre_consulta';
+    if (!forms) return (<>
+      <header className="top"><button className="icon-btn" onClick={() => go('inicio')} aria-label="Voltar"><ChevronLeft className="ico" /></button><div className="title-block"><small>Portal</small><b>{FORMS[kind].title}</b></div></header>
+      <div className="card empty"><h3>Formulário ainda não disponível</h3><p>Fale com {nutriName} pelo WhatsApp enquanto isso.</p></div>
+    </>);
+    return <PortalForm def={FORMS[kind]} draftKey={`avf.pp.form.${code}.${kind}`} initial={kind === 'anamnese' ? forms.anamneseData : null} nutri={nutriName}
+      onSubmit={(a) => submit(kind, a)} onBack={() => go('inicio')}
+      onSent={(at, n) => {
+        setForms((f) => (f ? { ...f, ...(kind === 'anamnese' ? { anamnese: at } : { pre: at }) } : f));
+        go('inicio');
+        window.setTimeout(() => setNews({ tone: 'green', confetti: true, icon: <Check className="ico" />, kicker: kind === 'anamnese' ? 'Ficha de saúde' : 'Pré-consulta',
+          title: 'Respostas enviadas!', text: `${n} ${n === 1 ? 'resposta chegou' : 'respostas chegaram'} para ${nutriName}. ${kind === 'anamnese' ? 'Ela entra na sua ficha depois da revisão.' : 'Assim a consulta já começa do ponto certo.'}`, dismiss: 'Fechar' }), 450);
+      }} />;
+  };
+  const screens: Record<Tab, () => ReactNode> = { form: FormView, inicio: Home, dieta: hasDiet ? DietScreen : Home, evolucao: Evolution, medidas: Measures, fotos: hasPhotos ? Photos : Home, avaliacoes: Assessments, avaliacao: Detail, guia: Guide };
   return (
-    <main className="app has-nav pp" ref={host}>
+    <main className={'app has-nav pp' + (view.tab === 'form' ? ' pp-form' : '')} ref={host}>
       <div className="view" key={view.tab + (view.id ?? '')} data-dir={dir}>{screens[view.tab]()}</div>
       <nav className={'nav' + (tabs.length > 5 ? ' six' : '')}>
         <div className="side-brand"><span className="mark"><Heart className="ico sm" /></span><span>Portal do<br />paciente</span></div>
@@ -823,7 +861,9 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
 }
 
 /* ---------- tela principal ---------- */
-export function PatientPortal({ load = (code: string) => getPatientPortal({ data: { code } }) }: { load?: (code: string) => ReturnType<typeof getPatientPortal> }) {
+type SubmitFn = (code: string, kind: FormKind, data: Answers) => Promise<SubmitResult>;
+const defaultSubmit: SubmitFn = (code, kind, data) => submitPortalForm({ data: { code, kind, data } });
+export function PatientPortal({ load = (code: string) => getPatientPortal({ data: { code } }), submit = defaultSubmit }: { load?: (code: string) => ReturnType<typeof getPatientPortal>; submit?: SubmitFn }) {
   const [phase, setPhase] = useState<'boot' | 'entry' | 'loading' | 'ready' | 'down'>('boot');
   const [data, setData] = useState<PortalData | null>(null);
   const [error, setError] = useState('');
@@ -861,6 +901,6 @@ export function PatientPortal({ load = (code: string) => getPatientPortal({ data
       <Button variant="original" className="btn dark" style={{ margin: '16px auto 0', display: 'inline-flex' }} onClick={() => void enter(code.current || read())}><RefreshCw size={16} /> Tentar de novo</Button>
       <button className="btn ghost sm" style={{ margin: '10px auto 0', display: 'flex' }} onClick={exit}>Usar outro código</button></div></div></main>
   );
-  if (phase === 'ready' && data) return <PortalApp data={data} code={code.current} onExit={exit} onRefresh={() => void enter(code.current)} />;
+  if (phase === 'ready' && data) return <PortalApp data={data} code={code.current} onExit={exit} onRefresh={() => void enter(code.current)} submit={(kind, a) => submit(code.current, kind, a)} />;
   return <Entry onEnter={(c) => void enter(c)} error={error} />;
 }
