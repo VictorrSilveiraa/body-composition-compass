@@ -35,6 +35,21 @@ export function responseStore(available: boolean, initial: Resposta[]) {
     },
     /** busca de novo (ex.: ao voltar para a aba): respostas que chegaram enquanto o app estava aberto */
     async refresh() { const r = await loadResponses(); if (r.available) { available = true; list = r.list; } return r.available; },
+    /** todas as respostas (para o backup) */
+    all: () => list.slice(),
+    /**
+     * Importação de backup: grava respostas trazidas de outra conta. Precisa da permissão de inserir do
+     * próprio nutricionista na tabela (prompt PROMPT_LOVABLE_IMPORTAR.md); sem ela, devolve o erro.
+     */
+    async importMany(owner: string, rows: { patientId: string; kind: FormKind; data: Answers; read: boolean; createdAt: string }[]) {
+      if (!rows.length) return 0;
+      if (!available) throw new Error('Respostas do portal indisponíveis neste banco');
+      const { data, error } = await loose.from(TABLE).insert(rows.map((r) => ({ owner_id: owner, paciente_id: r.patientId, tipo: r.kind, dados: r.data, lida: r.read, created_at: r.createdAt })))
+        .select('id,paciente_id,tipo,dados,lida,created_at');
+      if (error) throw error;
+      list = [...((data ?? []) as Row[]).map(toResp), ...list].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+      return (data ?? []).length;
+    },
     /** apaga respostas (o nutricionista exclui uma pré-consulta ou descarta a ficha enviada) */
     async remove(ids: string[]) {
       if (!ids.length) return;

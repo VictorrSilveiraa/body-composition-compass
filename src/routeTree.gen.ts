@@ -26,6 +26,7 @@ import { Route as AuthenticatedAvaliacoesIdRouteImport } from './routes/_authent
 import { Route as AuthenticatedDietasIdRouteImport } from './routes/_authenticated/dietas.$id'
 import { Route as AuthenticatedDietasNovaRouteImport } from './routes/_authenticated/dietas.nova'
 import { Route as AuthenticatedPacientesIdRouteImport } from './routes/_authenticated/pacientes.$id'
+import { Route as AuthenticatedPerfilBackupRouteImport } from './routes/_authenticated/perfil.backup'
 import { Route as AuthenticatedPerfilEditarRouteImport } from './routes/_authenticated/perfil.editar'
 import { Route as AuthenticatedPessoaNovaRouteImport } from './routes/_authenticated/pessoa.nova'
 import { Route as AuthenticatedAvaliacoesIdEditarRouteImport } from './routes/_authenticated/avaliacoes.$id.editar'
@@ -120,6 +121,12 @@ const AuthenticatedPacientesIdRoute =
     path: '/$id',
     getParentRoute: () => AuthenticatedPacientesRoute,
   } as any)
+const AuthenticatedPerfilBackupRoute =
+  AuthenticatedPerfilBackupRouteImport.update({
+    id: '/backup',
+    path: '/backup',
+    getParentRoute: () => AuthenticatedPerfilRoute,
+  } as any)
 const AuthenticatedPerfilEditarRoute =
   AuthenticatedPerfilEditarRouteImport.update({
     id: '/editar',
@@ -179,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/dietas/$id': typeof AuthenticatedDietasIdRouteWithChildren
   '/dietas/nova': typeof AuthenticatedDietasNovaRoute
   '/pacientes/$id': typeof AuthenticatedPacientesIdRouteWithChildren
+  '/perfil/backup': typeof AuthenticatedPerfilBackupRoute
   '/perfil/editar': typeof AuthenticatedPerfilEditarRoute
   '/pessoa/nova': typeof AuthenticatedPessoaNovaRoute
   '/avaliacoes/$id/editar': typeof AuthenticatedAvaliacoesIdEditarRoute
@@ -204,6 +212,7 @@ export interface FileRoutesByTo {
   '/dietas/$id': typeof AuthenticatedDietasIdRouteWithChildren
   '/dietas/nova': typeof AuthenticatedDietasNovaRoute
   '/pacientes/$id': typeof AuthenticatedPacientesIdRouteWithChildren
+  '/perfil/backup': typeof AuthenticatedPerfilBackupRoute
   '/perfil/editar': typeof AuthenticatedPerfilEditarRoute
   '/pessoa/nova': typeof AuthenticatedPessoaNovaRoute
   '/avaliacoes/$id/editar': typeof AuthenticatedAvaliacoesIdEditarRoute
@@ -231,6 +240,7 @@ export interface FileRoutesById {
   '/_authenticated/dietas/$id': typeof AuthenticatedDietasIdRouteWithChildren
   '/_authenticated/dietas/nova': typeof AuthenticatedDietasNovaRoute
   '/_authenticated/pacientes/$id': typeof AuthenticatedPacientesIdRouteWithChildren
+  '/_authenticated/perfil/backup': typeof AuthenticatedPerfilBackupRoute
   '/_authenticated/perfil/editar': typeof AuthenticatedPerfilEditarRoute
   '/_authenticated/pessoa/nova': typeof AuthenticatedPessoaNovaRoute
   '/_authenticated/avaliacoes/$id/editar': typeof AuthenticatedAvaliacoesIdEditarRoute
@@ -258,6 +268,7 @@ export interface FileRouteTypes {
     | '/dietas/$id'
     | '/dietas/nova'
     | '/pacientes/$id'
+    | '/perfil/backup'
     | '/perfil/editar'
     | '/pessoa/nova'
     | '/avaliacoes/$id/editar'
@@ -283,6 +294,7 @@ export interface FileRouteTypes {
     | '/dietas/$id'
     | '/dietas/nova'
     | '/pacientes/$id'
+    | '/perfil/backup'
     | '/perfil/editar'
     | '/pessoa/nova'
     | '/avaliacoes/$id/editar'
@@ -309,6 +321,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dietas/$id'
     | '/_authenticated/dietas/nova'
     | '/_authenticated/pacientes/$id'
+    | '/_authenticated/perfil/backup'
     | '/_authenticated/perfil/editar'
     | '/_authenticated/pessoa/nova'
     | '/_authenticated/avaliacoes/$id/editar'
@@ -448,6 +461,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPacientesIdRouteImport
       parentRoute: typeof AuthenticatedPacientesRoute
     }
+    '/_authenticated/perfil/backup': {
+      id: '/_authenticated/perfil/backup'
+      path: '/backup'
+      fullPath: '/perfil/backup'
+      preLoaderRoute: typeof AuthenticatedPerfilBackupRouteImport
+      parentRoute: typeof AuthenticatedPerfilRoute
+    }
     '/_authenticated/perfil/editar': {
       id: '/_authenticated/perfil/editar'
       path: '/editar'
@@ -586,10 +606,12 @@ const AuthenticatedPacientesRouteWithChildren =
   )
 
 interface AuthenticatedPerfilRouteChildren {
+  AuthenticatedPerfilBackupRoute: typeof AuthenticatedPerfilBackupRoute
   AuthenticatedPerfilEditarRoute: typeof AuthenticatedPerfilEditarRoute
 }
 
 const AuthenticatedPerfilRouteChildren: AuthenticatedPerfilRouteChildren = {
+  AuthenticatedPerfilBackupRoute: AuthenticatedPerfilBackupRoute,
   AuthenticatedPerfilEditarRoute: AuthenticatedPerfilEditarRoute,
 }
 

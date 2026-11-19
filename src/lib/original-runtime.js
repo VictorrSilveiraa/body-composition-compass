@@ -6,6 +6,7 @@ import {exportPdf} from "./report.js";
 import {dietScreens} from "./diet-screens.js";
 import {careScreens} from "./care-screens.js";
 import {formScreens} from "./forms-screens.js";
+import {backupScreens} from "./backup-screens.js";
 import {waSvg} from "./wa-icon";
 const FOLD_NAME=Object.fromEntries(FOLDS.map(f=>[f.k,f.l]));
 export function mountOriginal(options){
@@ -1089,8 +1090,8 @@ function viewProfile(){
     <h2 class="sec">Dados e conta</h2>
     <div class="actions">
       <button class="act-row" data-act="tour"><span class="chip-ico">${ic('target','sm')}</span><span class="grow"><b>Tour de apresentação</b><span>Reveja em 1 minuto como usar o sistema</span></span>${ic('right','sm')}</button>
-      <button class="act-row" data-act="export"><span class="chip-ico">${ic('dl','sm')}</span><span class="grow"><b>Exportar backup</b><span>Arquivo .json com todos os pacientes e avaliações</span></span></button>
-      <button class="act-row" data-act="import"><span class="chip-ico">${ic('ul','sm')}</span><span class="grow"><b>Restaurar backup</b><span>Importa um arquivo .json exportado antes, sem duplicar</span></span></button>
+      <button class="act-row" data-act="backupOut"><span class="chip-ico">${ic('dl','sm')}</span><span class="grow"><b>Exportar backup</b><span>Escolha pacientes e o que levar: fichas, avaliações, metas, planos, fotos…</span></span>${ic('right','sm')}</button>
+      <button class="act-row" data-act="backupIn"><span class="chip-ico">${ic('ul','sm')}</span><span class="grow"><b>Importar backup</b><span>Veja o que tem no arquivo e escolha o que trazer, sem duplicar</span></span>${ic('right','sm')}</button>
     </div>
     <button class="logout-row" data-act="logout"><span class="chip-ico">${ic('out','sm')}</span><span class="grow"><b>Sair da conta</b><span>${esc(options.email||'')}</span></span></button>
   </div></div>
@@ -1302,7 +1303,7 @@ function updateLive(){
    RENDER / ROUTER
    ========================================================= */
 let app = options.app;
-const ORDER = {home:0,patients:1,returns:1.5,patient:2,energy:2.5,anamnese:2.6,list:3,detail:4,compare:5,diets:5.3,diet:5.5,profile:6,nutri:7,onboard:8,wizard:9,dietNew:9,dietEdit:9};
+const ORDER = {home:0,patients:1,returns:1.5,patient:2,energy:2.5,anamnese:2.6,list:3,detail:4,compare:5,diets:5.3,diet:5.5,profile:6,backup:6.5,nutri:7,onboard:8,wizard:9,dietNew:9,dietEdit:9};
 let lastRoute = null;
 function render(){
   // sem pacientes: primeiro o perfil do nutricionista (1º acesso), depois o cadastro do paciente
@@ -1324,6 +1325,7 @@ function render(){
     case 'compare': html = viewCompare(); break;
     case 'profile': html = viewProfile(); break;
     case 'nutri': html = `<div class="narrow">${viewNutri()}</div>`; break;
+    case 'backup': html = BK.viewBackup(); break;
     case 'patients': html = viewPatients(); break;
     case 'patient': html = viewPatient(state.param); break;
     case 'energy': html = CS.viewEnergy(state.param); break;
@@ -1332,7 +1334,7 @@ function render(){
     case 'wizard': html = viewWizard(); break;
     default: html = viewHome();
   }
-  const showNav = !['wizard','onboard','nutri','dietNew','dietEdit','anamnese'].includes(state.route);
+  const showNav = !['wizard','onboard','nutri','dietNew','dietEdit','anamnese','backup'].includes(state.route);
   let navHtml='';
   if(showNav){ const tabs=[['home','home','Início'],['patients','users','Pacientes','',FS.unreadPatients()],['list','cal','Avaliações'],['compare','chart','Evolução'],...(DS.has()?[['diets','leaf','Dieta']]:[]),['profile','user','Perfil','',CS.pendingCount()]]; /* celular: o Perfil leva aos Retornos, então carrega o aviso */ const cur={detail:'list',patient:'patients',energy:'patients',anamnese:'patients',diet:'diets'}[state.route]||state.route;
   // No celular: só os botões (pílula flutuante). No computador vira barra lateral com marca, paciente atual, atalho e nutricionista.
@@ -1360,12 +1362,12 @@ function render(){
   options.render(html, navHtml, key, dir);
   maybeTour();
 }
-function routePath(route,param){const paths={home:'/',patients:'/pacientes',patient:'/pacientes/'+param,energy:'/pacientes/'+param+'/energia',anamnese:'/pacientes/'+param+'/anamnese',returns:'/retornos',nutri:'/perfil/editar',list:'/avaliacoes',detail:'/avaliacoes/'+param,compare:'/evolucao',profile:'/perfil',diets:'/dietas',diet:'/dietas/'+param,dietNew:'/dietas/nova',dietEdit:'/dietas/'+param+'/editar',wizard:state.editingId?'/avaliacoes/'+state.editingId+'/editar':'/nova',onboard:param?'/pessoa/'+param+'/editar':'/pessoa/nova'};return paths[route]||'/';}
+function routePath(route,param){const paths={home:'/',patients:'/pacientes',patient:'/pacientes/'+param,energy:'/pacientes/'+param+'/energia',anamnese:'/pacientes/'+param+'/anamnese',returns:'/retornos',nutri:'/perfil/editar',backup:'/perfil/backup',list:'/avaliacoes',detail:'/avaliacoes/'+param,compare:'/evolucao',profile:'/perfil',diets:'/dietas',diet:'/dietas/'+param,dietNew:'/dietas/nova',dietEdit:'/dietas/'+param+'/editar',wizard:state.editingId?'/avaliacoes/'+state.editingId+'/editar':'/nova',onboard:param?'/pessoa/'+param+'/editar':'/pessoa/nova'};return paths[route]||'/';}
 // Muda a URL e deixa o syncPath desenhar a tela nova numa única passada (sem piscar a tela antiga).
 function go(route,param=null,push=true){state.route=route;state.param=param;state.dd=null;state.gl=null;try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} const to=routePath(route,param); if(push && to!==window.location.pathname) options.navigate(to); else render();}
 function syncPath(path){
  let route='home',param=null;
- if(path==='/avaliacoes') route='list'; else if(path==='/evolucao')route='compare';else if(path==='/perfil')route='profile';else if(path==='/perfil/editar')route='nutri';else if(path==='/pacientes')route='patients';else if(path==='/retornos')route='returns';else if(path.startsWith('/pacientes/')){route=path.endsWith('/energia')?'energy':path.endsWith('/anamnese')?'anamnese':'patient';param=path.split('/')[2];if(db.profiles.some(p=>p.id===param))setActive(param);}else if(path==='/nova')route='wizard';else if(path.startsWith('/pessoa/')){route='onboard';param=path.endsWith('/editar')?path.split('/')[2]:null;}else if(path.startsWith('/avaliacoes/')){param=path.split('/')[2];route=path.endsWith('/editar')?'wizard':'detail';}else if(path==='/dietas')route='diets';else if(path==='/dietas/nova')route='dietNew';else if(path.startsWith('/dietas/')){param=path.split('/')[2];route=path.endsWith('/editar')?'dietEdit':'diet';const r=options.diets?.get(param);if(r&&db.profiles.some(p=>p.id===r.profileId))setActive(r.profileId);}
+ if(path==='/avaliacoes') route='list'; else if(path==='/evolucao')route='compare';else if(path==='/perfil')route='profile';else if(path==='/perfil/editar')route='nutri';else if(path==='/perfil/backup')route='backup';else if(path==='/pacientes')route='patients';else if(path==='/retornos')route='returns';else if(path.startsWith('/pacientes/')){route=path.endsWith('/energia')?'energy':path.endsWith('/anamnese')?'anamnese':'patient';param=path.split('/')[2];if(db.profiles.some(p=>p.id===param))setActive(param);}else if(path==='/nova')route='wizard';else if(path.startsWith('/pessoa/')){route='onboard';param=path.endsWith('/editar')?path.split('/')[2]:null;}else if(path.startsWith('/avaliacoes/')){param=path.split('/')[2];route=path.endsWith('/editar')?'wizard':'detail';}else if(path==='/dietas')route='diets';else if(path==='/dietas/nova')route='dietNew';else if(path.startsWith('/dietas/')){param=path.split('/')[2];route=path.endsWith('/editar')?'dietEdit':'diet';const r=options.diets?.get(param);if(r&&db.profiles.some(p=>p.id===r.profileId))setActive(r.profileId);}
  if(route==='dietNew'||route==='dietEdit'){const r2=DS.prepare(route,param);if(r2!==route){route=r2;param=null;}}
  if(route==='wizard' && !draft){if(param&&findA(param)){draft=clone(findA(param));state.editingId=param;db.activeId=draft.profileId;}else if(prof()){draft=newDraft();state.editingId=null;} }
  initForm(route,param); state.dd=null;
@@ -1508,6 +1510,12 @@ const FS = formScreens({
   db: () => db, save, fmtCode: fmtAccessCode,
   // acesso ao portal do paciente: undefined enquanto carrega, null se não tem
   access: pid => { paLoad(pid); const s = PA[pid]; return s?.loaded ? (s.access || null) : undefined; },
+});
+
+/* ---------- backup: exportar e importar escolhendo o que vai/volta (src/lib/backup-screens.js) ---------- */
+const BK = backupScreens({
+  options, state, ic, go, render, toast, formBar, download, save, phSync,
+  db: () => db, setDb: x => { db = x; }, nutri: () => nutri, setNutri: n => { nutri = n; },
 });
 
 /* ---------- ações ---------- */
@@ -1731,16 +1739,15 @@ const ACT = {
   delProfile: async b => { const p = db.profiles.find(x=>x.id===b.dataset.id) || prof(); sheet(`Excluir ${p.name}?`, `Isso remove o paciente e ${plural(listOf(p.id).length,'avaliação','avaliações')}. Não pode ser desfeito — se quiser só tirar da lista, use “Arquivar”.`, [
     {label:'Excluir definitivamente', cls:'danger', fn:async ()=>{ for (const a of listOf(p.id)) PH?.removeAssessment(a.id); db.assessments = db.assessments.filter(a=>a.profileId!==p.id); db.profiles = db.profiles.filter(x=>x.id!==p.id); if (db.activeId===p.id) db.activeId = (db.profiles.find(x=>!x.archived)||db.profiles[0])?.id||null; if (draft?.profileId===p.id){ draft=null; saveDraft(); } DS.forgetPatient(p.id); FS.forgetPatient(p.id); await save(); go(db.profiles.length?'patients':'home'); toast('Paciente excluído'); }},
     {label:'Cancelar'}]); },
-  export: async () => { download(`avaliacao-fisica-backup-${today()}.json`, JSON.stringify({app:'avaliacao-fisica', version:1, exportedAt:new Date().toISOString(), ...db}, null, 2), 'application/json'); toast('Backup exportado'); },
-  import: async () => document.getElementById('importFile').click(),
+  export: async () => BK.startExport(),
+  import: async () => BK.openFile(),
   // ficha do paciente: escolhe o formato (planilha para abrir no Excel; JSON com os dados completos, restaurável)
   exportPt: async b => {
     const p = db.profiles.find(x=>x.id===b.dataset.id) || prof(); if (!p) return;
     const n = listOf(p.id).length, slug = norm(firstName(p.name)).replace(/[^a-z0-9]+/g,'-') || 'paciente';
     sheet(`Exportar dados de ${firstName(p.name)}`, n ? `${plural(n,'avaliação','avaliações')} · escolha o formato do arquivo.` : 'Ainda sem avaliações — a planilha fica disponível depois da primeira.', [
       {label:'Planilha (CSV)', sub:'Abre no Excel ou Google Planilhas · uma linha por avaliação', icon:ic('table'), cls:'opt', fn:()=>ACT.csv({dataset:{id:p.id}})},
-      {label:'Arquivo JSON', sub:'Ficha e avaliações completas · dá para restaurar depois', icon:ic('code'), cls:'opt', fn:async()=>{
-        download(`paciente-${slug}-${today()}.json`, JSON.stringify({app:'avaliacao-fisica', version:1, exportedAt:new Date().toISOString(), activeId:p.id, profiles:[p], assessments:listOf(p.id)}, null, 2), 'application/json'); toast('Arquivo JSON exportado'); }},
+      {label:'Backup .json', sub:'Escolha o que levar: ficha, avaliações, metas, planos, fotos… · dá para importar em outra conta', icon:ic('code'), cls:'opt', fn:async()=>BK.startExport([p.id])},
       {label:'Cancelar'}]);
   },
   csv: async b => {
@@ -1754,6 +1761,7 @@ const ACT = {
   ...DS.acts,
   ...CS.acts,
   ...FS.acts,
+  ...BK.acts,
 };
 const click = async e => {
   // menu aberto + clique fora dele: fecha
