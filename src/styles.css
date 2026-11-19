@@ -2429,3 +2429,7 @@ button.kpi:active{scale:.97}
 }
 @keyframes dnIn{from{opacity:0;transform:scale(.92) translateY(14px)}}
 @media (prefers-reduced-motion:reduce){.dn,.dn *{animation:none!important}.dn-burst{display:none}}
+
+/* botão "Criar código de acesso": o .btn.dark tem flex:1, que numa coluna esmaga a altura */
+.pa-empty .btn{flex:none;align-self:stretch;height:52px;font-size:15px;margin-top:2px}
+@media (min-width:760px){.pa-empty .btn{align-self:flex-start;padding:0 26px}}

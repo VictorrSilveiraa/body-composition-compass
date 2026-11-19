@@ -57,12 +57,17 @@ const bridge = {
   camera: (_c: CameraSpec) => {},
   viewer: (_v: ViewerSpec) => {},
   done: (_d: DoneSpec) => {},
+  showDone: () => {},
 };
 let live: { runtime: Runtime; userId: string } | null = null;
+// janela de conclusão pendente: fica guardada até ser fechada, para sobreviver à troca de página
+// (ex.: salvar a avaliação sai do formulário e abre a avaliação — outra instância desta tela)
+let doneQueued: { spec: DoneSpec; n: number } | null = null;
+let doneSeq = 0;
 let lastFrame: Frame | null = null;
 let shownKey: string | null = null;
 export const hasLiveApp = () => live !== null;
-function dropLive() { live?.runtime.destroy(); live = null; lastFrame = null; shownKey = null; }
+function dropLive() { live?.runtime.destroy(); live = null; lastFrame = null; shownKey = null; doneQueued = null; }
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
@@ -88,8 +93,7 @@ export function AssessmentApp() {
   const [tour, setTour] = useState<TourSpec | null>(null);
   const [camera, setCamera] = useState<CameraSpec | null>(null);
   const [viewer, setViewer] = useState<ViewerSpec | null>(null);
-  const [done, setDone] = useState<DoneSpec | null>(null);
-  const doneN = useRef(0);
+  const [done, setDone] = useState<{ spec: DoneSpec; n: number } | null>(null);
   const navigate = useNavigate(), queryClient = useQueryClient();
   const path = useRouterState({ select: (s) => s.location.pathname });
   // enquanto a próxima página carrega, esta tela não deve desenhar a página nova (senão anima duas vezes)
@@ -107,7 +111,13 @@ export function AssessmentApp() {
     bridge.camera = setCamera;
     bridge.viewer = setViewer;
     // abre depois da transição de página (senão a barra de navegação fica por cima durante a animação)
-    bridge.done = (d) => { window.setTimeout(() => { doneN.current++; setDone({ onError: (e) => bridge.toast(motivo(e, 'Não foi possível concluir. Tente novamente.')), ...d }); }, 420); };
+    bridge.done = (d) => {
+      doneQueued = { spec: { onError: (e) => bridge.toast(motivo(e, 'Não foi possível concluir. Tente novamente.')), ...d }, n: ++doneSeq };
+      window.setTimeout(() => bridge.showDone(), 420);
+    };
+    bridge.showDone = () => { if (doneQueued) setDone(doneQueued); };
+    // a página anterior pediu a janela e saiu antes de mostrá-la: esta tela mostra
+    if (doneQueued) window.setTimeout(() => bridge.showDone(), 420);
     if (live && host.current) live.runtime.attach(host.current, pathRef.current);
   }, []);
 
@@ -223,7 +233,7 @@ export function AssessmentApp() {
       {tour && <AppTour spec={tour} onEnd={() => setTour(null)} />}
       {camera && <PoseCamera spec={camera} onEnd={() => setCamera(null)} />}
       {viewer && <PhotoViewer spec={viewer} onEnd={() => setViewer(null)} />}
-      {done && <DoneSheet key={doneN.current} spec={done} onEnd={() => setDone(null)} />}
+      {done && <DoneSheet key={done.n} spec={done.spec} onEnd={() => { if (doneQueued?.n === done.n) doneQueued = null; setDone(null); }} />}
     </>
   );
 }
