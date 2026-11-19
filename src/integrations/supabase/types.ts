@@ -300,6 +300,44 @@ export type Database = {
         }
         Relationships: []
       }
+      respostas_paciente: {
+        Row: {
+          created_at: string
+          dados: Json
+          id: string
+          lida: boolean
+          owner_id: string
+          paciente_id: string
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          dados: Json
+          id?: string
+          lida?: boolean
+          owner_id?: string
+          paciente_id: string
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          dados?: Json
+          id?: string
+          lida?: boolean
+          owner_id?: string
+          paciente_id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "respostas_paciente_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

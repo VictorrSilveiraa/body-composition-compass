@@ -57,6 +57,13 @@
       "when": 1795100574776,
       "tag": "0007_verify_plano_column",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795114454617,
+      "tag": "0008_create_respostas_paciente",
+      "breakpoints": true
     }
   ]
 }
