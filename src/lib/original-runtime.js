@@ -62,7 +62,9 @@ const I = {
   camera:'<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>',
   image:'<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
   lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
-  leaf:'<path d="M5 19c0-8 5-13 15-14-1 10-6 15-14 15"/><path d="M5 19c3-4 6-6.5 10-8.5"/>',
+  // dieta = maçã (o mesmo ícone do portal do paciente)
+  leaf:'<path d="M12 6.528V3a1 1 0 0 1 1-1h0"/><path d="M18.237 21A15 15 0 0 0 22 11a6 6 0 0 0-10-4.472A6 6 0 0 0 2 11a15.1 15.1 0 0 0 3.763 10 3 3 0 0 0 3.648.648 5.5 5.5 0 0 1 5.178 0A3 3 0 0 0 18.237 21"/>',
+  pdf:'<path d="M14 3H7a2 2 0 0 0-2 2v6.5"/><path d="M19 11.5V8l-5-5"/><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M3.5 21v-6h1.8a1.9 1.9 0 0 1 0 3.8H3.5"/><path d="M10 15h1.2a3 3 0 0 1 0 6H10Z"/><path d="M17 21v-6h3.5M17 18h2.8"/>',
   gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
 };
 const ic = (n, cls='') => `<svg class="ico ${cls}" viewBox="0 0 24 24">${I[n]||''}</svg>`;
@@ -522,7 +524,7 @@ function viewWelcome(){
     ['blue','users','Pacientes organizados','Busca, filtros e alerta de retorno atrasado.'],
     ['yellow','clip','Avaliação guiada','Peso, circunferências e dobras em 7 etapas.'],
     ['green','chart','Evolução clara','Gráficos e comparativo entre consultas.'],
-    ['','print','Relatórios em PDF','Prontos para entregar ao paciente.'],
+    ['','pdf','Relatórios em PDF','Prontos para entregar ao paciente.'],
     ['green span2','leaf','Plano alimentar interativo','Importe o PDF do WebDiet e o paciente recebe a dieta organizada no portal.']];
   return `${nutriTopbar()}
   <h1 class="headline">${hasName ? `${esc(firstName(nutriName()))}, seu espaço de atendimento está pronto.` : 'Seu espaço de atendimento está pronto.'}</h1>
@@ -697,10 +699,10 @@ function viewDetail(id){
     <div class="title-block"><small>Avaliação · ${esc(p.name)}</small><b>${fmtDate(a.date,{day:'numeric',month:'long',year:'numeric'})}</b></div><div class="grow"></div>
     <div class="dt-acts no-print">
       ${pv?`<button class="btn ghost sm dt-d" data-act="cmpWith" data-a="${pv.id}" data-b="${a.id}">${ic('swap','sm')}<span>Comparar com a anterior</span></button>`:''}
-      <button class="btn ghost sm dt-d" data-act="print" data-id="${a.id}">${ic('print','sm')}<span>PDF</span></button>
+      <button class="btn ghost sm dt-d" data-act="print" data-id="${a.id}">${ic('pdf','sm')}<span>PDF</span></button>
       <button class="btn ghost sm dt-d" data-act="edit" data-id="${a.id}">${ic('edit','sm')}<span>Editar</span></button>
       <button class="btn ghost sm dt-d dt-del" data-act="del" data-id="${a.id}" aria-label="Excluir avaliação" title="Excluir avaliação">${ic('trash','sm')}</button>
-      <button class="icon-btn dt-m" data-act="print" data-id="${a.id}" aria-label="Exportar PDF">${ic('print')}</button>
+      <button class="icon-btn dt-m" data-act="print" data-id="${a.id}" aria-label="Exportar PDF">${ic('pdf')}</button>
       <button class="icon-btn dt-m" data-act="aMenu" data-id="${a.id}" aria-label="Opções da avaliação" aria-haspopup="dialog">${ic('gear')}</button>
     </div></header>
 
@@ -756,7 +758,7 @@ function viewCompare(){
   const p = prof(), list = listOf(p.id);
   let h = `<header class="top"><button class="icon-btn" data-act="go" data-to="home">${ic('back')}</button>
     <div class="title-block"><small>${esc(p.name)}</small><b>Evolução</b></div><div class="grow"></div>
-    ${list.length && state.cmpTab!=='ph'?`<button class="icon-btn" data-act="exportCmp" aria-label="Exportar PDF" title="${state.cmpTab==='ab'?'Exportar comparativo em PDF':'Exportar evolução em PDF'}">${ic('dl')}</button>`:''}</header>
+    ${list.length && state.cmpTab!=='ph'?`<button class="icon-btn" data-act="exportCmp" aria-label="Exportar PDF" title="${state.cmpTab==='ab'?'Exportar comparativo em PDF':'Exportar evolução em PDF'}">${ic('pdf')}</button>`:''}</header>
     <div class="seg full" style="margin-bottom:16px">
       <button data-act="cmpTab" data-v="evo" class="${state.cmpTab==='evo'?'on':''}">Linha do tempo</button>
       <button data-act="cmpTab" data-v="ab" class="${state.cmpTab==='ab'?'on':''}">A × B</button>
@@ -978,7 +980,7 @@ function viewPatient(id){
     <button class="pa" data-act="openAs" data-to="home" data-id="${p.id}">${ic('home')}<span>Painel</span></button>
     <button class="pa" data-act="openAs" data-to="compare" data-id="${p.id}">${ic('chart')}<span>Evolução</span></button>
     ${DS.has() ? `<button class="pa" data-act="openAs" data-to="diets" data-id="${p.id}">${ic('leaf')}<span>Dieta</span></button>` : ''}
-    <button class="pa" data-act="print">${ic('print')}<span>PDF</span></button>
+    <button class="pa" data-act="print">${ic('pdf')}<span>PDF</span></button>
   </div>`;
   if (!last){
     h += `<div class="card empty" style="margin-top:16px"><div class="e-ico">${ic('clip')}</div><h3>Nenhuma avaliação ainda</h3><p>Registre a primeira avaliação de ${esc(firstName(p.name))} para acompanhar peso, gordura e medidas a cada retorno.</p></div>`;
@@ -1359,7 +1361,7 @@ function doneAssessment(a){
   const actions = [
     { label:`Avisar ${fn} no WhatsApp`, sub: p.phone ? 'Mensagem pronta com o resultado' : 'Copia a mensagem para enviar', icon: waSvg('ico wa-ico'), primary:true, fn: () => sendAssessment(p, a) },
     DS.has() && { label:'Montar o plano alimentar', sub:'Importar do WebDiet ou montar do zero', icon: ic('leaf'), fn: () => DS.acts.dtNew({dataset:{pid:p.id, aid:a.id}}) },
-    { label:'Gerar relatório em PDF', sub: pv ? 'Completo, resumo ou comparativo' : 'Completo ou resumo em 1 página', icon: ic('print'), fn: () => ACT.print({dataset:{id:a.id}}) },
+    { label:'Gerar relatório em PDF', sub: pv ? 'Completo, resumo ou comparativo' : 'Completo ou resumo em 1 página', icon: ic('pdf'), fn: () => ACT.print({dataset:{id:a.id}}) },
   ].filter(Boolean);
   done({ tone:'green', confetti:true,
     kicker: n===1 ? 'Primeira avaliação · ponto de partida' : `${n}ª avaliação${days ? ` · ${plural(days,'dia','dias')} desde a anterior` : ''}`,
@@ -1534,7 +1536,7 @@ const ACT = {
       {label:'Editar avaliação', icon:ic('edit','sm'), cls:'dark', fn:then(()=>ACT.edit(fake))},
       pv && {label:'Comparar com a anterior', icon:ic('swap','sm'), fn:()=>ACT.cmpWith({dataset:{a:pv.id, b:a.id}})},
       PH && {label:phOf(a.id).length ? 'Fotos · câmera guiada' : 'Adicionar fotos', icon:ic('camera','sm'), fn:then(()=>openCamera(a.id))},
-      {label:'Exportar em PDF', icon:ic('print','sm'), fn:then(()=>ACT.print(fake))},
+      {label:'Exportar em PDF', icon:ic('pdf','sm'), fn:then(()=>ACT.print(fake))},
       {label:'Excluir avaliação', icon:ic('trash','sm'), cls:'danger', fn:then(()=>ACT.del(fake))},
       {label:'Cancelar'}].filter(Boolean));
   },

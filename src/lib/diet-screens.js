@@ -109,7 +109,7 @@ function viewDiet(id){
   return `<header class="top"><button class="icon-btn" data-act="dtBack" data-pid="${rec.profileId}" aria-label="Voltar">${ic('back')}</button>
     <div class="title-block"><small>Plano alimentar · ${esc(p?.name||'')}</small><b>${esc(rec.title)}</b></div><div class="grow"></div>
     <div class="dt-acts">
-      <button class="btn ghost sm dt-d" data-act="dtPdf" data-id="${id}">${ic('print','sm')}<span>PDF</span></button>
+      <button class="btn ghost sm dt-d" data-act="dtPdf" data-id="${id}">${ic('pdf','sm')}<span>PDF</span></button>
       <button class="btn ghost sm dt-d" data-act="dtImg" data-id="${id}">${ic('image','sm')}<span>Imagem</span></button>
       <button class="btn ghost sm dt-d" data-act="dtEdit" data-id="${id}">${ic('edit','sm')}<span>Editar</span></button>
       <button class="icon-btn dt-m" data-act="dtImg" data-id="${id}" aria-label="Baixar imagem">${ic('dl')}</button>
@@ -404,7 +404,7 @@ const acts = {
       stats: [{label:'Refeições', value:String(s.meals)}, {label:'Alimentos', value:String(s.foods)}, s.subs ? {label:'Substituições', value:String(s.subs)} : s.options ? {label:'Opções extras', value:String(s.options)} : null].filter(Boolean),
       actions: [
         { label:`Enviar para ${fn}`, sub: ps==='active' && rec.visible ? 'WhatsApp com link do portal' : 'Pelo portal ou como imagem', icon: waSvg('ico wa-ico'), primary:true, fn: () => ctx.sendDiet(rec) },
-        { label:'Baixar PDF', sub:'Para imprimir ou enviar', icon: ic('print'), fn: () => acts.dtPdf({dataset:{id:rec.id}}) },
+        { label:'Baixar PDF', sub:'Para imprimir ou enviar', icon: ic('pdf'), fn: () => acts.dtPdf({dataset:{id:rec.id}}) },
         { label:'Salvar como imagem', sub:'Ótimo para o celular do paciente', icon: ic('image'), fn: () => acts.dtImg({dataset:{id:rec.id}}) },
       ], dismiss:'Ver o plano' });
   },
@@ -419,7 +419,7 @@ const acts = {
     const then = fn => () => new Promise(r => setTimeout(()=>r(fn()), 260)), fake = {dataset:{id:rec.id}};
     sheet('Plano alimentar', `${rec.title}${rec.prescribedAt?' · '+dShort(rec.prescribedAt):''}`, [
       {label:'Editar plano', icon:ic('edit','sm'), cls:'dark', fn:()=>acts.dtEdit(fake)},
-      {label:'Baixar PDF', icon:ic('print','sm'), fn:then(()=>acts.dtPdf(fake))},
+      {label:'Baixar PDF', icon:ic('pdf','sm'), fn:then(()=>acts.dtPdf(fake))},
       {label:'Baixar imagem', icon:ic('image','sm'), fn:then(()=>acts.dtImg(fake))},
       {label:'Enviar ao paciente', icon:P(rec.profileId)?.phone ? waSvg('sm') : ic('chat','sm'), fn:then(()=>acts.dtSend(fake))},
       {label:rec.visible?'Ocultar do portal':'Mostrar no portal', icon:ic(rec.visible?'lock':'check','sm'), fn:()=>acts.dtVis(fake)},
