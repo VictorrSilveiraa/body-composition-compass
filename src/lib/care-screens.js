@@ -94,6 +94,8 @@ function historyHtml(p){
 }
 function goalsSection(p){
   const goals = goalsOf(p), ed = state.gl?.pid===p.id ? state.gl : null, has = !!listOf(p.id).length;
+  // sem avaliação e sem histórico: a seção não aparece (o convite só faz sentido quando dá para definir metas)
+  if (!has && !goals.length && !p.plan?.history?.length) return '';
   const body = ed ? goalEditor(p, ed)
     : goals.length ? goalsBoardHtml(statusAll(p), {mode:'nutri', title:'Progresso das metas', pid:p.id, edit:true, history:p.plan?.history})
     : emptyGoals(p, has);

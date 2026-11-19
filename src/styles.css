@@ -997,6 +997,13 @@ button.kpi:active{scale:.97}
 
 /* ficha */
 .pt-layout,.pt-main,.pt-aside{display:contents}
+/* celular: ficha numa coluna só, na ordem da consulta — resultados, metas, energia, plano,
+   observações (contexto clínico), histórico, agenda, portal e gerenciar */
+@media (max-width:1023px){
+  .pt-layout{display:flex;flex-direction:column}
+  .pt-layout .pt-sec{min-width:0}
+  .pt-s-notes{order:1} .pt-s-hist{order:2} .pt-s-agenda{order:3} .pt-s-access{order:4} .pt-s-manage{order:5}
+}
 .pt-hero{display:flex;flex-direction:column;gap:14px}
 .pt-id{display:flex;align-items:center;gap:14px}
 .pt-id .grow{min-width:0}
@@ -1027,6 +1034,7 @@ button.kpi:active{scale:.97}
 .nu-hero h1{font-size:24px;font-weight:600;line-height:1.1;margin:8px 0 3px;overflow-wrap:anywhere}
 .nu-hero .small{color:var(--ink-2);overflow-wrap:anywhere}
 .nu-hero+.draft-banner{margin:12px 0 0}
+.nu-hero~.rt-banner{margin:12px 0 0}
 .nu-hero~.pt-kpis,.draft-banner+.pt-kpis{margin-top:12px}
 
 /* barra lateral: paciente atual (só no computador) */
@@ -1066,8 +1074,9 @@ button.kpi:active{scale:.97}
   .pt-top>.ico{transition:translate .3s var(--ease)}
   .pt-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(320px,1fr);gap:28px;align-items:start}
   .pt-main,.pt-aside{display:block;min-width:0}
-  .pt-aside{position:sticky;top:24px}
-  .pt-aside>h2.sec:first-child{margin-top:0}
+  /* a coluna lateral não fica presa: ela é mais alta que a tela e esconderia "Gerenciar" até o fim da página */
+  .pt-aside{position:static}
+  .pt-aside>h2.sec:first-child,.pt-aside>.pt-sec:first-child>h2.sec:first-child{margin-top:0}
   .pt-hero{padding:28px;flex-direction:row;flex-wrap:wrap;align-items:center;column-gap:24px}
   .pt-hero .pt-id{flex:1 1 360px}
   .pt-hero .pt-tags,.pt-hero .pt-contact{flex-basis:100%}
@@ -2773,8 +2782,15 @@ button.kpi:active{scale:.97}
 .rt-remind .chip-ico{background:var(--green);color:var(--green-ink)}
 /* "Retornos" só aparece na barra lateral do computador */
 .nav .nav-ret{display:none}
-.nav-badge{font-style:normal;min-width:24px;height:24px;padding:0 7px;border-radius:99px;background:var(--peach);font-size:12px;font-weight:700;display:inline-grid;place-items:center;margin-left:auto}
-.nav button.on .nav-badge{background:var(--surface)}
+/* aviso com contador nos menus: no celular, bolinha sobre o ícone; no menu lateral do computador, pílula à direita */
+.nav-badge{position:absolute;top:3px;right:3px;font-style:normal;min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:var(--red-ink);color:var(--surface);font-size:10.5px;font-weight:700;line-height:1;display:inline-grid;place-items:center;box-shadow:0 0 0 2px var(--surface);font-variant-numeric:tabular-nums;animation:pop .5s var(--spring) .4s backwards;pointer-events:none}
+.nav button:has(.nav-badge){overflow:visible}
+@media (min-width:1024px){
+  .nav .side-links .nav-badge{position:static;min-width:24px;height:24px;padding:0 7px;margin-left:auto;font-size:12px;background:var(--peach);color:var(--ink);box-shadow:none}
+  .nav .side-links button.on .nav-badge{background:var(--surface)}
+}
+.row-badge{font-style:normal;min-width:24px;height:24px;padding:0 8px;border-radius:99px;background:var(--red-ink);color:var(--surface);font-size:12px;font-weight:700;display:inline-grid;place-items:center;flex:none;font-variant-numeric:tabular-nums}
+[data-rv="in"] .row-badge{animation:pop .55s var(--spring) calc(var(--d) + .35s) backwards}
 
 @media (max-width:639px){
   .gl-b-sum{display:none}

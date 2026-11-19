@@ -225,6 +225,23 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
     const on = () => withPageTransition(() => { flushSync(() => { const v = readView(); setDir('back'); setView(v); }); });
     window.addEventListener('popstate', on); return () => window.removeEventListener('popstate', on);
   }, []);
+  /* avisos nos menus: avaliação ou plano novo que o paciente ainda não abriu (na 1ª visita, tudo conta como visto) */
+  const TABS_KEY = 'avf.pp.tabs.' + code;
+  type TabSeen = { a?: string; d?: string };
+  const [tabSeen, setTabSeen] = useState<TabSeen>(() => {
+    const now = { a: list.at(-1)?.id ?? '', d: diets[0]?.id ?? '' };
+    try { const s = JSON.parse(localStorage.getItem(TABS_KEY) || 'null') as TabSeen | null; if (s) return s; localStorage.setItem(TABS_KEY, JSON.stringify(now)); } catch { /* sem armazenamento */ }
+    return now;
+  });
+  useEffect(() => {
+    const patch: TabSeen = view.tab === 'avaliacoes' || view.tab === 'avaliacao' ? { a: last?.id ?? '' } : view.tab === 'dieta' ? { d: diets[0]?.id ?? '' } : {};
+    if (!Object.keys(patch).length) return;
+    setTabSeen((s) => { const next = { ...s, ...patch }; try { localStorage.setItem(TABS_KEY, JSON.stringify(next)); } catch { /* ok */ } return next; });
+  }, [view.tab]);
+  const badges: Partial<Record<Tab, number>> = {
+    avaliacoes: last && tabSeen.a !== last.id ? (() => { const i = list.findIndex((x) => x.id === tabSeen.a); return i < 0 ? 1 : list.length - 1 - i; })() : 0,
+    dieta: diets[0] && tabSeen.d !== diets[0].id ? 1 : 0,
+  };
   useLayoutEffect(() => {
     if (!first0.current) window.scrollTo(0, 0);
     first0.current = false;
@@ -494,11 +511,11 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
 
     <h2 className="sec">Explore</h2>
     <div className="actions pp-explore">
-      {hasDiet && <button className="act-row" onClick={() => go('dieta')}><span className="chip-ico"><Apple className="ico sm" /></span><span className="grow"><b>Plano alimentar</b><span>Refeições, opções, trocas e lista de compras</span></span><ChevronRight className="ico sm" /></button>}
+      {hasDiet && <button className="act-row" onClick={() => go('dieta')}><span className="chip-ico"><Apple className="ico sm" /></span><span className="grow"><b>Plano alimentar</b><span>Refeições, opções, trocas e lista de compras</span></span>{!!badges.dieta && <em className="row-badge">novo</em>}<ChevronRight className="ico sm" /></button>}
       <button className="act-row" onClick={() => go('evolucao')}><span className="chip-ico"><TrendingUp className="ico sm" /></span><span className="grow"><b>Evolução</b><span>Gráfico de cada medida e comparação entre avaliações</span></span><ChevronRight className="ico sm" /></button>
       <button className="act-row" onClick={() => go('medidas')}><span className="chip-ico"><Ruler className="ico sm" /></span><span className="grow"><b>Medidas</b><span>Composição, índices, circunferências e dobras</span></span><ChevronRight className="ico sm" /></button>
       {hasPhotos && <button className="act-row" onClick={() => go('fotos')}><span className="chip-ico"><Camera className="ico sm" /></span><span className="grow"><b>Fotos</b><span>Antes e depois, lado a lado</span></span><ChevronRight className="ico sm" /></button>}
-      <button className="act-row" onClick={() => go('avaliacoes')}><span className="chip-ico"><ClipboardList className="ico sm" /></span><span className="grow"><b>Avaliações</b><span>{list.length} {list.length === 1 ? 'registro' : 'registros'} com todos os detalhes</span></span><ChevronRight className="ico sm" /></button>
+      <button className="act-row" onClick={() => go('avaliacoes')}><span className="chip-ico"><ClipboardList className="ico sm" /></span><span className="grow"><b>Avaliações</b><span>{list.length} {list.length === 1 ? 'registro' : 'registros'} com todos os detalhes</span></span>{!!badges.avaliacoes && <em className="row-badge">{badges.avaliacoes === 1 ? 'nova' : `${badges.avaliacoes} novas`}</em>}<ChevronRight className="ico sm" /></button>
       <button className="act-row" onClick={() => go('guia')}><span className="chip-ico"><BookOpen className="ico sm" /></span><span className="grow"><b>Entenda seus números</b><span>O que cada medida significa e as faixas de referência</span></span><ChevronRight className="ico sm" /></button>
       <button className="act-row" onClick={startTour}><span className="chip-ico"><Target className="ico sm" /></span><span className="grow"><b>Como usar o portal</b><span>Reveja em 30 segundos o tour de apresentação</span></span><ChevronRight className="ico sm" /></button>
     </div>
@@ -787,7 +804,7 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
       <div className="view" key={view.tab + (view.id ?? '')} data-dir={dir}>{screens[view.tab]()}</div>
       <nav className={'nav' + (tabs.length > 5 ? ' six' : '')}>
         <div className="side-brand"><span className="mark"><Heart className="ico sm" /></span><span>Portal do<br />paciente</span></div>
-        <div className="side-links">{tabs.map(({ k, l, I }) => <button key={k} className={cur === k ? 'on' : ''} onClick={() => go(k)} aria-label={l} aria-current={cur === k ? 'page' : undefined}><I className="ico" /><span>{l}</span></button>)}</div>
+        <div className="side-links">{tabs.map(({ k, l, I }) => { const n = cur === k ? 0 : badges[k] ?? 0; return <button key={k} className={cur === k ? 'on' : ''} onClick={() => go(k)} aria-label={n ? `${l} (${n} ${n === 1 ? 'novidade' : 'novidades'})` : l} aria-current={cur === k ? 'page' : undefined}><I className="ico" /><span>{l}</span>{n > 0 && <em className="nav-badge">{n}</em>}</button>; })}</div>
         {/* rodapé: quem cuida de você (e o atalho para falar com ele) logo acima de você */}
         <div className="side-bottom">
           <div className="side-nutri">

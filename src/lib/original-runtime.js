@@ -997,41 +997,47 @@ function viewPatient(id){
     ${DS.has() ? `<button class="pa" data-act="openAs" data-to="diets" data-id="${p.id}">${ic('leaf')}<span>Dieta</span></button>` : ''}
     <button class="pa" data-act="print">${ic('pdf')}<span>PDF</span></button>
   </div>`;
-  h += CS.goalsSection(p);
+  /* Ordem da ficha (pensada para a consulta): como o paciente está hoje → aonde quer chegar (metas)
+     → quanto deve comer (energia) → o que come (plano) → histórico. Cada bloco é uma seção própria:
+     no computador a coluna lateral (agenda, observações, portal, gerenciar) fica ao lado; no celular
+     as seções seguem a ordem definida no CSS (observações sobem para perto do plano). */
   if (!last){
-    h += `<div class="card empty" style="margin-top:16px"><div class="e-ico">${ic('clip')}</div><h3>Nenhuma avaliação ainda</h3><p>Registre a primeira avaliação de ${esc(firstName(p.name))} para acompanhar peso, gordura e medidas a cada retorno.</p></div>`;
+    h += `<section class="pt-sec pt-s-res"><div class="card empty" style="margin-top:16px"><div class="e-ico">${ic('clip')}</div><h3>Nenhuma avaliação ainda</h3><p>Registre a primeira avaliação de ${esc(firstName(p.name))} para acompanhar peso, gordura e medidas a cada retorno.</p>
+      <button class="btn dark" style="margin:18px auto 0;display:inline-flex" data-act="newFor" data-id="${p.id}">${ic('plus','sm')} Fazer a primeira avaliação</button></div></section>`;
   } else {
-    h += `<h2 class="sec">Resultados atuais <span class="sec-note">${fmtDate(last.date,{day:'numeric',month:'short',year:'numeric'})}</span></h2>
+    h += `<section class="pt-sec pt-s-res"><h2 class="sec">Resultados atuais <span class="sec-note">${fmtDate(last.date,{day:'numeric',month:'short',year:'numeric'})}</span></h2>
     <div class="dash pt-sum">
       ${metric('Peso', num(last.weight), 'kg', r0&&num(first.weight), 0, 'kg', 'scale')}
       ${metric('Gordura', r.bf, '%', r0?.bf, -1, 'pp', 'flame', 'blue')}
       ${metric('Massa magra', r.leanMass, 'kg', r0?.leanMass, 1, 'kg', 'bolt', 'green')}
       ${metric('Cintura', num(last.circ?.waist), 'cm', r0&&num(first.circ?.waist), -1, 'cm', 'ruler', 'yellow')}
-    </div>
-    ${CS.energySection(p)}
-    <h2 class="sec">Avaliações <button data-act="openAs" data-to="list" data-id="${p.id}">Ver todas (${list.length})</button></h2>
-    <div class="alist">${list.slice(-4).reverse().map((a,i)=>aItem(a,p,i===0)).join('')}</div>`;
+    </div></section>`;
   }
-  h += DS.patientSection(p);
+  const goals = CS.goalsSection(p), energy = CS.energySection(p), diet = DS.patientSection(p);
+  if (goals) h += `<section class="pt-sec pt-s-goals">${goals}</section>`;
+  if (energy) h += `<section class="pt-sec pt-s-energy">${energy}</section>`;
+  if (diet) h += `<section class="pt-sec pt-s-diet">${diet}</section>`;
+  if (last) h += `<section class="pt-sec pt-s-hist"><h2 class="sec">Avaliações <button data-act="openAs" data-to="list" data-id="${p.id}">Ver todas (${list.length})</button></h2>
+    <div class="alist">${list.slice(-4).reverse().map((a,i)=>aItem(a,p,i===0)).join('')}</div></section>`;
   h += `</div><aside class="pt-aside">
-    <h2 class="sec">Agenda</h2>
+    <section class="pt-sec pt-s-agenda"><h2 class="sec">Agenda</h2>
     <div class="kv">
-      <div class="kv-row"><span class="k">Primeira avaliação</span><span class="t">${first?fmtDate(first.date):'—'}</span></div>
-      <div class="kv-row"><span class="k">Última avaliação</span><span class="t">${last?`${fmtDate(last.date)} <small>${ago(last.date)}</small>`:'—'}</span></div>
       <div class="kv-row"><span class="k">Próximo retorno</span><span class="t ${st.k}">${st.next?`${fmtDate(st.next)} <small>${st.short||st.l}</small>`:p.archived?'Arquivado':'Após a 1ª avaliação'}</span></div>
+      <div class="kv-row"><span class="k">Última avaliação</span><span class="t">${last?`${fmtDate(last.date)} <small>${ago(last.date)}</small>`:'—'}</span></div>
+      <div class="kv-row"><span class="k">Primeira avaliação</span><span class="t">${first?fmtDate(first.date):'—'}</span></div>
       <div class="kv-row"><span class="k">Cadastro</span><span class="t">${p.createdAt?fmtDate(isoOf(new Date(p.createdAt))):'—'}</span></div>
     </div>
-    ${(st.k==='late'||st.k==='soon') ? `<button class="act-row rt-remind" data-act="rtSend" data-id="${p.id}"><span class="chip-ico">${p.phone?waSvg('ico sm'):ic('clip','sm')}</span><span class="grow"><b>Lembrar do retorno</b><span>${p.phone?'Mensagem pronta no WhatsApp':'Copia a mensagem pronta'}</span></span>${ic('right','sm')}</button>` : ''}
-    <h2 class="sec">Observações <button data-act="go" data-to="onboard" data-id="${p.id}">editar</button></h2>
-    <div class="notes ${p.notes?'':'muted'}">${p.notes?esc(p.notes):'Sem observações. Registre histórico clínico, restrições e combinados.'}</div>
-    ${paSection(p)}
-    <h2 class="sec">Gerenciar</h2>
+    ${(st.k==='late'||st.k==='soon') ? `<button class="act-row rt-remind" data-act="rtSend" data-id="${p.id}"><span class="chip-ico">${p.phone?waSvg('ico sm'):ic('clip','sm')}</span><span class="grow"><b>Lembrar do retorno</b><span>${p.phone?'Mensagem pronta no WhatsApp':'Copia a mensagem pronta'}</span></span>${ic('right','sm')}</button>` : ''}</section>
+    <section class="pt-sec pt-s-notes"><h2 class="sec">Observações <button data-act="go" data-to="onboard" data-id="${p.id}">editar</button></h2>
+    <div class="notes ${p.notes?'':'muted'}">${p.notes?esc(p.notes):'Sem observações. Registre histórico clínico, restrições e combinados.'}</div></section>
+    <section class="pt-sec pt-s-access">${paSection(p)}</section>
+    <section class="pt-sec pt-s-manage"><h2 class="sec">Gerenciar</h2>
     <div class="actions">
       <button class="act-row" data-act="go" data-to="onboard" data-id="${p.id}"><span class="chip-ico">${ic('edit','sm')}</span><span class="grow"><b>Editar dados</b><span>Nome, medidas, contato, objetivo e retorno</span></span></button>
       <button class="act-row" data-act="exportPt" data-id="${p.id}" aria-haspopup="dialog"><span class="chip-ico">${ic('dl','sm')}</span><span class="grow"><b>Exportar dados</b><span>Planilha (CSV) ou arquivo JSON</span></span>${ic('right','sm')}</button>
       <button class="act-row" data-act="archive" data-id="${p.id}"><span class="chip-ico">${ic('archive','sm')}</span><span class="grow"><b>${p.archived?'Reativar paciente':'Arquivar paciente'}</b><span>${p.archived?'Volta para a lista de ativos':'Sai da lista de ativos; o histórico fica guardado'}</span></span></button>
       <button class="act-row danger" data-act="delProfile" data-id="${p.id}"><span class="chip-ico">${ic('trash','sm')}</span><span class="grow"><b>Excluir paciente</b><span style="color:inherit;opacity:.7">Remove ${esc(firstName(p.name))} e todas as avaliações</span></span></button>
-    </div>
+    </div></section>
   </aside></div>`;
   return h;
 }
@@ -1048,6 +1054,7 @@ function viewProfile(){
       <div class="small">${[crnLabel()?esc(crnLabel()):null, esc(options.email||'')].filter(Boolean).join(' · ')}</div></div>
   </div>
   ${done?'':`<button class="draft-banner" data-act="go" data-to="nutri">${ic('badge')}<span class="grow">Complete seu perfil: nome e CRN entram como avaliador(a) nas novas avaliações e nos PDFs.</span><b>Completar</b></button>`}
+  ${CS.returnsBanner()}
   <div class="pt-kpis">
     ${kpi('active','Pacientes ativos',s.active,'blue','users')}
     ${kpi('late','Retornos atrasados',s.late,'peach','clock')}
@@ -1063,8 +1070,8 @@ function viewProfile(){
     </div>
     <h2 class="sec">Pacientes</h2>
     <div class="actions">
+      <button class="act-row" data-act="go" data-to="returns"><span class="chip-ico">${ic('bell','sm')}</span><span class="grow"><b>Retornos da semana</b><span>${(n=>n?`${plural(n,'paciente para avisar','pacientes para avisar')} pelo WhatsApp`:'Atrasados e próximos 7 dias, com mensagem pronta')(CS.pendingCount())}</span></span>${CS.pendingCount()?`<em class="row-badge" aria-label="${CS.pendingCount()} para avisar">${CS.pendingCount()}</em>`:''}${ic('right','sm')}</button>
       <button class="act-row" data-act="go" data-to="patients"><span class="chip-ico">${ic('users','sm')}</span><span class="grow"><b>Gerenciar pacientes</b><span>${plural(s.active,'ativo','ativos')}${s.arch?` · ${plural(s.arch,'arquivado','arquivados')}`:''} · busca e filtros por retorno</span></span>${ic('right','sm')}</button>
-      <button class="act-row" data-act="go" data-to="returns"><span class="chip-ico">${ic('bell','sm')}</span><span class="grow"><b>Retornos da semana</b><span>${(n=>n?`${plural(n,'paciente para avisar','pacientes para avisar')} pelo WhatsApp`:'Atrasados e próximos 7 dias, com mensagem pronta')(CS.pendingCount())}</span></span>${ic('right','sm')}</button>
       <button class="act-row" data-act="newProfile"><span class="chip-ico">${ic('plus','sm')}</span><span class="grow"><b>Cadastrar paciente</b><span>Dados, contato, objetivo e observações</span></span>${ic('right','sm')}</button>
     </div>
   </div>
@@ -1315,7 +1322,7 @@ function render(){
   }
   const showNav = !['wizard','onboard','nutri','dietNew','dietEdit'].includes(state.route);
   let navHtml='';
-  if(showNav){ const tabs=[['home','home','Início'],['patients','users','Pacientes'],['list','cal','Avaliações'],['compare','chart','Evolução'],...(DS.has()?[['diets','leaf','Dieta']]:[]),['profile','user','Perfil']]; const cur={detail:'list',patient:'patients',energy:'patients',diet:'diets'}[state.route]||state.route;
+  if(showNav){ const tabs=[['home','home','Início'],['patients','users','Pacientes'],['list','cal','Avaliações'],['compare','chart','Evolução'],...(DS.has()?[['diets','leaf','Dieta']]:[]),['profile','user','Perfil','',CS.pendingCount()]]; /* celular: o Perfil leva aos Retornos, então carrega o aviso */ const cur={detail:'list',patient:'patients',energy:'patients',diet:'diets'}[state.route]||state.route;
   // No celular: só os botões (pílula flutuante). No computador vira barra lateral com marca, paciente atual, atalho e nutricionista.
   const p = prof(), n = p ? listOf(p.id).length : 0;
   // Computador: bloco geral (Início, Pacientes) + bloco do paciente atual (cartão, os menus dele e Nova avaliação); nutricionista no rodapé.
