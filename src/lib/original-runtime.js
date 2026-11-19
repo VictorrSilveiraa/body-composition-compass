@@ -15,6 +15,7 @@ const uid = () => crypto.randomUUID(); const DRAFT_KEY = 'avf.draft.'+options.us
 
 /* ---------- ícones ---------- */
 const I = {
+  link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   back:'<path d="M15 18l-6-6 6-6"/>',
   right:'<path d="M9 18l6-6-6-6"/>',
   plus:'<path d="M12 5v14M5 12h14"/>',
@@ -1330,6 +1331,77 @@ function syncPath(path){
 /* ---------- sheet & toast ---------- */
 function sheet(title,text,buttons){options.sheet({title,text,buttons});}
 function toast(msg){ options.toast(msg); }
+// janela de conclusão (src/components/done-sheet.tsx); sem ela, cai no aviso simples
+function done(spec, fallback){ if (options.done) options.done(spec); else toast(fallback || spec.title); }
+const signed = (v, d=1) => (v>0?'+':v<0?'−':'')+fmt(Math.abs(v),d);
+// avaliação nova salva: resultado comparado com a anterior, marco do paciente e próximos passos
+function doneAssessment(a){
+  const p = db.profiles.find(x=>x.id===a.profileId) || prof(), list = listOf(p.id), n = list.findIndex(x=>x.id===a.id)+1;
+  const r = calc(a,p), pv = prevOf(a), rp = pv ? calc(pv,p) : null, fn = firstName(p.name);
+  const st = (label, cur, old, unit, dir, du) => {
+    if (cur==null || !isFinite(cur) || cur<=0) return null;
+    const s = { label, value: fmt(cur), unit };
+    if (old!=null && isFinite(old) && old>0){ const diff = cur-old; if (Math.abs(diff)<0.05){ s.delta='igual'; s.cls='flat'; } else { s.delta = signed(diff)+' '+du; s.cls = dir===0 ? 'neu' : diff*dir>0 ? 'good' : 'bad'; } }
+    return s;
+  };
+  const stats = [st('Peso', num(a.weight), pv?num(pv.weight):null, 'kg', 0, 'kg'), st('Gordura', r.bf, rp?.bf, '%', -1, 'pts'), st('Massa magra', r.leanMass, rp?.leanMass, 'kg', 1, 'kg')].filter(Boolean);
+  // marco: só um, o mais relevante
+  const prevs = list.filter(x=>x.id!==a.id).map(x=>({a:x, r:calc(x,p)}));
+  const bfs = prevs.map(x=>x.r.bf).filter(v=>v!=null), lean = prevs.map(x=>x.r.leanMass).filter(v=>v!=null), ws = prevs.map(x=>num(x.a.weight)).filter(v=>v>0);
+  let badge = null;
+  if (r.bf!=null && bfs.length>=2 && r.bf < Math.min(...bfs)-0.05) badge = `Menor % de gordura de todas as avaliações de ${fn}`;
+  else if (p.goal==='hipertrofia' && r.leanMass!=null && lean.length>=2 && r.leanMass > Math.max(...lean)+0.05) badge = `Maior massa magra já registrada de ${fn}`;
+  else if (p.goal==='emagrecimento' && num(a.weight)>0 && ws.length>=2 && num(a.weight) < Math.min(...ws)-0.05) badge = `Menor peso já registrado de ${fn}`;
+  else if (n>=5 && n%5===0) badge = `${n} avaliações: ${fn} segue firme no acompanhamento`;
+  const next = !p.archived ? addDays(a.date, returnEvery(p)) : null;
+  const days = pv ? Math.max(0, Math.round((toDate(a.date)-toDate(pv.date))/864e5)) : 0;
+  paLoad(p.id);
+  const actions = [
+    { label:`Avisar ${fn} no WhatsApp`, sub: p.phone ? 'Mensagem pronta com o resultado' : 'Copia a mensagem para enviar', icon: waSvg('ico wa-ico'), primary:true, fn: () => sendAssessment(p, a) },
+    DS.has() && { label:'Montar o plano alimentar', sub:'Importar do WebDiet ou montar do zero', icon: ic('leaf'), fn: () => DS.acts.dtNew({dataset:{pid:p.id, aid:a.id}}) },
+    { label:'Gerar relatório em PDF', sub: pv ? 'Completo, resumo ou comparativo' : 'Completo ou resumo em 1 página', icon: ic('print'), fn: () => ACT.print({dataset:{id:a.id}}) },
+  ].filter(Boolean);
+  done({ tone:'green', confetti:true,
+    kicker: n===1 ? 'Primeira avaliação · ponto de partida' : `${n}ª avaliação${days ? ` · ${plural(days,'dia','dias')} desde a anterior` : ''}`,
+    title: `Avaliação de ${fn} concluída`,
+    text: next && daysTo(next)>0 ? `Retorno sugerido: ${fmtDate(next,{day:'numeric',month:'long'})} (em ${plural(daysTo(next),'dia','dias')}).` : '',
+    stats, badge: badge ? { icon: ic('flame'), text: badge } : null, actions, dismiss:'Ver a avaliação' }, 'Avaliação salva ✓');
+}
+async function sendAssessment(p, a){
+  const r = calc(a,p), pv = prevOf(a), acc = PA[p.id]?.access, fn = firstName(p.name);
+  const lines = [`Peso: ${fmt(num(a.weight))} kg${pv && num(pv.weight)>0 ? ` (${signed(num(a.weight)-num(pv.weight))} kg)` : ''}`];
+  if (r.bf!=null){ const rp = pv ? calc(pv,p) : null; lines.push(`Gordura: ${fmt(r.bf)}%${rp?.bf!=null ? ` (${signed(r.bf-rp.bf)} pts)` : ''}`); }
+  if (r.leanMass!=null) lines.push(`Massa magra: ${fmt(r.leanMass)} kg`);
+  const portal = acc?.active ? `\n\nVeja tudo no portal (medidas, evolução${DS.has() && options.diets.ofPatient(p.id).some(x=>x.visible) ? ' e plano alimentar' : ''}):\n${portalLink(acc.code)}\nSeu código: ${fmtAccessCode(acc.code)}` : '';
+  const msg = `Olá, ${fn}! Sua avaliação de ${fmtDate(a.date,{day:'2-digit',month:'2-digit'})} está pronta.\n\n${lines.join('\n')}${portal}\n\n${nutriName()}`;
+  const wa = waLink(p.phone);
+  if (wa) { window.open(wa + '?text=' + encodeURIComponent(msg), '_blank', 'noopener'); return; }
+  if (navigator.share && matchMedia('(pointer: coarse)').matches){ try { await navigator.share({text:msg}); return; } catch (e) { if (e?.name==='AbortError') return; } }
+  await paCopyText(msg, 'Mensagem copiada ✓ Cole no WhatsApp do paciente');
+}
+// código do portal criado: o código em destaque e o envio pronto
+function doneAccess(p, access, again){
+  const fn = firstName(p.name);
+  done({ tone:'blue', icon: ic('lock'), kicker: again ? 'Novo código de acesso' : 'Portal do paciente liberado',
+    title: `Acesso de ${fn} criado`,
+    text: `Com este código, ${fn} vê ${DS.has() ? 'avaliações, evolução e plano alimentar' : 'avaliações e evolução'} pelo celular.${again ? ' O código anterior parou de funcionar.' : ''}`,
+    code: fmtAccessCode(access.code),
+    actions: [
+      { label:'Enviar no WhatsApp', sub:'Mensagem pronta com link e código', icon: waSvg('ico wa-ico'), primary:true, fn: () => ACT.paSend({dataset:{id:p.id}}) },
+      { label:'Copiar o link do portal', icon: ic('link'), fn: () => ACT.paCopy({dataset:{id:p.id, what:'link'}}) },
+    ], dismiss:'Agora não' }, 'Código criado ✓');
+}
+// paciente novo: primeira avaliação, portal ou depois
+function donePatient(p){
+  if (!p) return toast('Paciente cadastrado ✓');
+  const actions = [
+    { label:'Fazer a primeira avaliação', sub:'Peso, dobras, medidas e fotos', icon: ic('clip'), primary:true, fn: async () => { setActive(p.id); await ACT.new(); } },
+    options.portalAccess && { label:'Criar acesso ao portal', sub:`${firstName(p.name)} acompanha tudo pelo celular`, icon: ic('lock'), fn: () => ACT.paCreate({dataset:{id:p.id}}) },
+  ].filter(Boolean);
+  done({ tone:'yellow', icon: ic('user'), kicker:'Paciente cadastrado', title: `${p.name.trim()} está na sua lista`,
+    text: (p.goal ? `Objetivo: ${goalLabel(p.goal)}. ` : '') + `Retorno a cada ${returnEvery(p)} dias.`,
+    actions, dismiss:'Depois' }, 'Paciente cadastrado ✓');
+}
 function download(name, content, type){
   const blob = new Blob([content], {type}); const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
@@ -1351,7 +1423,8 @@ async function pdfExport(kind, data){
 }
 /* ---------- plano alimentar (src/lib/diet-screens.js) ---------- */
 const DS = dietScreens({
-  options, state, ic, go, render, toast, sheet, dropdown, dpill, paged, findA, listOf, prof, setActive, nutriName, crnLabel,
+  options, state, ic, go, render, toast, sheet, dropdown, dpill, paged, findA, listOf, prof, setActive, nutriName, crnLabel, firstName,
+  done: options.done ? spec => done(spec) : null,
   db: () => db, app: () => app,
   // situação do acesso ao portal (para explicar ao nutricionista se o paciente já consegue ver o plano)
   portalState: pid => { paLoad(pid); const s = PA[pid]; if (!s?.loaded || !s.available) return ''; if (!s.access) return 'none'; return s.access.active ? 'active' : 'paused'; },
@@ -1394,7 +1467,8 @@ const ACT = {
   /* ---------- acesso do paciente ---------- */
   paCreate: async b => {
     const pid = b.dataset.id; const access = await options.portalAccess.issue(pid);
-    PA[pid] = {loaded:true, available:true, access}; render(); toast('Código criado ✓ Agora é só enviar para o paciente');
+    PA[pid] = {loaded:true, available:true, access}; render();
+    const p = db.profiles.find(x=>x.id===pid); if (p) doneAccess(p, access); else toast('Código criado ✓');
   },
   paCopy: async b => {
     const a = PA[b.dataset.id]?.access; if (!a) return;
@@ -1419,7 +1493,7 @@ const ACT = {
   paNew: async b => {
     const pid = b.dataset.id, a = PA[pid]?.access; if (!a) return;
     sheet('Gerar novo código?', 'O código atual para de funcionar na hora. Envie o novo código para o paciente.', [
-      {label:'Gerar novo código', cls:'dark', fn:async()=>{ const access = await options.portalAccess.issue(pid, {photos:a.photos, notes:a.notes}); PA[pid] = {loaded:true, available:true, access}; render(); toast('Novo código criado ✓'); }},
+      {label:'Gerar novo código', cls:'dark', fn:async()=>{ const access = await options.portalAccess.issue(pid, {photos:a.photos, notes:a.notes}); PA[pid] = {loaded:true, available:true, access}; render(); const p = db.profiles.find(x=>x.id===pid); if (p) doneAccess(p, access, true); else toast('Novo código criado ✓'); }},
       {label:'Cancelar'}]);
   },
   /* ---------- fotos ---------- */
@@ -1483,6 +1557,7 @@ const ACT = {
     if (!num(draft.weight) || num(draft.weight)<=0){ toast('Informe o peso'); return; }
     if(draft.date>today()) return toast("A data não pode ser futura");
     const {_step, _editing, _savedAt, tid, ...data} = draft;
+    const isNew = !state.editingId;
     if (state.editingId){
       const i = db.assessments.findIndex(a=>a.id===state.editingId);
       data.id = state.editingId; data.updatedAt = Date.now();
@@ -1492,7 +1567,8 @@ const ACT = {
     }
     const p = prof(); if (num(data.height) && !p.height){ p.height = data.height; }
     await save(); const id = data.id; draft = null; state.editingId = null; saveDraft(); clearTimeout(draftTimer); await draftPending; await options.saveDraft(null);
-     phSync(); go('detail', id); toast('Avaliação salva ✓');
+     phSync(); go('detail', id);
+    if (isNew) doneAssessment(data); else toast('Avaliação atualizada ✓');
   },
   del: async b => sheet('Excluir avaliação?', 'Esta ação não pode ser desfeita.', [
     {label:'Excluir', cls:'danger', fn:async ()=>{ db.assessments = db.assessments.filter(a=>a.id!==b.dataset.id); PH?.removeAssessment(b.dataset.id); DS.unlinkAssessment(b.dataset.id); await save(); go('list'); toast('Avaliação excluída'); }},
@@ -1545,7 +1621,8 @@ const ACT = {
     else { const p = {id:uid(), name, sex, birth, height, ...ficha, archived:false, createdAt:Date.now()}; db.profiles.push(p); id = p.id; setActive(id); }
     const first = db.profiles.length===1 && !b.dataset.id;
     state.setup = false; try { localStorage.setItem(SETUP_KEY,'skip'); } catch {}
-    await save(); go(first ? 'home' : 'patient', first ? null : id); toast(b.dataset.id ? 'Paciente atualizado' : 'Paciente cadastrado ✓');
+    await save(); go(first ? 'home' : 'patient', first ? null : id);
+    if (b.dataset.id) toast('Paciente atualizado'); else donePatient(db.profiles.find(p=>p.id===id));
   },
   editProfile: async () => go('onboard', prof().id),
   newProfile: async () => go('onboard'),

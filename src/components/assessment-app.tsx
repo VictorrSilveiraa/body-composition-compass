@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { AppTour, type TourSpec } from '@/components/app-tour';
 import { PoseCamera, type CameraSpec } from '@/components/pose-camera';
 import { PhotoViewer, type ViewerSpec } from '@/components/photo-viewer';
+import { DoneSheet, type DoneSpec } from '@/components/done-sheet';
 import { composeComparison, loadPhotos, photoStore } from '@/lib/photos';
 import { getAccess, issueCode, updateAccess } from '@/lib/portal-access';
 import { dietStore, loadDiets } from '@/lib/diets';
@@ -55,6 +56,7 @@ const bridge = {
   tour: (_t: TourSpec) => {},
   camera: (_c: CameraSpec) => {},
   viewer: (_v: ViewerSpec) => {},
+  done: (_d: DoneSpec) => {},
 };
 let live: { runtime: Runtime; userId: string } | null = null;
 let lastFrame: Frame | null = null;
@@ -86,6 +88,8 @@ export function AssessmentApp() {
   const [tour, setTour] = useState<TourSpec | null>(null);
   const [camera, setCamera] = useState<CameraSpec | null>(null);
   const [viewer, setViewer] = useState<ViewerSpec | null>(null);
+  const [done, setDone] = useState<DoneSpec | null>(null);
+  const doneN = useRef(0);
   const navigate = useNavigate(), queryClient = useQueryClient();
   const path = useRouterState({ select: (s) => s.location.pathname });
   // enquanto a próxima página carrega, esta tela não deve desenhar a página nova (senão anima duas vezes)
@@ -102,6 +106,8 @@ export function AssessmentApp() {
     bridge.tour = setTour;
     bridge.camera = setCamera;
     bridge.viewer = setViewer;
+    // abre depois da transição de página (senão a barra de navegação fica por cima durante a animação)
+    bridge.done = (d) => { window.setTimeout(() => { doneN.current++; setDone({ onError: (e) => bridge.toast(motivo(e, 'Não foi possível concluir. Tente novamente.')), ...d }); }, 420); };
     if (live && host.current) live.runtime.attach(host.current, pathRef.current);
   }, []);
 
@@ -134,6 +140,7 @@ export function AssessmentApp() {
           diets: dietStore(user.id, diets.cloud, diets.list),
           camera: (c: CameraSpec) => bridge.camera(c),
           viewer: (v: ViewerSpec) => bridge.viewer(v),
+          done: (d: DoneSpec) => bridge.done(d),
           logout: async () => { dropLive(); await queryClient.cancelQueries(); queryClient.clear(); await supabase.auth.signOut(); await navigate({ to: '/login', replace: true }); },
         });
         live = { runtime, userId: user.id };
@@ -216,6 +223,7 @@ export function AssessmentApp() {
       {tour && <AppTour spec={tour} onEnd={() => setTour(null)} />}
       {camera && <PoseCamera spec={camera} onEnd={() => setCamera(null)} />}
       {viewer && <PhotoViewer spec={viewer} onEnd={() => setViewer(null)} />}
+      {done && <DoneSheet key={doneN.current} spec={done} onEnd={() => setDone(null)} />}
     </>
   );
 }

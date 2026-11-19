@@ -115,7 +115,7 @@ function viewDiet(id){
       <button class="icon-btn dt-m" data-act="dtImg" data-id="${id}" aria-label="Baixar imagem">${ic('dl')}</button>
       <button class="icon-btn" data-act="dtMenu" data-id="${id}" aria-label="Mais opções" aria-haspopup="dialog">${ic('gear')}</button>
     </div></header>
-  ${saved?`<div class="dt-saved" role="status">${ic('check')}<span><b>Plano publicado!</b> ${rec.visible?'Já aparece no portal do paciente.':'Ele está oculto do portal por enquanto.'}</span></div>`:''}
+  ${saved?`<div class="dt-saved" role="status">${ic('check')}<span><b>Plano publicado!</b> ${!rec.visible ? 'Ele está oculto do portal por enquanto.' : ctx.portalState(rec.profileId)==='active' ? 'Já aparece no portal do paciente.' : 'Aparece no portal assim que o paciente tiver acesso.'}</span></div>`:''}
   ${dietHtml(rec.data, ui, { mode:'nutri', nowMin: nowMinutes(), chips, foot })}`;
 }
 
@@ -379,6 +379,7 @@ const acts = {
     if (m.variants.some(v=>v.foods.some(f=>f.name.trim()))) return sheet(`Excluir ${m.name||'esta refeição'}?`, 'Os alimentos e as opções desta refeição saem do plano.', [{label:'Excluir refeição', cls:'danger', fn:async()=>drop()},{label:'Cancelar'}]);
     drop(); },
   dtSave: async () => {
+    if (!imp) return; // toque duplo no botão salvar
     const d = imp.diet; if (!S) return toast('Planos indisponíveis agora');
     if (!imp.pid || !P(imp.pid)) return toast('Escolha o paciente');
     // limpa linhas vazias e organiza por horário
@@ -393,8 +394,19 @@ const acts = {
     const prev = imp.editingId ? S.get(imp.editingId) : null;
     const rec = { id: prev?.id || crypto.randomUUID(), profileId: imp.pid, assessmentId: imp.aid && imp.aid!=='none' ? imp.aid : null, title: d.title, prescribedAt: d.prescribedAt || today(), data: d, visible: imp.visible, createdAt: prev?.createdAt || Date.now(), updatedAt: Date.now() };
     await S.save(rec);
-    ctx.setActive(rec.profileId); imp = null; justSaved = { id: rec.id, t: Date.now() }; delete UI['preview'];
-    go('diet', rec.id); toast(prev ? 'Plano atualizado ✓' : 'Plano alimentar publicado ✓');
+    ctx.setActive(rec.profileId); imp = null; justSaved = prev || !ctx.done ? { id: rec.id, t: Date.now() } : null; delete UI['preview'];
+    go('diet', rec.id);
+    if (prev || !ctx.done) return toast(prev ? 'Plano atualizado ✓' : 'Plano alimentar publicado ✓');
+    // plano novo: resumo e o envio para o paciente
+    const s = dietStats(d), p = P(rec.profileId), fn = p ? ctx.firstName(p.name) : 'o paciente', ps = ctx.portalState(rec.profileId);
+    ctx.done({ tone:'green', confetti:true, icon: dtIcon('leaf'), kicker: !rec.visible ? 'Salvo · oculto do portal' : ps==='active' ? 'Já aparece no portal do paciente' : 'Salvo · paciente ainda sem acesso ao portal',
+      title: `Plano de ${fn} publicado`,
+      stats: [{label:'Refeições', value:String(s.meals)}, {label:'Alimentos', value:String(s.foods)}, s.subs ? {label:'Substituições', value:String(s.subs)} : s.options ? {label:'Opções extras', value:String(s.options)} : null].filter(Boolean),
+      actions: [
+        { label:`Enviar para ${fn}`, sub: ps==='active' && rec.visible ? 'WhatsApp com link do portal' : 'Pelo portal ou como imagem', icon: waSvg('ico wa-ico'), primary:true, fn: () => ctx.sendDiet(rec) },
+        { label:'Baixar PDF', sub:'Para imprimir ou enviar', icon: ic('print'), fn: () => acts.dtPdf({dataset:{id:rec.id}}) },
+        { label:'Salvar como imagem', sub:'Ótimo para o celular do paciente', icon: ic('image'), fn: () => acts.dtImg({dataset:{id:rec.id}}) },
+      ], dismiss:'Ver o plano' });
   },
   dtEdit: async b => { if (startEdit(b.dataset.id)) go('dietEdit', b.dataset.id); },
   dtVis: async b => { const rec = S?.get(b.dataset.id); if (!rec) return; const r = await S.save({ ...rec, visible: !rec.visible }); render(); toast(r.visible ? 'Plano visível no portal do paciente' : 'Plano oculto do portal'); },

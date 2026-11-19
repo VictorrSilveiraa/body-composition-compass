@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { PhotoViewer, type ViewerSpec } from '@/components/photo-viewer';
 import { AuthShell } from '@/components/auth-screen';
 import { AppTour, type TourSpec, type TourStep } from '@/components/app-tour';
+import { DoneSheet, type DoneSpec, type DoneStat } from '@/components/done-sheet';
 import { WA_PATH, waSvg } from '@/lib/wa-icon';
 const WaIcon = () => <svg className="ico sm wa-ico" viewBox="0 0 24 24" aria-hidden="true"><path d={WA_PATH} /></svg>;
 import { calc, bmiClass, bfClass, whrRisk, fmt, fmtDate, toDate, today, ageAt, foldVal, CIRC_TRUNK, CIRC_LIMBS, FOLDS, PROTOCOLS, METRICS, GROUPS, firstName, initials } from '@/lib/calculos.js';
@@ -299,6 +300,51 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
     const t = window.setTimeout(() => setTour({ steps: tourSteps(), onClose: () => { try { localStorage.setItem(TOUR_KEY, '1'); } catch { /* ok */ } } }), 1100);
     return () => clearTimeout(t);
   }, [view.tab]);
+
+  /* ---------- novidades desde a última visita: avaliação nova e/ou plano alimentar novo ---------- */
+  const SEEN_KEY = 'avf.pp.seen.' + code;
+  const [news, setNews] = useState<DoneSpec | null>(null);
+  useEffect(() => {
+    const now = { a: last?.id ?? '', d: diets[0]?.id ?? '' };
+    type Seen = { a?: string; d?: string };
+    let seen = null as Seen | null;
+    try { seen = JSON.parse(localStorage.getItem(SEEN_KEY) || 'null') as Seen | null; } catch { /* sem armazenamento */ }
+    const mark = () => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(now)); } catch { /* ok */ } };
+    if (!seen) return mark(); // primeira visita: o tour de boas-vindas já apresenta tudo
+    const newA = !!now.a && now.a !== seen.a, newD = !!now.d && now.d !== seen.d;
+    if (!newA && !newD) return mark();
+    const t = window.setTimeout(() => {
+      mark(); // só conta como visto quando a janela aparece de fato
+      const signed = (v: number, d = 1) => (v > 0 ? '+' : v < 0 ? '−' : '') + fmt(Math.abs(v), d);
+      if (newA && last) {
+        const st = (label: string, cur: number | null, old: number | null, unit: string, dir: number, du: string): DoneStat | null => {
+          if (cur == null || cur <= 0) return null;
+          const s: DoneStat = { label, value: fmt(cur), unit };
+          if (old != null && old > 0) { const df = cur - old; if (Math.abs(df) < 0.05) { s.delta = 'igual'; s.cls = 'flat'; } else { s.delta = signed(df) + ' ' + du; s.cls = dir === 0 ? 'neu' : df * dir > 0 ? 'good' : 'bad'; } }
+          return s;
+        };
+        const stats = [st('Peso', num(last.weight), prev ? num(prev.weight) : null, 'kg', 0, 'kg'), st('Gordura', num(rL['bf']), num(rP['bf']), '%', -1, 'pts'), st('Massa magra', num(rL['leanMass']), num(rP['leanMass']), 'kg', 1, 'kg')].filter((x): x is DoneStat => !!x);
+        const bfs = rs.slice(0, -1).map((r) => num(r['bf'])).filter((v): v is number => v != null);
+        const bf = num(rL['bf']);
+        const badge = bf != null && bfs.length >= 2 && bf < Math.min(...bfs) - 0.05 ? { icon: <Flame className="ico" />, text: 'Seu menor % de gordura até agora. Continue assim!' } : undefined;
+        setNews({ tone: 'green', confetti: true, icon: <ClipboardList className="ico" />, kicker: `Avaliação de ${dLong(last.date)}`, title: `${fn}, sua nova avaliação chegou`,
+          text: prev ? `Comparando com a avaliação de ${fmtDate(prev.date, { day: 'numeric', month: 'long' })}.` : 'Esta é a sua primeira avaliação: o ponto de partida da sua evolução.',
+          stats, ...(badge ? { badge } : {}),
+          actions: [
+            { label: 'Ver a avaliação completa', sub: 'Medidas, composição e observações', icon: <ClipboardList className="ico" />, primary: true, fn: () => go('avaliacao', last.id) },
+            ...(list.length > 1 ? [{ label: 'Ver minha evolução', sub: 'Gráficos de cada medida', icon: <TrendingUp className="ico" />, fn: () => go('evolucao') }] : []),
+            ...(newD ? [{ label: 'Abrir meu plano alimentar novo', sub: diets[0]!.title, icon: <Apple className="ico" />, fn: () => go('dieta') }] : []),
+          ], dismiss: 'Fechar' });
+      } else if (newD) {
+        const d = diets[0]!, s = d.data.meals.length, foods = d.data.meals.reduce((n, m) => n + m.variants.reduce((k, v) => k + v.foods.length, 0), 0);
+        setNews({ tone: 'green', confetti: true, icon: <Apple className="ico" />, kicker: nutriName === 'seu nutricionista' ? 'Plano alimentar' : `Enviado por ${nutriName}`, title: 'Seu plano alimentar novo chegou',
+          text: 'Refeições, opções, trocas e lista de compras — tudo aqui no portal.',
+          stats: [{ label: 'Refeições', value: String(s) }, { label: 'Alimentos', value: String(foods) }],
+          actions: [{ label: 'Abrir meu plano', sub: d.title, icon: <Apple className="ico" />, primary: true, fn: () => go('dieta') }], dismiss: 'Depois' });
+      }
+    }, 900);
+    return () => clearTimeout(t);
+  }, []);
 
   /* ===================== telas ===================== */
   const empty = (txt: string) => <div className="card blue empty"><div className="e-ico"><ClipboardList className="ico" /></div><h3>Nenhuma avaliação ainda</h3><p>{txt}</p></div>;
@@ -705,6 +751,7 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
       </nav>
       {viewer && <PhotoViewer spec={viewer} onEnd={() => setViewer(null)} />}
       {tour && <AppTour spec={tour} onEnd={() => setTour(null)} />}
+      {news && !tour && <DoneSheet spec={news} onEnd={() => setNews(null)} />}
     </main>
   );
 }
