@@ -48,7 +48,9 @@ export type PortalPhoto = { assessmentId: string; pose: 'front' | 'back' | 'righ
 /** plano alimentar visível para o paciente (o mais recente primeiro) */
 export type PortalDiet = { id: string; title: string; prescribedAt: string | null; assessmentId: string | null; data: import('./diet-parse').Diet; updatedAt: string | null };
 export type PortalData = {
-  patient: { name: string; sex: 'F' | 'M'; birth: string; height: number | null; goal: string | null; returnDays: number | null };
+  patient: { name: string; sex: 'F' | 'M'; birth: string; height: number | null; goal: string | null; returnDays: number | null;
+    /** metas e (só se o nutricionista liberar) a energia diária */
+    plan?: { goals: import('./plano').Goal[]; energy: import('./plano').EnergyCfg | null } | null };
   nutri: { name: string; crn: string; specialty: string; phone: string; place: string; returnDays: number | null };
   assessments: PortalAssessment[];
   photos: PortalPhoto[];

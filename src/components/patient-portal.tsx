@@ -24,6 +24,8 @@ import { dietAct, dietHtml, dietMini, newDietUi, nowMinutes, variantOf, KIND_COL
 import { mealKind, qtyParts, fmtAmount } from '@/lib/diet-parse';
 import { dietFileName, dietImage, exportDietPdf, shareOrDownload } from '@/lib/diet-export';
 import { exportPdf } from '@/lib/report.js';
+import { energyInputs, energyOf, goalSeries, goalStatus } from '@/lib/plano';
+import { energyCardHtml, goalCardHtml } from '@/lib/plano-view';
 
 /*
  * Portal do paciente: entrada com o código que o nutricionista compartilhou e um app SOMENTE de leitura,
@@ -281,6 +283,12 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
       diets: diets.map((d) => ({ title: d.title, prescribedAt: d.prescribedAt, assessmentId: d.assessmentId, data: d.data })) };
   };
   const pp = { name: data.patient.name, sex: data.patient.sex, birth: data.patient.birth, height: data.patient.height };
+  /* metas (com progresso) e energia diária — o mesmo cartão que o nutricionista vê */
+  const goalsHtml = useMemo(() => (data.patient.plan?.goals ?? []).map((g) => goalCardHtml(goalStatus(g, goalSeries(g.k, list, pp)), { mode: 'patient' })).join(''), [data, list]);
+  const energyHtml = useMemo(() => {
+    const cfg = data.patient.plan?.energy; if (!cfg || !last) return '';
+    const e = energyOf(cfg, energyInputs(pp, last)); return e ? energyCardHtml(e, { mode: 'patient', date: last.date, nutri: data.nutri.name || '' }) : '';
+  }, [data, last]);
   const PdfBtn = ({ kind, a, label }: { kind: 'assessment' | 'evolution' | 'full'; a?: A; label: string }) => (
     <button className="icon-btn" aria-label={label} title={label} onClick={() => exportPdf(kind, { p: pp, list, a, ctx: pdfCtx() })}><PdfIcon /></button>
   );
@@ -408,6 +416,7 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
         </div>
       );
     })()}
+    {goalsHtml && <div className="gl-list pp-goals">{parseHtml(goalsHtml)}</div>}
     {!last ? empty(`Assim que ${nutriName} registrar sua primeira avaliação, tudo aparece aqui.`) : (<>
       <div className="dash">
         <div className="card blue span2 span2-d hero" onClick={() => go('medidas')} style={{ cursor: 'pointer' }}>
@@ -454,6 +463,7 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
         );
       })()}
       </div>
+      {energyHtml && <div className="pp-energy">{parseHtml(energyHtml)}</div>}
       {lastNote && <div className="card pp-msg"><div className="card-head"><span className="chip-ico"><MessageCircle className="ico sm" /></span><span className="label">Recado de {firstName(nutriName)}<br /><span className="small muted">{dLong(lastNote.date)}</span></span></div><p>{lastNote.extra.notes}</p></div>}
     </>)}
 

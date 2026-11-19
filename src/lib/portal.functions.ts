@@ -88,6 +88,18 @@ async function loadPortal(code: string): Promise<PortalResult> {
       }
     } catch { /* sem dietas */ }
 
+    // metas e energia diária (coluna "plano"; sem a coluna, o portal segue sem elas). A energia só vai se o nutricionista liberou.
+    let plan: PortalData['patient']['plan'] = null;
+    try {
+      const pl = await db.from('pacientes').select('plano').eq('id', access.paciente_id).eq('owner_id', access.owner_id).maybeSingle();
+      const raw = (pl.error ? null : (pl.data as { plano?: unknown } | null)?.plano) as { goals?: unknown; energy?: unknown } | null | undefined;
+      if (raw && typeof raw === 'object') {
+        const goals = (Array.isArray(raw.goals) ? raw.goals : []).filter((g): g is NonNullable<PortalData['patient']['plan']>['goals'][number] => !!g && typeof g === 'object' && typeof (g as { to?: unknown }).to === 'number' && typeof (g as { from?: unknown }).from === 'number');
+        const e = raw.energy as NonNullable<PortalData['patient']['plan']>['energy'];
+        plan = { goals, energy: e && typeof e === 'object' && e.share ? e : null };
+      }
+    } catch { /* sem plano */ }
+
     // perfil profissional do nutricionista (nome, CRN, especialidade, contato de atendimento)
     let nutri: PortalData['nutri'] = { name: '', crn: '', specialty: '', phone: '', place: '', returnDays: null };
     try {
@@ -102,7 +114,7 @@ async function loadPortal(code: string): Promise<PortalResult> {
     return {
       ok: true,
       data: {
-        patient: { name: String(p['nome'] ?? ''), sex: p['sexo'] === 'F' ? 'F' : 'M', birth: String(p['nascimento'] ?? ''), height: n(p['altura_cm']), goal: (p['objetivo'] as string) ?? null, returnDays: n(p['retorno_dias']) },
+        patient: { name: String(p['nome'] ?? ''), sex: p['sexo'] === 'F' ? 'F' : 'M', birth: String(p['nascimento'] ?? ''), height: n(p['altura_cm']), goal: (p['objetivo'] as string) ?? null, returnDays: n(p['retorno_dias']), plan },
         nutri, assessments, photos, diets, share: { photos: sharePhotos, notes: shareNotes }, updatedAt,
       },
     };

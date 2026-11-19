@@ -136,10 +136,10 @@ export function AssessmentApp() {
           loadDiets(user.id).catch(() => ({ cloud: false, list: [] })),
         ]);
         if (cancelled || !host.current || live) return;
-        const repo = cloudRepository(user.id, loaded.db, loaded.fichaCloud);
+        const repo = cloudRepository(user.id, loaded.db, loaded.fichaCloud, loaded.planCloud);
         const runtime = mountOriginal({
           app: host.current, path: pathRef.current, userId: user.id, email: user.email, db: loaded.db, draft: loaded.draft, ...repo,
-          fichaCloud: loaded.fichaCloud, nutri: (user.user_metadata?.['nutri'] as Nutri | undefined) ?? {}, saveNutri,
+          fichaCloud: loaded.fichaCloud, planCloud: loaded.planCloud, nutri: (user.user_metadata?.['nutri'] as Nutri | undefined) ?? {}, saveNutri,
           render: (html: string, nav: string, key: string, dir: string) => { lastFrame = { html, nav, key, dir }; bridge.render(lastFrame); },
           sheet: (s: Sheet) => bridge.sheet(s),
           toast: (t: string) => bridge.toast(t),

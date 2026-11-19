@@ -4,6 +4,7 @@ import {tick} from "./motion";
 import {POSES,POSE_KEYS,poseLabel,poseSvg} from "./poses.js";
 import {exportPdf} from "./report.js";
 import {dietScreens} from "./diet-screens.js";
+import {careScreens} from "./care-screens.js";
 import {waSvg} from "./wa-icon";
 const FOLD_NAME=Object.fromEntries(FOLDS.map(f=>[f.k,f.l]));
 export function mountOriginal(options){
@@ -56,6 +57,7 @@ const I = {
   badge:'<rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="11" r="2"/><path d="M6 16c.6-1.4 1.7-2 3-2s2.4.6 3 2M14.5 10h3.5M14.5 13.5h3"/>',
   pin:'<path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
   clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  bell:'<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
   sort:'<path d="M7 4v16M3.5 16.5 7 20l3.5-3.5M17 20V4M13.5 7.5 17 4l3.5 3.5"/>',
   steth:'<path d="M6 3v6a5 5 0 0 0 10 0V3"/><path d="M11 14v2a4 4 0 0 0 8 0v-2"/><circle cx="19" cy="12" r="2"/>',
   code:'<path d="M8.5 4C6.5 4 6 5 6 7v2.2c0 1.4-.8 2.3-2 2.8 1.2.5 2 1.4 2 2.8V17c0 2 .5 3 2.5 3M15.5 4c2 0 2.5 1 2.5 3v2.2c0 1.4.8 2.3 2 2.8-1.2.5-2 1.4-2 2.8V17c0 2-.5 3-2.5 3"/>',
@@ -566,6 +568,7 @@ function viewHome(){
   const p = prof(), list = listOf(p.id);
   let h = topbar(p);
   if (hasDraft()) h += `<button class="draft-banner" data-act="resume">${ic('edit')}<span class="grow">Avaliação de ${esc(firstName((db.profiles.find(x=>x.id===draft.profileId)||p).name))} ${draft._editing?'em edição':'em andamento'} — ${fmtDate(draft.date)}</span><b>Continuar</b></button>`;
+  h += CS.returnsBanner();
   if (!list.length){
     h += `<h1 class="headline">Vamos registrar a primeira avaliação de ${esc(firstName(p.name))}.</h1>
     <div class="card blue empty"><div class="e-ico">${ic('clip')}</div><h3>Nenhuma avaliação ainda</h3>
@@ -610,6 +613,7 @@ function viewHome(){
       ${rp?`<div class="sub">${deltaChip(r.leanMass,rp.leanMass,1,'kg')}</div>`:''}
       ${sparkline(list.map(a=>calc(a,p).leanMass),'var(--green-ink)')}
     </div>
+    ${CS.homeGoals(p)}
 
     <div class="card yellow span2 span2-d">
       <div class="card-head"><span class="label">Composição corporal</span><span class="tag right" style="margin-left:auto">${esc(r.bfSource||'—')}</span></div>
@@ -746,6 +750,7 @@ function viewDetail(id){
       ${row('Densidade corporal', r.density, 'g/ml', 4)}
       ${r.navy!=null && r.bfSource!=='Marinha (circ.)' ? row('% Gordura (Marinha, circ.)', r.navy, '%') : ''}
       ${row('Metabolismo basal', r.bmr, 'kcal', 0)}
+      ${row('Gasto energético total', CS.tdeeOf(p, a), 'kcal', 0)}
       ${row('Altura', num(a.height), 'cm', 0)}
     </div>
     ${trunk?`<h2 class="sec">Circunferências — tronco</h2><div class="kv">${trunk}</div>`:''}
@@ -858,7 +863,7 @@ function ptCard({p, st, list}){
   const stIco = st.k==='ok' ? ic('check','sm') : (st.k==='late'||st.k==='soon') ? ic('clock','sm') : st.k==='arch' ? ic('archive','sm') : '';
   return `<div class="pt-cell" data-key="pt-${p.id}"><button class="pt-card ${on?'on':''}" data-act="go" data-to="patient" data-id="${p.id}">
     <span class="pt-top">${pAvatar(p)}<span class="pt-name"><b>${esc(p.name)}</b><small>${esc(pMeta(p))}</small></span>${ic('right','sm')}</span>
-    <span class="pt-tags"><span class="tag ${st.cls}">${stIco}${st.l}</span>${p.goal?`<span class="tag">${esc(goalLabel(p.goal))}</span>`:''}${on?`<span class="tag dark">Atual</span>`:''}</span>
+    <span class="pt-tags"><span class="tag ${st.cls}">${stIco}${st.l}</span>${p.goal?`<span class="tag">${esc(goalLabel(p.goal))}</span>`:''}${CS.goalTag(p)}${on?`<span class="tag dark">Atual</span>`:''}</span>
     <span class="pt-nums">${last
       ? `<span><small>Peso</small><b>${fmt(num(last.weight))}<small>kg</small></b></span><span><small>Gordura</small><b>${r.bf!=null?fmt(r.bf)+'<small>%</small>':'—'}</b></span><span><small>${plural(list.length,'avaliação','avaliações')}</small><b class="d">${ago(last.date)}</b></span>`
       : `<span class="pt-none">Nenhuma avaliação registrada ainda</span>`}</span>
@@ -893,6 +898,7 @@ function viewPatients(){
   return `<header class="top"><button class="icon-btn" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button>
     <div class="title-block"><small>${esc(nutriName())}</small><b>Pacientes</b></div><div class="grow"></div>
     <button class="btn dark sm pt-new" data-act="newProfile">${ic('plus','sm')}<span>Novo paciente</span></button></header>
+  ${CS.returnsBanner()}
   <div class="pt-kpis">
     ${kpi('active','Pacientes ativos',s.active,'blue','users')}
     ${kpi('late','Retornos atrasados',s.late,'peach','clock')}
@@ -987,6 +993,7 @@ function viewPatient(id){
     ${DS.has() ? `<button class="pa" data-act="openAs" data-to="diets" data-id="${p.id}">${ic('leaf')}<span>Dieta</span></button>` : ''}
     <button class="pa" data-act="print">${ic('pdf')}<span>PDF</span></button>
   </div>`;
+  h += CS.goalsSection(p);
   if (!last){
     h += `<div class="card empty" style="margin-top:16px"><div class="e-ico">${ic('clip')}</div><h3>Nenhuma avaliação ainda</h3><p>Registre a primeira avaliação de ${esc(firstName(p.name))} para acompanhar peso, gordura e medidas a cada retorno.</p></div>`;
   } else {
@@ -997,6 +1004,7 @@ function viewPatient(id){
       ${metric('Massa magra', r.leanMass, 'kg', r0?.leanMass, 1, 'kg', 'bolt', 'green')}
       ${metric('Cintura', num(last.circ?.waist), 'cm', r0&&num(first.circ?.waist), -1, 'cm', 'ruler', 'yellow')}
     </div>
+    ${CS.energySection(p)}
     <h2 class="sec">Avaliações <button data-act="openAs" data-to="list" data-id="${p.id}">Ver todas (${list.length})</button></h2>
     <div class="alist">${list.slice(-4).reverse().map((a,i)=>aItem(a,p,i===0)).join('')}</div>`;
   }
@@ -1009,6 +1017,7 @@ function viewPatient(id){
       <div class="kv-row"><span class="k">Próximo retorno</span><span class="t ${st.k}">${st.next?`${fmtDate(st.next)} <small>${st.short||st.l}</small>`:p.archived?'Arquivado':'Após a 1ª avaliação'}</span></div>
       <div class="kv-row"><span class="k">Cadastro</span><span class="t">${p.createdAt?fmtDate(isoOf(new Date(p.createdAt))):'—'}</span></div>
     </div>
+    ${(st.k==='late'||st.k==='soon') ? `<button class="act-row rt-remind" data-act="rtSend" data-id="${p.id}"><span class="chip-ico">${p.phone?waSvg('ico sm'):ic('clip','sm')}</span><span class="grow"><b>Lembrar do retorno</b><span>${p.phone?'Mensagem pronta no WhatsApp':'Copia a mensagem pronta'}</span></span>${ic('right','sm')}</button>` : ''}
     <h2 class="sec">Observações <button data-act="go" data-to="onboard" data-id="${p.id}">editar</button></h2>
     <div class="notes ${p.notes?'':'muted'}">${p.notes?esc(p.notes):'Sem observações. Registre histórico clínico, restrições e combinados.'}</div>
     ${paSection(p)}
@@ -1051,6 +1060,7 @@ function viewProfile(){
     <h2 class="sec">Pacientes</h2>
     <div class="actions">
       <button class="act-row" data-act="go" data-to="patients"><span class="chip-ico">${ic('users','sm')}</span><span class="grow"><b>Gerenciar pacientes</b><span>${plural(s.active,'ativo','ativos')}${s.arch?` · ${plural(s.arch,'arquivado','arquivados')}`:''} · busca e filtros por retorno</span></span>${ic('right','sm')}</button>
+      <button class="act-row" data-act="go" data-to="returns"><span class="chip-ico">${ic('bell','sm')}</span><span class="grow"><b>Retornos da semana</b><span>${(n=>n?`${plural(n,'paciente para avisar','pacientes para avisar')} pelo WhatsApp`:'Atrasados e próximos 7 dias, com mensagem pronta')(CS.pendingCount())}</span></span>${ic('right','sm')}</button>
       <button class="act-row" data-act="newProfile"><span class="chip-ico">${ic('plus','sm')}</span><span class="grow"><b>Cadastrar paciente</b><span>Dados, contato, objetivo e observações</span></span>${ic('right','sm')}</button>
     </div>
   </div>
@@ -1270,7 +1280,7 @@ function updateLive(){
    RENDER / ROUTER
    ========================================================= */
 let app = options.app;
-const ORDER = {home:0,patients:1,patient:2,list:3,detail:4,compare:5,diets:5.3,diet:5.5,profile:6,nutri:7,onboard:8,wizard:9,dietNew:9,dietEdit:9};
+const ORDER = {home:0,patients:1,returns:1.5,patient:2,energy:2.5,list:3,detail:4,compare:5,diets:5.3,diet:5.5,profile:6,nutri:7,onboard:8,wizard:9,dietNew:9,dietEdit:9};
 let lastRoute = null;
 function render(){
   // sem pacientes: primeiro o perfil do nutricionista (1º acesso), depois o cadastro do paciente
@@ -1294,18 +1304,21 @@ function render(){
     case 'nutri': html = `<div class="narrow">${viewNutri()}</div>`; break;
     case 'patients': html = viewPatients(); break;
     case 'patient': html = viewPatient(state.param); break;
+    case 'energy': html = CS.viewEnergy(state.param); break;
+    case 'returns': html = CS.viewReturns(); break;
     case 'wizard': html = viewWizard(); break;
     default: html = viewHome();
   }
   const showNav = !['wizard','onboard','nutri','dietNew','dietEdit'].includes(state.route);
   let navHtml='';
-  if(showNav){ const tabs=[['home','home','Início'],['patients','users','Pacientes'],['list','cal','Avaliações'],['compare','chart','Evolução'],...(DS.has()?[['diets','leaf','Dieta']]:[]),['profile','user','Perfil']]; const cur={detail:'list',patient:'patients',diet:'diets'}[state.route]||state.route;
+  if(showNav){ const tabs=[['home','home','Início'],['patients','users','Pacientes'],['list','cal','Avaliações'],['compare','chart','Evolução'],...(DS.has()?[['diets','leaf','Dieta']]:[]),['profile','user','Perfil']]; const cur={detail:'list',patient:'patients',energy:'patients',diet:'diets'}[state.route]||state.route;
   // No celular: só os botões (pílula flutuante). No computador vira barra lateral com marca, paciente atual, atalho e nutricionista.
   const p = prof(), n = p ? listOf(p.id).length : 0;
   // Computador: bloco geral (Início, Pacientes) + bloco do paciente atual (cartão, os menus dele e Nova avaliação); nutricionista no rodapé.
   // Celular: os blocos ficam "transparentes" e sobra só a pílula de botões, na mesma ordem.
-  const navBtn = ([r,i,l]) => `<button class="${cur===r?'on':''}" data-act="go" data-to="${r}" aria-label="${l}">${ic(i)}<span>${l}</span></button>`;
-  const general = tabs.filter(t=>t[0]==='home'||t[0]==='patients'), ofPatient = tabs.filter(t=>t[0]!=='home'&&t[0]!=='patients');
+  const navBtn = ([r,i,l,cls='',badge=0]) => `<button class="${cur===r?'on':''} ${cls}" data-act="go" data-to="${r}" aria-label="${l}${badge?` (${badge} para avisar)`:''}">${ic(i)}<span>${l}</span>${badge?`<em class="nav-badge">${badge}</em>`:''}</button>`;
+  // "Retornos" fica só na barra lateral do computador (no celular, o atalho está no Início e em Pacientes)
+  const general = [...tabs.filter(t=>t[0]==='home'||t[0]==='patients'), ...(db.profiles.length?[['returns','bell','Retornos','nav-ret',CS.pendingCount()]]:[])], ofPatient = tabs.filter(t=>t[0]!=='home'&&t[0]!=='patients');
   navHtml=`<nav class="nav${tabs.length>5?' six':''}">
     <div class="side-brand"><span class="mark">${ic('heart','sm')}</span><span>Avaliação<br>Física</span></div>
     <div class="side-links">${general.map(navBtn).join('')}</div>
@@ -1324,12 +1337,12 @@ function render(){
   options.render(html, navHtml, key, dir);
   maybeTour();
 }
-function routePath(route,param){const paths={home:'/',patients:'/pacientes',patient:'/pacientes/'+param,nutri:'/perfil/editar',list:'/avaliacoes',detail:'/avaliacoes/'+param,compare:'/evolucao',profile:'/perfil',diets:'/dietas',diet:'/dietas/'+param,dietNew:'/dietas/nova',dietEdit:'/dietas/'+param+'/editar',wizard:state.editingId?'/avaliacoes/'+state.editingId+'/editar':'/nova',onboard:param?'/pessoa/'+param+'/editar':'/pessoa/nova'};return paths[route]||'/';}
+function routePath(route,param){const paths={home:'/',patients:'/pacientes',patient:'/pacientes/'+param,energy:'/pacientes/'+param+'/energia',returns:'/retornos',nutri:'/perfil/editar',list:'/avaliacoes',detail:'/avaliacoes/'+param,compare:'/evolucao',profile:'/perfil',diets:'/dietas',diet:'/dietas/'+param,dietNew:'/dietas/nova',dietEdit:'/dietas/'+param+'/editar',wizard:state.editingId?'/avaliacoes/'+state.editingId+'/editar':'/nova',onboard:param?'/pessoa/'+param+'/editar':'/pessoa/nova'};return paths[route]||'/';}
 // Muda a URL e deixa o syncPath desenhar a tela nova numa única passada (sem piscar a tela antiga).
-function go(route,param=null,push=true){state.route=route;state.param=param;state.dd=null;try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} const to=routePath(route,param); if(push && to!==window.location.pathname) options.navigate(to); else render();}
+function go(route,param=null,push=true){state.route=route;state.param=param;state.dd=null;state.gl=null;try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} const to=routePath(route,param); if(push && to!==window.location.pathname) options.navigate(to); else render();}
 function syncPath(path){
  let route='home',param=null;
- if(path==='/avaliacoes') route='list'; else if(path==='/evolucao')route='compare';else if(path==='/perfil')route='profile';else if(path==='/perfil/editar')route='nutri';else if(path==='/pacientes')route='patients';else if(path.startsWith('/pacientes/')){route='patient';param=path.split('/')[2];if(db.profiles.some(p=>p.id===param))setActive(param);}else if(path==='/nova')route='wizard';else if(path.startsWith('/pessoa/')){route='onboard';param=path.endsWith('/editar')?path.split('/')[2]:null;}else if(path.startsWith('/avaliacoes/')){param=path.split('/')[2];route=path.endsWith('/editar')?'wizard':'detail';}else if(path==='/dietas')route='diets';else if(path==='/dietas/nova')route='dietNew';else if(path.startsWith('/dietas/')){param=path.split('/')[2];route=path.endsWith('/editar')?'dietEdit':'diet';const r=options.diets?.get(param);if(r&&db.profiles.some(p=>p.id===r.profileId))setActive(r.profileId);}
+ if(path==='/avaliacoes') route='list'; else if(path==='/evolucao')route='compare';else if(path==='/perfil')route='profile';else if(path==='/perfil/editar')route='nutri';else if(path==='/pacientes')route='patients';else if(path==='/retornos')route='returns';else if(path.startsWith('/pacientes/')){route=path.endsWith('/energia')?'energy':'patient';param=path.split('/')[2];if(db.profiles.some(p=>p.id===param))setActive(param);}else if(path==='/nova')route='wizard';else if(path.startsWith('/pessoa/')){route='onboard';param=path.endsWith('/editar')?path.split('/')[2]:null;}else if(path.startsWith('/avaliacoes/')){param=path.split('/')[2];route=path.endsWith('/editar')?'wizard':'detail';}else if(path==='/dietas')route='diets';else if(path==='/dietas/nova')route='dietNew';else if(path.startsWith('/dietas/')){param=path.split('/')[2];route=path.endsWith('/editar')?'dietEdit':'diet';const r=options.diets?.get(param);if(r&&db.profiles.some(p=>p.id===r.profileId))setActive(r.profileId);}
  if(route==='dietNew'||route==='dietEdit'){const r2=DS.prepare(route,param);if(r2!==route){route=r2;param=null;}}
  if(route==='wizard' && !draft){if(param&&findA(param)){draft=clone(findA(param));state.editingId=param;db.activeId=draft.profileId;}else if(prof()){draft=newDraft();state.editingId=null;} }
  initForm(route,param); state.dd=null;
@@ -1360,6 +1373,7 @@ function doneAssessment(a){
   else if (p.goal==='hipertrofia' && r.leanMass!=null && lean.length>=2 && r.leanMass > Math.max(...lean)+0.05) badge = `Maior massa magra já registrada de ${fn}`;
   else if (p.goal==='emagrecimento' && num(a.weight)>0 && ws.length>=2 && num(a.weight) < Math.min(...ws)-0.05) badge = `Menor peso já registrado de ${fn}`;
   else if (n>=5 && n%5===0) badge = `${n} avaliações: ${fn} segue firme no acompanhamento`;
+  badge = CS.goalReached(p, a) || badge; // meta alcançada com esta avaliação vale mais que qualquer outro marco
   const next = !p.archived ? addDays(a.date, returnEvery(p)) : null;
   const days = pv ? Math.max(0, Math.round((toDate(a.date)-toDate(pv.date))/864e5)) : 0;
   paLoad(p.id);
@@ -1455,6 +1469,11 @@ const DS = dietScreens({
   },
 });
 Object.assign(DD_PICK, DS.ddPick);
+/* ---------- metas, gasto energético e retornos (src/lib/care-screens.js) ---------- */
+const CS = careScreens({
+  options, state, ic, go, render, toast, sheet, listOf, pStatus, pAvatar, waLink, daysTo, ring, nutriName, paCopyText,
+  db: () => db, save, nutri: () => nutri, setNutri: n => { nutri = n; },
+});
 
 /* ---------- ações ---------- */
 const ACT = {
@@ -1663,7 +1682,7 @@ const ACT = {
     setTimeout(()=>{ const on = app.querySelector('.pt-filters .chip.on'), bar = on?.parentElement; if (on && bar && bar.scrollWidth > bar.clientWidth) bar.scrollTo({ left: on.offsetLeft - bar.clientWidth/2 + on.offsetWidth/2, behavior:'smooth' }); }, 60); },
   saveNutri: async () => {
     const v = id => document.getElementById(id).value.trim();
-    const next = { name:v('nu-name'), crn:v('nu-crn'), specialty:v('nu-spec'), phone:fmtPhone(v('nu-phone')), place:v('nu-place'), returnDays: num(state.form.nret) || 30, ...(nutri.tourSeen ? {tourSeen:true} : {}) };
+    const next = { name:v('nu-name'), crn:v('nu-crn'), specialty:v('nu-spec'), phone:fmtPhone(v('nu-phone')), place:v('nu-place'), returnDays: num(state.form.nret) || 30, ...(nutri.tourSeen ? {tourSeen:true} : {}), ...(nutri.returnMsg ? {returnMsg:nutri.returnMsg} : {}) };
     if (!next.name) return toast('Informe seu nome');
     if (next.phone && phoneDigits(next.phone).length < 10) return toast('Telefone incompleto: use DDD + número');
     const setup = inSetup();
@@ -1698,6 +1717,7 @@ const ACT = {
     download(`avaliacoes-${firstName(p.name).toLowerCase()}-${today()}.csv`, '﻿'+rows.join('\n'), 'text/csv;charset=utf-8'); toast('Planilha exportada');
   },
   ...DS.acts,
+  ...CS.acts,
 };
 const click = async e => {
   // menu aberto + clique fora dele: fecha
@@ -1712,6 +1732,7 @@ const click = async e => {
 const input = e => {
   if (e.target.id==='pt-q'){ state.pq = e.target.value; render(); return; }
   if (e.target.dataset?.dk && DS.onInput(e.target)) return;
+  if ((e.target.dataset?.gk || e.target.dataset?.rk) && CS.onInput(e.target)) return;
   if (e.target.dataset?.mask==='phone'){
     const el = e.target, v = fmtPhone(el.value);
     // apagando: não recoloca o traço/parêntese que a pessoa acabou de remover
