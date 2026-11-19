@@ -64,6 +64,13 @@
       "when": 1795114454617,
       "tag": "0008_create_respostas_paciente",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795132232202,
+      "tag": "0009_respostas_paciente_insert_policy",
+      "breakpoints": true
     }
   ]
 }
