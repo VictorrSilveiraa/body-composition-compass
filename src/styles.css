@@ -2445,3 +2445,20 @@ button.kpi:active{scale:.97}
   .pa{font-size:11.5px;padding:9px 2px}
   .pa .ico{width:20px;height:20px}
 }
+
+/* seletor de avaliação A/B (Evolução e fotos): menu do site no lugar do <select> do navegador */
+.cmp-pick .sel{min-width:0}
+.cmp-pick .sel:has(.dd.open){z-index:30}
+.dd-ab .dd-btn{height:auto;padding:2px 0 0;background:transparent;border:0;border-radius:8px;font-size:16px;gap:6px}
+.dd-ab .dd-btn .dd-chev{color:var(--ink-2)}
+.dd-ab.open .dd-btn{border:0}
+.dd-ab .dd-menu{top:calc(100% + 14px);max-height:min(360px,56vh);overflow-y:auto;overscroll-behavior:contain;min-width:230px}
+.cmp-pick .sel.a .dd-menu{left:-14px;right:auto;transform-origin:top left}
+.cmp-pick .sel.b .dd-menu{right:-14px;left:auto}
+.dd-ab .dd-opt{font-variant-numeric:tabular-nums}
+.cmp-pick .sel.b .dd-opt.on{background:var(--blue)}
+.cmp-pick .dd-opt small{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:500;color:var(--muted)}
+.cmp-pick .dd-opt.on small{color:var(--ink-2)}
+/* menu aberto fica acima dos cartões que vêm depois (eles animam e criam a própria camada) */
+.cmp-pick:has(.dd.open){position:relative;z-index:31}
+.ph-aside:has(.cmp-pick .dd.open){position:relative;z-index:31}

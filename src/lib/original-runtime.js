@@ -191,7 +191,14 @@ const DD_PICK = {
   goal: v => { state.form.goal = v; },
   ret: v => { state.form.ret = v; },
   nret: v => { state.form.nret = v; },
+  cmpA: v => { state.cmpA = v; }, cmpB: v => { state.cmpB = v; },
+  phA: v => { state.phA = v; }, phB: v => { state.phB = v; },
 };
+// seletor de avaliação A/B (Evolução e fotos): data + peso e gordura de cada uma, da mais recente para a mais antiga
+function abPick(id, list, value, p){
+  const opts = list.slice().reverse().map(a=>{ const r = calc(a,p); return [a.id, fmtDate(a.date,{day:'2-digit',month:'2-digit',year:'2-digit'}), [num(a.weight)?fmt(num(a.weight))+' kg':null, r.bf!=null?fmt(r.bf)+'% gordura':null].filter(Boolean).join(' · ')]; });
+  return dropdown(id, opts, value, {cls:'dd-ab', label: id.endsWith('A') ? 'Avaliação A (antes)' : 'Avaliação B (depois)'});
+}
 function initForm(route, param){
   if (route==='onboard'){ const p = param ? db.profiles.find(x=>x.id===param) : null; state.form = { goal:p?.goal||'', ret:num(p?.returnDays)?String(num(p.returnDays)):'' }; }
   if (route==='nutri') state.form = { nret:String(num(nutri.returnDays)||30) };
@@ -402,7 +409,6 @@ function viewPhotoCompare(p, list){
   }
   const A = findA(state.phA), B = findA(state.phB), mA = phGet(A.id,k), mB = phGet(B.id,k), rA = calc(A,p), rB = calc(B,p);
   const mode = state.phMode || 'side', x = state.phX ?? 50, o = state.phO ?? 50;
-  const opts = sel => dated.slice().reverse().map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${shortDate(a.date)}</option>`).join('');
   const days = Math.round((toDate(B.date)-toDate(A.date))/864e5);
   const stats = [['Peso',num(B.weight),num(A.weight),0,'kg'],['Gordura',rB.bf,rA.bf,-1,'pp'],['Massa magra',rB.leanMass,rA.leanMass,1,'kg'],['Cintura',num(B.circ?.waist),num(A.circ?.waist),-1,'cm']].filter(s=>s[1]!=null&&s[2]!=null);
   const daysTxt = days===0 ? 'Fotos do mesmo dia' : `${Math.abs(days)} ${Math.abs(days)===1?'dia':'dias'} entre as fotos`;
@@ -425,9 +431,9 @@ function viewPhotoCompare(p, list){
   </div>
   <aside class="ph-aside">
     <div class="cmp-pick">
-      <label class="sel a"><small>Antes (A)</small><select data-ch="phA">${opts(A.id)}</select></label>
+      <div class="sel a"><small>Antes (A)</small>${abPick('phA', dated, A.id, p)}</div>
       <button class="vs" data-act="phSwap" aria-label="Inverter">${ic('swap','sm')}</button>
-      <label class="sel b"><small>Depois (B)</small><select data-ch="phB">${opts(B.id)}</select></label>
+      <div class="sel b"><small>Depois (B)</small>${abPick('phB', dated, B.id, p)}</div>
     </div>
     ${stats.length ? `<div class="ph-stats">${stats.map(([l,b,a,dir,u])=>`<div class="stat"><small>${l}</small>${deltaChip(b,a,dir,u)}</div>`).join('')}</div>` : ''}
     <div class="ph-all">
@@ -802,13 +808,12 @@ function viewCompare(){
   if (!findA(state.cmpA) || findA(state.cmpA).profileId!==p.id) state.cmpA = list.at(-2).id;
   if (!findA(state.cmpB) || findA(state.cmpB).profileId!==p.id) state.cmpB = list.at(-1).id;
   const A = findA(state.cmpA), B = findA(state.cmpB), rA = calc(A,p), rB = calc(B,p);
-  const opts = sel => list.slice().reverse().map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${fmtDate(a.date,{day:'2-digit',month:'2-digit',year:'2-digit'})}</option>`).join('');
   const days = Math.round((toDate(B.date)-toDate(A.date))/864e5);
   const big = [['Peso',num(B.weight),num(A.weight),0,'kg','',''],['Gordura',rB.bf,rA.bf,-1,'pp','blue','%'],['Massa magra',rB.leanMass,rA.leanMass,1,'kg','green','kg'],['Massa gorda',rB.fatMass,rA.fatMass,-1,'kg','yellow','kg']];
   h += `<div class="cmp-pick">
-      <label class="sel a"><small>Antes (A)</small><select data-ch="cmpA">${opts(A.id)}</select></label>
+      <div class="sel a"><small>Antes (A)</small>${abPick('cmpA', list, A.id, p)}</div>
       <button class="vs" data-act="swapAB" aria-label="Inverter">${ic('swap','sm')}</button>
-      <label class="sel b"><small>Depois (B)</small><select data-ch="cmpB">${opts(B.id)}</select></label>
+      <div class="sel b"><small>Depois (B)</small>${abPick('cmpB', list, B.id, p)}</div>
     </div>
     <div class="cmp-meta"><p class="small muted">${Math.abs(days)} dias entre as avaliações${days<0?' (A é mais recente que B)':''}</p>
       <div class="cmp-legend" aria-label="Legenda das setas"><span><span class="delta good">${ic('down')}</span>Favorável</span><span><span class="delta bad">${ic('up')}</span>Desfavorável</span><span><span class="delta neu">${ic('up')}</span>Neutro</span></div></div>

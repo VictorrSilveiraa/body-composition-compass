@@ -122,6 +122,36 @@ const Head = ({ title, sub, back, right }: { title: string; sub: string; back?: 
 function Ranges({ rows, now }: { rows: string[][]; now: string }) {
   return <div className="pp-ranges">{rows.map(([l, v]) => <div key={l} className={'pp-range' + (l === now ? ' on' : '')}><span>{l}{l === now && <em>você</em>}</span><b>{v}</b></div>)}</div>;
 }
+
+/* menu suspenso do site (o mesmo do app do nutricionista), no lugar do <select> do navegador */
+function AbPick({ value, items, onPick, label }: { value: string; items: { v: string; l: string; sub?: string }[]; onPick: (v: string) => void; label: string }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const out = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', out); document.addEventListener('keydown', key);
+    return () => { document.removeEventListener('pointerdown', out); document.removeEventListener('keydown', key); };
+  }, [open]);
+  const cur = items.find((x) => x.v === value) ?? items[0];
+  return (
+    <div ref={box} className={'dd dd-ab' + (open ? ' open' : '')}>
+      <button type="button" className="dd-btn" aria-haspopup="listbox" aria-expanded={open} aria-label={label} onClick={() => setOpen((o) => !o)}>
+        <span className="dd-val">{cur?.l}</span><ChevronDown className="ico sm dd-chev" />
+      </button>
+      {open && (
+        <div className="dd-menu" role="listbox">
+          {items.map((x) => (
+            <button type="button" key={x.v} role="option" aria-selected={x.v === value} className={'dd-opt' + (x.v === value ? ' on' : '')} onClick={() => { onPick(x.v); setOpen(false); }}>
+              <span className="grow">{x.l}{x.sub && <small>{x.sub}</small>}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 function Item({ t, icon, val, children, open }: { t: string; icon: ReactNode; val?: string | undefined; children: ReactNode; open?: boolean | undefined }) {
   return (<details className="card pp-gi" open={open}><summary><span className="chip-ico">{icon}</span><span className="grow"><b>{t}</b>{val && <small>Você: {val}</small>}</span><ChevronRight className="ico sm pp-gchev" /></summary><div className="pp-gb">{children}</div></details>);
 }
@@ -495,9 +525,9 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
         </div></div>
       </>) : list.length < 2 || !A || !B ? <div className="card blue empty"><div className="e-ico"><ArrowLeftRight className="ico" /></div><h3>Falta só mais uma</h3><p>Com duas avaliações você vê a comparação lado a lado de cada medida.</p></div> : (<>
         <div className="cmp-pick">
-          <label className="sel a"><small>Antes (A)</small><select value={A.id} onChange={(e) => setCmpA(e.target.value)}>{list.slice().reverse().map((a) => <option key={a.id} value={a.id}>{dShort(a.date)}</option>)}</select></label>
+          <div className="sel a"><small>Antes (A)</small><AbPick label="Avaliação A (antes)" value={A.id} onPick={setCmpA} items={list.slice().reverse().map((a) => { const r = rOf(a); return { v: a.id, l: dShort(a.date), sub: [num(a.weight) != null ? fmt(num(a.weight)) + ' kg' : '', num(r['bf']) != null ? fmt(num(r['bf'])) + '% gordura' : ''].filter(Boolean).join(' · ') }; })} /></div>
           <button className="vs" onClick={() => { setCmpA(B.id); setCmpB(A.id); }} aria-label="Inverter"><ArrowLeftRight className="ico sm" /></button>
-          <label className="sel b"><small>Depois (B)</small><select value={B.id} onChange={(e) => setCmpB(e.target.value)}>{list.slice().reverse().map((a) => <option key={a.id} value={a.id}>{dShort(a.date)}</option>)}</select></label>
+          <div className="sel b"><small>Depois (B)</small><AbPick label="Avaliação B (depois)" value={B.id} onPick={setCmpB} items={list.slice().reverse().map((a) => { const r = rOf(a); return { v: a.id, l: dShort(a.date), sub: [num(a.weight) != null ? fmt(num(a.weight)) + ' kg' : '', num(r['bf']) != null ? fmt(num(r['bf'])) + '% gordura' : ''].filter(Boolean).join(' · ') }; })} /></div>
         </div>
         <div className="cmp-meta"><p className="small muted">{Math.abs(Math.round((toDate(B.date).getTime() - toDate(A.date).getTime()) / 864e5))} dias entre as avaliações</p>
           <div className="cmp-legend"><span><span className="delta good"><ArrowDown /></span>Favorável</span><span><span className="delta bad"><ArrowUp /></span>Desfavorável</span><span><span className="delta neu"><ArrowUp /></span>Neutro</span></div></div>
@@ -600,9 +630,9 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
           </div>
           <aside className="ph-aside">
             <div className="cmp-pick">
-              <label className="sel a"><small>Antes (A)</small><select value={A.id} onChange={(e) => setPhA(e.target.value)}>{dated.slice().reverse().map((a) => <option key={a.id} value={a.id}>{dShort(a.date)}</option>)}</select></label>
+              <div className="sel a"><small>Antes (A)</small><AbPick label="Foto A (antes)" value={A.id} onPick={setPhA} items={dated.slice().reverse().map((a) => { const r = rOf(a); return { v: a.id, l: dShort(a.date), sub: [num(a.weight) != null ? fmt(num(a.weight)) + ' kg' : '', num(r['bf']) != null ? fmt(num(r['bf'])) + '% gordura' : ''].filter(Boolean).join(' · ') }; })} /></div>
               <button className="vs" onClick={() => { setPhA(B.id); setPhB(A.id); }} aria-label="Inverter"><ArrowLeftRight className="ico sm" /></button>
-              <label className="sel b"><small>Depois (B)</small><select value={B.id} onChange={(e) => setPhB(e.target.value)}>{dated.slice().reverse().map((a) => <option key={a.id} value={a.id}>{dShort(a.date)}</option>)}</select></label>
+              <div className="sel b"><small>Depois (B)</small><AbPick label="Foto B (depois)" value={B.id} onPick={setPhB} items={dated.slice().reverse().map((a) => { const r = rOf(a); return { v: a.id, l: dShort(a.date), sub: [num(a.weight) != null ? fmt(num(a.weight)) + ' kg' : '', num(r['bf']) != null ? fmt(num(r['bf'])) + '% gordura' : ''].filter(Boolean).join(' · ') }; })} /></div>
             </div>
             <div className="ph-stats">{([['Peso', num(B.weight), num(A.weight), 0, 'kg'], ['Gordura', num(rOf(B)['bf']), num(rOf(A)['bf']), -1, 'pp'], ['Massa magra', num(rOf(B)['leanMass']), num(rOf(A)['leanMass']), 1, 'kg'], ['Cintura', num(B.circ['waist']), num(A.circ['waist']), -1, 'cm']] as const).filter((s) => s[1] != null && s[2] != null).map(([l, b, a, dd, u]) => <div className="stat" key={l}><small>{l}</small><Delta cur={b} prev={a} dir={dd} unit={u} /></div>)}</div>
             <div className="ph-all"><h3 className="ph-all-h">Todas as fotos · {poseLabel(k)}<span>{dated.length} fotos</span></h3>
