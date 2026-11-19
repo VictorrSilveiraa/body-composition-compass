@@ -3221,3 +3221,16 @@ h2.sec.fold-h{justify-content:flex-start;gap:8px;flex-wrap:nowrap}
 .fold-more .ico{rotate:-90deg}
 @media (max-width:520px){ .fold-h .sec-note{display:none} }
 .fold-body,.fold-mini-w{grid-template-columns:minmax(0,1fr)}
+/* anamnese: ações no topo (computador) e menu "⋯" (celular) */
+.fm-hd .ico{width:16px;height:16px}
+.fm-more{display:none}
+.fm-more .ico{width:20px;height:20px}
+@media (max-width:1023px){ .fm-hd{display:none!important} .fm-more{display:grid} }
+@media (min-width:1024px){ .top .fm-hd{flex:none;margin-left:6px} .top .fm-ask{flex:none} }
+/* metas anteriores: excluir */
+.gl-hdel{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:var(--muted);transition:background .2s,color .2s}
+.gl-hdel .ico{width:15px;height:15px}
+.gl-hdel:active{scale:.92}
+.gl-hclear{display:flex;align-items:center;gap:6px;margin:0 16px 12px auto;font-size:13px;font-weight:600;color:var(--red-ink);padding:6px 4px}
+.gl-hclear .ico{width:14px;height:14px}
+@media (hover:hover){ .gl-hdel:hover{background:var(--danger-soft);color:var(--red-ink)} .gl-hclear:hover{text-decoration:underline} }

@@ -966,6 +966,9 @@ function paSection(p){
       </div>
     </div>`;
   }
+  // com código criado, a seção pode ser recolhida: fica só o código e o status
+  const a = s?.loaded && s.available ? s.access : null;
+  if (a) return FS.fold('access', 'Acesso do paciente', FS.miniRow(ic('lock','sm'), `Código ${fmtAccessCode(a.code)}`, `${a.lastAccess ? 'Último acesso ' + ago(a.lastAccess.slice(0,10)) : 'Ainda não acessou'}`, `<span class="tag ${a.active?'green':''}">${a.active ? ic('check','sm')+'Ativo' : 'Pausado'}</span>`), body);
   return `<h2 class="sec">Acesso do paciente</h2>${body}`;
 }
 async function paCopyText(text, ok){

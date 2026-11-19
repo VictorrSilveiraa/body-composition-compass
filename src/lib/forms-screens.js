@@ -30,6 +30,7 @@ const X = { // ícones que o app ainda não tinha
   apple:'<path d="M12 6.528V3a1 1 0 0 1 1-1h0"/><path d="M18.237 21A15 15 0 0 0 22 11a6 6 0 0 0-10-4.472A6 6 0 0 0 2 11a15.1 15.1 0 0 0 3.763 10 3 3 0 0 0 3.648.648 5.5 5.5 0 0 1 5.178 0A3 3 0 0 0 18.237 21"/>',
   form:'<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h3"/>',
   ban:'<circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/>',
+  dots:'<circle cx="5.5" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.7" fill="currentColor" stroke="none"/>',
 };
 const icon = (n, cls='') => X[n] ? `<svg class="ico ${cls}" viewBox="0 0 24 24">${X[n]}</svg>` : ic(n, cls);
 const FIELD = Object.fromEntries(fieldsOf(ANAMNESE_FORM).map(f=>[f.k,f]));
@@ -170,7 +171,8 @@ function viewAnamnese(pid){
   const d = startDraft(p), fn = firstName(p.name), A = anamOf(p), all = pres(p.id), tab = state.akTab==='pre' && all.length ? 'pre' : 'anam';
   const head = `<header class="top"><button class="icon-btn" data-act="akBack" data-id="${p.id}" aria-label="Voltar para a ficha">${ic('back')}</button>
     <div class="title-block"><small>${esc(p.name)}</small><b>${tab==='pre'?'Pré-consultas':'Anamnese'}</b></div><div class="grow"></div>
-    ${R?.available() ? `<button class="btn ghost sm fm-ask" data-act="fmSend" data-id="${p.id}" data-k="${tab==='pre'?'pre_consulta':'anamnese'}">${p.phone?waSvg('ico sm'):ic('link','sm')}<span>${tab==='pre'?'Enviar pré-consulta':`Pedir para ${esc(fn)} preencher`}</span></button>` : ''}</header>
+    ${R?.available() ? `<button class="btn ghost sm fm-ask" data-act="fmSend" data-id="${p.id}" data-k="${tab==='pre'?'pre_consulta':'anamnese'}">${p.phone?waSvg('ico sm'):ic('link','sm')}<span>${tab==='pre'?'Enviar pré-consulta':`Pedir para ${esc(fn)} preencher`}</span></button>` : ''}
+    ${tab==='anam' ? `<button class="btn ghost sm fm-hd" data-act="akPdf" data-id="${p.id}">${ic('pdf','sm')}<span>PDF</span></button>${A.base||A.newer.length?`<button class="btn ghost sm fm-hd fm-del" data-act="akWipe" data-id="${p.id}">${ic('trash','sm')}<span>Apagar</span></button>`:''}<button class="icon-btn fm-more" data-act="akMore" data-id="${p.id}" aria-label="Mais opções" aria-haspopup="dialog">${icon('dots')}</button>` : ''}</header>
     ${all.length ? `<div class="seg fm-tabs"><button class="${tab==='anam'?'on':''}" data-act="akTab" data-t="anam">Anamnese</button><button class="${tab==='pre'?'on':''}" data-act="akTab" data-t="pre">Pré-consultas <small>${all.length}</small></button></div>` : ''}`;
   if (tab==='pre') return `${head}<div class="fm-hist">${all.map((r,i)=>{ const a = listOf(p.id).find(x=>x.date >= r.createdAt.slice(0,10));
       return `<div class="fm-hist-i"><span class="fm-hist-d">${i===0&&currentPre(p)===r?'Para a próxima consulta':a?`Antes da avaliação de ${fmtDate(a.date,{day:'numeric',month:'short'})}`:'Sem avaliação depois'}</span>${preCard(p, r, {compact:true, title:`Pré-consulta de ${dLong(r.createdAt)}`})}</div>`; }).join('')}</div>`;
@@ -186,7 +188,6 @@ function viewAnamnese(pid){
   ${pend}
   <nav class="fm-toc" aria-label="Seções">${ANAMNESE_FORM.sections.map(s=>{ const k = s.fields.filter(f=>answerText(f, d.data)).length; return `<a href="#ak-${s.k}" data-act="akJump" data-s="${s.k}" class="${k?'ok':''}${s.fields.some(f=>d.changed?.includes(f.k))?' chg':''}">${k?ic('check','sm'):''}${esc(SEC_SHORT[s.k]||s.l)}</a>`; }).join('')}</nav>
   <div class="fm-grid">${secs}</div>
-  <div class="fm-foot"><button class="btn ghost sm" data-act="akPdf" data-id="${p.id}">${ic('pdf','sm')} Salvar em PDF</button>${A.base||A.newer.length?`<button class="btn ghost sm fm-del" data-act="akWipe" data-id="${p.id}">${ic('trash','sm')} Apagar anamnese</button>`:''}</div>
   ${ctx.formBar(`data-act="akBack" data-id="${p.id}"`, `data-act="akSave" data-id="${p.id}"`, d.pending ? 'Salvar e marcar revisada' : 'Salvar anamnese', 'Cancelar', 'akBack')}`;
 }
 
@@ -253,6 +254,13 @@ const acts = {
   },
   fmSend: async b => sendForm(b.dataset.id, b.dataset.k || 'pre_consulta'),
   fold: async b => toggleFold(b),
+  // celular: as ações da anamnese num painel (no computador ficam no topo, ao lado do título)
+  akMore: async b => { const p = P(b.dataset.id); if (!p) return; const A = anamOf(p), fn = firstName(p.name);
+    sheet(`Anamnese de ${fn}`, `${A.n} de ${ANAM_N} campos preenchidos`, [
+      {label:'Salvar em PDF', sub:'Ficha completa para imprimir ou enviar', icon:ic('pdf'), cls:'opt', fn:async()=>acts.akPdf(b)},
+      R?.available() && {label:`Pedir para ${fn} preencher`, sub:p.phone?'Mensagem pronta no WhatsApp':'Copia a mensagem com o link', icon:p.phone?waSvg('ico'):ic('link'), cls:'opt', fn:async()=>sendForm(p.id,'anamnese')},
+      (A.base || A.newer.length) && {label:'Apagar anamnese', sub:'Deixa todos os campos em branco', icon:ic('trash'), cls:'danger', fn:async()=>acts.akWipe(b)},
+      {label:'Cancelar'}].filter(Boolean)); },
   fmPdf: async b => { const p = P(b.dataset.id), r = p && pres(p.id).find(x=>x.id===b.dataset.r); if (r) pdf(p, PRE_FORM, r.data, r.createdAt); },
   akPdf: async b => { const p = P(b.dataset.id); if (!p) return; const A = anamOf(p), d = state.ak?.pid===p.id ? cleanAnswers(ANAMNESE_FORM, state.ak.data) : A.data;
     pdf(p, ANAMNESE_FORM, d, null, A.pending ? 'Com respostas do paciente ainda não revisadas' : A.base?.at ? `Revisada em ${dLong(A.base.at)}` : ''); },

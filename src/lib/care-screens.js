@@ -89,8 +89,9 @@ function emptyGoals(p, has){
 // histórico completo (só o nutricionista vê os detalhes; o paciente vê as conquistas no quadro)
 function historyHtml(p){
   const h = (p.plan?.history ?? []).slice().reverse(); if (!h.length) return '';
-  return `<details class="gl-hist"><summary>${ic('clock','sm')}<span>Metas anteriores</span><em>${h.length}</em>${ic('chev','sm gl-chev')}</summary>
-    <ul>${h.map(x=>{ const K = GOAL_KINDS[x.k]; return `<li class="${x.done?'ok':''}"><span class="gl-hi">${x.done?ic('check','sm'):plIcon(x.k,'sm')}</span><span class="grow"><b>${K.l}: ${fmt(x.from)} → ${fmt(x.to)} ${K.u}</b><small>${fmtDate(x.fromDate,{day:'numeric',month:'short',year:'2-digit'})} – ${fmtDate(x.endedAt,{day:'numeric',month:'short',year:'2-digit'})} · ${x.done?'alcançada':x.last!=null?`chegou a ${fmt(x.last)} ${K.u}`:'encerrada'}</small></span></li>`; }).join('')}</ul></details>`;
+  return `<details class="gl-hist"${state.glHist===p.id?' open':''} data-key="glh-${p.id}-${h.length}"><summary>${ic('clock','sm')}<span>Metas anteriores</span><em>${h.length}</em>${ic('chev','sm gl-chev')}</summary>
+    <ul>${h.map(x=>{ const K = GOAL_KINDS[x.k]; return `<li class="${x.done?'ok':''}"><span class="gl-hi">${x.done?ic('check','sm'):plIcon(x.k,'sm')}</span><span class="grow"><b>${K.l}: ${fmt(x.from)} → ${fmt(x.to)} ${K.u}</b><small>${fmtDate(x.fromDate,{day:'numeric',month:'short',year:'2-digit'})} – ${fmtDate(x.endedAt,{day:'numeric',month:'short',year:'2-digit'})} · ${x.done?'alcançada':x.last!=null?`chegou a ${fmt(x.last)} ${K.u}`:'encerrada'}</small></span><button class="gl-hdel" data-act="glHistDel" data-id="${p.id}" data-h="${esc(x.id+'|'+x.endedAt)}" aria-label="Excluir esta meta do histórico" title="Excluir">${ic('trash','sm')}</button></li>`; }).join('')}</ul>
+    ${h.length>1?`<button class="gl-hclear" data-act="glHistClear" data-id="${p.id}">${ic('trash','sm')} Limpar histórico</button>`:''}</details>`;
 }
 function goalsSection(p){
   const goals = goalsOf(p), ed = state.gl?.pid===p.id ? state.gl : null, has = !!listOf(p.id).length;
@@ -363,6 +364,13 @@ function onInput(el){
    AÇÕES
    ========================================================= */
 const acts = {
+  // metas anteriores: excluir uma ou todas (o paciente deixa de ver no portal)
+  glHistDel: async b => { const p = P(b.dataset.id); if (!p) return; const h = p.plan?.history ?? [], x = h.find(y=>y.id+'|'+y.endedAt===b.dataset.h); if (!x) return; const K = GOAL_KINDS[x.k];
+    sheet('Excluir esta meta do histórico?', `${K.l}: ${fmt(x.from)} → ${fmt(x.to)} ${K.u}. Some da ficha, do PDF e do portal do paciente. Não dá para desfazer.`, [
+      {label:'Excluir meta', cls:'danger', icon:ic('trash','sm'), fn:async()=>{ planOf(p).history = h.filter(y=>y!==x); state.glHist = planOf(p).history.length ? p.id : null; await ctx.save(); render(); toast('Meta excluída do histórico'); }}, {label:'Cancelar'}]); },
+  glHistClear: async b => { const p = P(b.dataset.id); if (!p) return; const n = p.plan?.history?.length || 0; if (!n) return;
+    sheet('Limpar o histórico de metas?', `As ${n} metas anteriores de ${firstName(p.name)} serão apagadas. As metas atuais continuam. Não dá para desfazer.`, [
+      {label:'Limpar histórico', cls:'danger', icon:ic('trash','sm'), fn:async()=>{ planOf(p).history = []; state.glHist = null; await ctx.save(); render(); toast('Histórico de metas limpo'); }}, {label:'Cancelar'}]); },
   glNew: async b => { const p = P(b.dataset.id); if (!p) return; openGoals(p.id); },
   glEdit: async b => { const p = P(b.dataset.id); if (!p) return; openGoals(p.id); },
   glBy: async b => { if (!state.gl) return; syncEditor(); state.gl.by = b.dataset.v; render(); },

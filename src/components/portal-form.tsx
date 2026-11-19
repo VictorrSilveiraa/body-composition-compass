@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
-import { Apple, Check, ChevronLeft, ChevronRight, ClipboardList, Clock, Droplet, FileDown, Heart, Lock, MessageCircle, Moon, Pencil, Pill, RotateCcw, Scale, Send, Target, Trash2, TriangleAlert, Zap } from 'lucide-react';
+import { Apple, Check, ChevronLeft, ChevronRight, ClipboardList, Clock, Droplet, Heart, Lock, MessageCircle, Moon, Pencil, Pill, RotateCcw, Scale, Send, Target, Trash2, TriangleAlert, Zap } from 'lucide-react';
 import { answerText, cleanAnswers, fieldsOf, fmtSent, type Answers, type Field, type FormDef } from '@/lib/forms';
 import type { SubmitResult } from '@/lib/portal-code';
+import { PdfIcon } from '@/components/pdf-icon';
 
 /*
  * Formulários do paciente no portal (pré-consulta e ficha de saúde):
@@ -103,7 +104,7 @@ export function PortalForm({ def, draftKey, initial, sentAt, reviewed, current, 
         <button className="icon-btn" onClick={onBack} aria-label="Voltar"><ChevronLeft className="ico" /></button>
         <div className="title-block"><small>{isAnam ? 'Anamnese' : 'Antes do retorno'}</small><b>{isAnam ? 'Sua ficha de saúde' : 'Sua pré-consulta'}</b></div>
         <div className="grow" />
-        <button className="icon-btn" onClick={() => onPdf(x)} aria-label="Salvar em PDF" title="Salvar em PDF"><FileDown className="ico" /></button>
+        <button className="icon-btn" onClick={() => onPdf(x)} aria-label="Salvar em PDF" title="Salvar em PDF"><PdfIcon /></button>
       </header>
       {draft && (
         <div className="card pf-draft">
@@ -118,7 +119,7 @@ export function PortalForm({ def, draftKey, initial, sentAt, reviewed, current, 
           <small>{sentAt ? `Enviada em ${fmtSent(sentAt)}` : 'Preenchida com seu nutricionista'}{isAnam && sentAt ? (reviewed ? ` · revisada por ${nfn}` : ` · ${nfn} ainda vai revisar`) : ''}</small></div>
         <button className="btn dark sm" onClick={() => edit(isAnam && firstEmpty >= 0 ? firstEmpty : 0)}>{isAnam ? <><Pencil className="ico sm" /> {firstEmpty >= 0 ? 'Completar' : 'Atualizar'}</> : 'Responder de novo'}</button>
         <div className="pf-more">
-          <button onClick={() => onPdf(x)}><FileDown className="ico sm" /> Salvar em PDF</button>
+          <button onClick={() => onPdf(x)}><PdfIcon className="ico sm" /> Salvar em PDF</button>
           {isAnam && <button onClick={() => setAsk(ask === 'redo' ? '' : 'redo')}><RotateCcw className="ico sm" /> Refazer do zero</button>}
           {!isAnam && onDelete && <button className="del" onClick={() => setAsk(ask === 'del' ? '' : 'del')}><Trash2 className="ico sm" /> Apagar respostas</button>}
         </div>
