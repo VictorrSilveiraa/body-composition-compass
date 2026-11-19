@@ -82,7 +82,8 @@ function viewDiets(){
     return h;
   }
   h += `<h2 class="sec">Plano atual</h2>${miniCard(cur,{title:'Em uso agora'})}`;
-  if (list.length>1) h += `<h2 class="sec">Planos anteriores <span class="sec-note">${list.length-1}</span></h2><div class="alist">${list.slice(1).map(r=>dietRow(r,false)).join('')}</div>`;
+  if (list.length>1){ const pg = ctx.paged('dt:'+p.id, list.slice(1), {per:5, pages:false, noun:['plano','planos']});
+    h += `<h2 class="sec">Planos anteriores <span class="sec-note">${list.length-1}</span></h2><div class="alist" id="pg-dt:${p.id}">${pg.items.map(r=>dietRow(r,false)).join('')}</div>${pg.html}`; }
   h += `<button class="cta dt-cta" data-act="dtNew" data-pid="${p.id}"><span class="c-ico">${ic('ul')}</span><span>Importar novo plano <span class="arrows">›››</span></span><span class="c-ico">${ic('plus')}</span></button>`;
   return h;
 }

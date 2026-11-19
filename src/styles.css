@@ -2334,3 +2334,22 @@ button.kpi:active{scale:.97}
   .nav .side-wa:hover{transform:translateY(-1px)}
   .nav .side-wa .wa-ico{width:18px;height:18px}
 }
+/* ---------- listas longas: "Ver mais" e páginas ---------- */
+.pg-more{display:flex;flex-direction:column;align-items:center;gap:10px;margin:18px 0 4px}
+.pg-info{font-size:13px;color:var(--muted);font-weight:500}
+.pg-bar{width:min(220px,60%);height:5px;border-radius:99px;background:var(--card);overflow:hidden}
+.pg-bar i{display:block;height:100%;border-radius:99px;background:var(--green-2);transition:width .6s var(--spring)}
+.pg-btn{width:100%;max-width:420px;height:52px;gap:8px;background:var(--card)}
+.pg-btn .ico{transition:transform .3s var(--ease)}
+.pg-btn:hover .ico{transform:translateY(2px)}
+.pg{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:20px 2px 4px}
+.pg-pages{display:flex;align-items:center;gap:4px;background:var(--card);border-radius:99px;padding:4px}
+.pg-n{min-width:40px;height:40px;padding:0 10px;border-radius:99px;font-size:14px;font-weight:600;display:grid;place-items:center;transition:background-color .25s,color .25s}
+.pg-n:not(.on):not(:disabled):hover{background:var(--surface)}
+.pg-n.on{background:var(--ink);color:var(--surface)}
+.pg-n:disabled{opacity:.35;cursor:default}
+.pg-n .ico{width:18px;height:18px}
+.pg-gap{min-width:24px;text-align:center;color:var(--muted);font-weight:600}
+.pg-toggle{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:8px;padding:12px;border-radius:var(--r-md);background:var(--card);font-size:14px;font-weight:600;color:var(--ink-2);transition:background-color .25s}
+.pg-toggle:hover{background:var(--card-2)}
+.pg-up{transform:rotate(180deg)}

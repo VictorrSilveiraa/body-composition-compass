@@ -639,13 +639,40 @@ function ctaNew(){
   return `<button class="cta cta-new" data-act="new"><span class="c-ico">${ic('clip')}</span><span>${hasDraft()?'Continuar avaliação':'Nova avaliação'} <span class="arrows">›››</span></span><span class="c-ico">${ic('plus')}</span></button>`;
 }
 
+/* ---------- listas longas: "Ver mais" no celular, páginas numeradas no computador ----------
+ * key: qual lista; sig: filtro/busca/ordem atuais (mudou = volta ao começo). O estado fica em state.pg,
+ * que vai junto com a navegação: ao abrir um item e voltar, a lista continua onde estava. */
+const saveView = () => { try { sessionStorage.setItem('avf.view.'+options.userId, JSON.stringify(state)); } catch {} };
+const isDesk = () => typeof window!=='undefined' && !!window.matchMedia?.('(min-width:1024px)').matches;
+function paged(key, items, {per=12, sig='', noun=['item','itens'], pages=true}={}){
+  state.pg ||= {};
+  let s = state.pg[key];
+  if (!s || s.sig!==sig) s = state.pg[key] = {sig, page:1, shown:per};
+  const total = items.length, nn = n => n===1 ? noun[0] : noun[1];
+  if (total <= per) return {items, html:''};
+  if (pages && isDesk()){
+    const P = Math.ceil(total/per); s.page = Math.min(Math.max(1, s.page||1), P);
+    const a = (s.page-1)*per, b = Math.min(total, a+per);
+    const nums = []; for (let i=1;i<=P;i++) if (P<=7 || i===1 || i===P || Math.abs(i-s.page)<=1) nums.push(i); else if (nums.at(-1)!=='…') nums.push('…');
+    const btn = (p, label, extra='') => `<button type="button" class="pg-n ${p===s.page?'on':''}" data-act="pgGo" data-k="${key}" data-p="${p}"${p===s.page?' aria-current="page"':''}${extra}>${label}</button>`;
+    return { items: items.slice(a,b), html: `<nav class="pg" aria-label="Páginas"><span class="pg-info">${a+1}–${b} de ${total} ${nn(total)}</span><div class="pg-pages">
+      <button type="button" class="pg-n pg-arrow" data-act="pgGo" data-k="${key}" data-p="${s.page-1}" aria-label="Página anterior"${s.page===1?' disabled':''}>${ic('back','sm')}</button>
+      ${nums.map(p=>p==='…' ? '<span class="pg-gap">…</span>' : btn(p, p)).join('')}
+      <button type="button" class="pg-n pg-arrow" data-act="pgGo" data-k="${key}" data-p="${s.page+1}" aria-label="Próxima página"${s.page===P?' disabled':''}>${ic('right','sm')}</button></div></nav>` };
+  }
+  const n = Math.min(total, Math.max(per, s.shown||per)), left = total-n, next = Math.min(per, left);
+  return { items: items.slice(0,n), html: `<div class="pg-more"><p class="pg-info">Mostrando ${n} de ${total} ${nn(total)}</p><div class="pg-bar"><i style="width:${Math.round(n/total*100)}%"></i></div>
+    ${left ? `<button type="button" class="btn ghost pg-btn" data-act="pgMore" data-k="${key}" data-n="${per}">Ver mais ${next} ${nn(next)} ${ic('chev','sm')}</button>` : ''}</div>` };
+}
+
 function viewList(){
   const p = prof(), list = listOf(p.id).reverse();
+  const pg = paged('av:'+p.id, list, {per:10, pages:false, noun:['avaliação','avaliações']});
   return `<header class="top"><button class="icon-btn" data-act="go" data-to="home">${ic('back')}</button>
     <div class="title-block"><small>${esc(p.name)}</small><b>Avaliações</b></div><div class="grow"></div>
     <button class="icon-btn" data-act="new">${ic('plus')}</button></header>
   ${list.length ? `<p class="muted small" style="margin:-8px 2px 14px">${list.length} ${list.length>1?'avaliações registradas':'avaliação registrada'}</p>
-  <div class="alist">${list.map((a,i)=>aItem(a,p,i===0)).join('')}</div>` :
+  <div class="alist" id="pg-av:${p.id}">${pg.items.map((a,i)=>aItem(a,p,i===0)).join('')}</div>${pg.html}` :
   `<div class="card empty"><div class="e-ico">${ic('cal')}</div><h3>Nenhuma avaliação ainda</h3><p>As avaliações de ${esc(firstName(p.name))} aparecem aqui, da mais recente para a mais antiga.</p></div>`}
   ${ctaNew()}`;
 }
@@ -760,7 +787,9 @@ function viewCompare(){
     </div>
     </div><div class="evo-side">
     <h2 class="sec">Histórico</h2>
-    <div class="kv" data-key="hist-${state.evo}">${pts.slice().reverse().map((x,i,arr)=>`<div class="kv-row" data-act="go" data-to="detail" data-id="${x.id}" style="cursor:pointer"><span class="k">${fmtDate(x.date)}</span><span>${arr[i+1]?deltaChip(x.y,arr[i+1].y,m.dir,'',d):''}</span><span class="v">${fmt(x.y,d)}<small>${m.u}</small></span></div>`).join('')}</div>
+    ${(() => { const all = pts.slice().reverse(), lim = state.evoAll ? all.length : 6;
+      return `<div class="kv" data-key="hist-${state.evo}-${lim}">${all.slice(0,lim).map((x,i)=>`<div class="kv-row" data-act="go" data-to="detail" data-id="${x.id}" style="cursor:pointer"><span class="k">${fmtDate(x.date)}</span><span>${all[i+1]?deltaChip(x.y,all[i+1].y,m.dir,'',d):''}</span><span class="v">${fmt(x.y,d)}<small>${m.u}</small></span></div>`).join('')}</div>
+      ${all.length>6 ? `<button type="button" class="pg-toggle" data-act="evoAll">${state.evoAll ? `Mostrar menos ${ic('chev','sm pg-up')}` : `Ver histórico completo (${all.length}) ${ic('chev','sm')}`}</button>` : ''}`; })()}
     </div></div>`;
     return h;
   }
@@ -869,7 +898,7 @@ function viewPatients(){
     ${dropdown('psort', [['recent','Última avaliação','Quem foi avaliado por último primeiro'],['next','Próximo retorno','Retornos atrasados e mais próximos primeiro'],['name','Nome (A–Z)','Ordem alfabética']], state.ps, {icon:'sort', cls:'pt-sort', label:'Ordenar pacientes'})}
   </div>
   ${shown.length
-    ? `<div class="pt-grid">${shown.map(ptCard).join('')}</div>`
+    ? (() => { const pg = paged('pt', shown, {per:12, sig:`${state.pf}|${q}|${state.ps}`, noun:['paciente','pacientes']}); return `<div class="pt-grid" id="pg-pt">${pg.items.map(ptCard).join('')}</div>${pg.html}`; })()
     : `<div class="card empty"><div class="e-ico">${ic(q?'search':'users')}</div><h3>${emptyMsg[0]}</h3><p>${emptyMsg[1]}</p></div>`}`;
 }
 
@@ -1309,7 +1338,7 @@ function download(name, content, type){
 
 /* ---------- plano alimentar (src/lib/diet-screens.js) ---------- */
 const DS = dietScreens({
-  options, state, ic, go, render, toast, sheet, dropdown, dpill, findA, listOf, prof, setActive, nutriName, crnLabel,
+  options, state, ic, go, render, toast, sheet, dropdown, dpill, paged, findA, listOf, prof, setActive, nutriName, crnLabel,
   db: () => db, app: () => app,
   // situação do acesso ao portal (para explicar ao nutricionista se o paciente já consegue ver o plano)
   portalState: pid => { paLoad(pid); const s = PA[pid]; if (!s?.loaded || !s.available) return ''; if (!s.access) return 'none'; return s.access.active ? 'active' : 'paused'; },
@@ -1525,6 +1554,11 @@ const ACT = {
     const p = db.profiles.find(x=>x.id===b.dataset.id); if (!p) return;
     p.archived = !p.archived; await save(); render(); toast(p.archived ? `${firstName(p.name)} foi arquivado` : `${firstName(p.name)} voltou para os ativos`);
   },
+  /* ---------- listas longas ---------- */
+  pgMore: async b => { const s = state.pg?.[b.dataset.k]; if (!s) return; s.shown = (s.shown||0) + (+b.dataset.n||12); saveView(); render(); },
+  pgGo: async b => { const s = state.pg?.[b.dataset.k]; if (!s) return; s.page = +b.dataset.p; saveView(); render();
+    const top = document.getElementById('pg-'+b.dataset.k); if (top) window.scrollTo({ top: top.getBoundingClientRect().top + window.scrollY - 24, behavior:'smooth' }); },
+  evoAll: async () => { state.evoAll = !state.evoAll; render(); },
   ddToggle: async b => { state.dd = state.dd===b.dataset.dd ? null : b.dataset.dd; render(); },
   ddPick: async b => { const fn = DD_PICK[b.dataset.dd]; state.dd = null; if (fn) fn(b.dataset.v); render(); app.querySelector(`[data-act="ddToggle"][data-dd="${b.dataset.dd}"]`)?.focus({preventScroll:true}); },
   pfilter: async b => { state.pf = b.dataset.v; if (state.route!=='patients') go('patients'); else { try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} render(); }

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import {
-  Activity, ArrowDown, ArrowLeftRight, ArrowRight, ArrowUp, BookOpen, CalendarClock, Camera, ChevronLeft, ChevronRight, ClipboardList,
+  Activity, ArrowDown, ArrowLeftRight, ArrowRight, ArrowUp, BookOpen, ChevronDown, CalendarClock, Camera, ChevronLeft, ChevronRight, ClipboardList,
   Droplet, Equal, Flame, Heart, House, KeyRound, LogOut, MapPin, MessageCircle, RefreshCw, Ruler, Scale, ShieldCheck, Target, TrendingUp, Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -206,6 +206,7 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
   const [sx, setSx] = useState(50), [so, setSo] = useState(50);
   const [viewer, setViewer] = useState<ViewerSpec | null>(null);
   const drag = useRef(false);
+  const [avShown, setAvShown] = useState(10), [histAll, setHistAll] = useState(false);
   /* plano alimentar: versão escolhida + estado da tela (aba, opção, trocas, compras marcadas) */
   const [dietId, setDietId] = useState<string | null>(null);
   const [dietUis, setDietUis] = useState<Record<string, DietUi>>({});
@@ -426,9 +427,10 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
           </div>
         </div><div className="evo-side">
           <h2 className="sec">Histórico</h2>
-          <div className="kv" key={'hist-' + m.k}>{pts.slice().reverse().map((x, i, arr) => (
-            <div className="kv-row" key={x.id} onClick={() => go('avaliacao', x.id)} style={{ cursor: 'pointer' }}><span className="k">{dLong(x.date)}</span><span>{arr[i + 1] && <Delta cur={x.y} prev={arr[i + 1]!.y} dir={m.dir} d={d} />}</span><span className="v">{fmt(x.y, d)}<small>{m.u}</small></span></div>
+          <div className="kv" key={'hist-' + m.k + histAll}>{pts.slice().reverse().slice(0, histAll ? undefined : 6).map((x, i, arr) => (
+            <div className="kv-row" key={x.id} onClick={() => go('avaliacao', x.id)} style={{ cursor: 'pointer' }}><span className="k">{dLong(x.date)}</span><span>{(() => { const nx = pts.slice().reverse()[i + 1]; return nx && <Delta cur={x.y} prev={nx.y} dir={m.dir} d={d} />; })()}</span><span className="v">{fmt(x.y, d)}<small>{m.u}</small></span></div>
           ))}</div>
+          {pts.length > 6 && <button type="button" className="pg-toggle" onClick={() => setHistAll((v) => !v)}>{histAll ? <>Mostrar menos <ChevronDown className="ico sm pg-up" /></> : <>Ver histórico completo ({pts.length}) <ChevronDown className="ico sm" /></>}</button>}
         </div></div>
       </>) : list.length < 2 || !A || !B ? <div className="card blue empty"><div className="e-ico"><ArrowLeftRight className="ico" /></div><h3>Falta só mais uma</h3><p>Com duas avaliações você vê a comparação lado a lado de cada medida.</p></div> : (<>
         <div className="cmp-pick">
@@ -554,13 +556,15 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
     <Head title="Avaliações" sub={data.patient.name} back={() => go('inicio')} />
     {!list.length ? empty(`Assim que ${nutriName} registrar sua primeira avaliação, ela aparece aqui.`) : (<>
       <p className="muted small" style={{ margin: '-8px 2px 14px' }}>{list.length} {list.length > 1 ? 'avaliações registradas' : 'avaliação registrada'}</p>
-      <div className="alist">{list.slice().reverse().map((a, i) => { const r = rOf(a), pv = list[list.indexOf(a) - 1]; return (
+      <div className="alist">{list.slice().reverse().slice(0, avShown).map((a, i) => { const r = rOf(a), pv = list[list.indexOf(a) - 1]; return (
         <button key={a.id} className="aitem" onClick={() => go('avaliacao', a.id)}>
           <Dpill iso={a.date} on={i === 0} />
           <div className="info"><b>{fmtDate(a.date, { weekday: 'long', day: 'numeric', month: 'long' })}</b>
             <div className="stats"><span><em>{fmt(num(a.weight))}</em> kg</span>{num(r['bf']) != null && <span><em>{fmt(num(r['bf']))}</em>% gordura</span>}{pv && <Delta cur={a.weight} prev={pv.weight} dir={0} unit="kg" />}{hasPhotos && data.photos.some((x) => x.assessmentId === a.id) && <span className="pp-hasph"><Camera size={14} /></span>}</div></div>
           <ChevronRight className="ico sm" />
         </button>); })}</div>
+      {list.length > 10 && <div className="pg-more"><p className="pg-info">Mostrando {Math.min(avShown, list.length)} de {list.length} avaliações</p><div className="pg-bar"><i style={{ width: `${Math.round((Math.min(avShown, list.length) / list.length) * 100)}%` }} /></div>
+        {avShown < list.length && <button type="button" className="btn ghost pg-btn" onClick={() => setAvShown((n) => n + 10)}>Ver mais {Math.min(10, list.length - avShown)} {list.length - avShown === 1 ? 'avaliação' : 'avaliações'} <ChevronDown className="ico sm" /></button>}</div>}
     </>)}
   </>);
 
