@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { bmrBy, energyInputs, energyOf, goalSeries, goalStatus, type Goal } from '@/lib/plano';
+import { bmrBy, energyInputs, energyOf, goalSeries, goalStatus, goalsStatus, type Goal } from '@/lib/plano';
+import { reportHtml } from '@/lib/report.js';
 
 const person = { sex: 'F', birth: '1994-05-10', height: '165' };
 const folds = { chest: [12], midaxillary: [14], triceps: [20], subscapular: [16], abdominal: [24], suprailiac: [18], thigh: [28] };
@@ -39,6 +40,22 @@ describe('Gasto energético', () => {
   });
 });
 
+describe('Relatório em PDF', () => {
+  it('traz as metas (na data da avaliação) e o gasto energético quando configurado', () => {
+    const list = [{ ...a, id: 'x1', date: '2026-10-01', weight: 70, circ: { waist: 80 } }, { ...a, id: 'x2', date: '2026-11-01', weight: 68, circ: { waist: 78 } }];
+    const goals: Goal[] = [{ id: 'p', k: 'weight', from: 70, to: 66, fromDate: '2026-10-01', by: '2027-01-01' }];
+    const cfg = { formula: 'mifflin' as const, activity: 1.55, adjust: -500, protein: 1.8, fat: 0.8 };
+    const html = reportHtml('assessment', { a: list[1], p: person, list, ctx: { goals, energy: (x: typeof a) => energyOf(cfg, energyInputs(person, x)) } });
+    expect(html).toContain('Metas do acompanhamento');
+    expect(html).toContain('50%'); // 70 → 68 de 70 → 66
+    expect(html).toContain('Gasto energético total');
+    expect(html).toContain('Meta calórica diária');
+    const plain = reportHtml('assessment', { a: list[1], p: person, list, ctx: {} });
+    expect(plain).not.toContain('Metas do acompanhamento');
+    expect(plain).not.toContain('Gasto energético total');
+  });
+});
+
 describe('Metas', () => {
   const g: Goal = { id: '1', k: 'weight', from: 80, to: 72, fromDate: '2026-09-01', by: '2027-03-01' };
   it('progresso, quanto falta e ritmo', () => {
@@ -55,6 +72,16 @@ describe('Metas', () => {
     expect(goalStatus(up, [{ date: '2026-10-01', v: 51 }]).pct).toBeCloseTo(0.25, 6);
     expect(goalStatus(up, [{ date: '2026-10-01', v: 49 }]).pace).toBe('away');
     expect(goalStatus(up, [{ date: '2026-10-01', v: 49 }]).pct).toBe(0);
+  });
+  it('quadro: em ordem de medida e como estavam numa data passada', () => {
+    const goals: Goal[] = [{ id: 'w', k: 'waist', from: 80, to: 74, fromDate: '2026-11-01' }, { id: 'p', k: 'weight', from: 70, to: 66, fromDate: '2026-11-01' }];
+    const list = [{ ...a, date: '2026-11-01', weight: 70, circ: { waist: 80 } }, { ...a, date: '2026-12-01', weight: 68, circ: { waist: 77 } }];
+    const now = goalsStatus(goals, list, person);
+    expect(now.map((s) => s.goal.k)).toEqual(['weight', 'waist']);
+    expect(now[0]!.pct).toBeCloseTo(0.5, 6);
+    const then = goalsStatus(goals, list, person, '2026-11-01');
+    expect(then[0]!.cur).toBe(70); expect(then[0]!.pct).toBe(0);
+    expect(goalsStatus(goals, list, person, '2026-10-01')).toEqual([]); // metas definidas depois desta data não aparecem
   });
   it('série da medida a partir das avaliações', () => {
     expect(goalSeries('waist', [a, { ...a, date: '2026-12-01', circ: {} }], person)).toEqual([{ date: '2026-11-17', v: 74 }]);

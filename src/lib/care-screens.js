@@ -1,6 +1,6 @@
 import { esc, fmt, num, fmtDate, today, firstName, toDate } from './calculos.js';
-import { GOAL_KINDS, GOAL_ORDER, goalSeries, goalStatus, energyOf, energyInputs, energyCfg, FORMULAS, ACTIVITY, ADJUSTS, adjustLabel, activityLabel, bmrBy } from './plano';
-import { goalCardHtml, energyCardHtml, macroBarHtml, plIcon, kcal, factor, goalTitle, MACRO_COLOR, MACRO_LABEL } from './plano-view';
+import { GOAL_KINDS, GOAL_ORDER, GOAL_METRIC, goalSeries, goalStatus, goalsStatus, energyOf, energyInputs, energyCfg, FORMULAS, ACTIVITY, ADJUSTS, adjustLabel, activityLabel, bmrBy } from './plano';
+import { goalsBoardHtml, energyCardHtml, macroBarHtml, plIcon, kcal, factor, goalTitle, MACRO_COLOR, MACRO_LABEL } from './plano-view';
 import { waSvg } from './wa-icon';
 import { motivo } from './motivo';
 
@@ -28,75 +28,127 @@ const planOf = p => (p.plan ||= {});
 
 /* =========================================================
    METAS
+   Um conjunto de metas por paciente (até uma por medida), com o ponto de partida na
+   avaliação em que foram definidas. São revistas a cada consulta; as que saem ou mudam
+   vão para o histórico (conquistas). Editor único: as 4 medidas de uma vez.
    ========================================================= */
 const goalsOf = p => p.plan?.goals ?? [];
 const statusOf = (p, g) => goalStatus(g, goalSeries(g.k, listOf(p.id), p));
-// valor de hoje de cada medida (última avaliação que tem a medida)
+const statusAll = (p, upTo) => goalsStatus(goalsOf(p), listOf(p.id), p, upTo);
+// valor mais recente de cada medida (última avaliação que tem a medida)
 function currentOf(p, k){ const s = goalSeries(k, listOf(p.id), p).at(-1); return s ? s : null; }
-
-function goalEditor(p, ed){
-  const used = goalsOf(p).filter(g=>g.id!==ed.id).map(g=>g.k);
-  const cur = currentOf(p, ed.k), K = GOAL_KINDS[ed.k];
-  const kinds = GOAL_ORDER.map(k=>{ const c = currentOf(p,k), off = !c || used.includes(k);
-    return `<button type="button" class="gl-kind${k===ed.k?' on':''}" data-act="glKind" data-k="${k}" role="radio" aria-checked="${k===ed.k}"${off?' disabled':''}>${plIcon(k)}<span><b>${GOAL_KINDS[k].l}</b><small>${used.includes(k) ? 'já tem meta' : c ? `hoje ${fmt(c.v)} ${GOAL_KINDS[k].u}` : 'sem medida'}</small></span></button>`; }).join('');
-  return `<div class="card white gl-edit" data-key="gl-edit-${ed.id||'new'}">
-    <div class="gl-edit-h"><span class="chip-ico">${ic('target','sm')}</span><span class="grow"><b>${ed.id?'Editar meta':'Nova meta'}</b><small>${esc(firstName(p.name))} acompanha o progresso no portal</small></span></div>
-    <div class="gl-kinds" role="radiogroup" aria-label="Medida da meta">${kinds}</div>
-    <div class="fields two">
-      <label class="field"><div class="f-top"><span class="f-label">Chegar a</span>${cur?`<span class="f-prev">hoje ${fmt(cur.v)} ${K.u}</span>`:''}</div>
-        <div class="f-input"><input id="gl-to" data-gk="to" data-key="gl-to-${ed.k}" inputmode="decimal" value="${esc(ed.to)}" placeholder="${cur?fmt(cur.v):''}" autocomplete="off"><em>${K.u}</em></div></label>
-      <div class="field"><div class="f-top"><span class="f-label">Prazo</span><span class="f-prev">opcional</span></div>
-        <div class="f-input text"><input id="gl-by" data-gk="by" data-key="gl-by-${ed.by||'none'}" type="date" value="${esc(ed.by||'')}" min="${addDays(today(),1)}"></div>
-        <div class="gl-quick" data-key="gl-q-${ed.by||'none'}">${[1,3,6,12].map(m=>{ const v = addMonths(today(),m); return `<button type="button" class="chip${ed.by===v?' on':''}" data-act="glBy" data-v="${v}">${m===12?'1 ano':`${m} ${m===1?'mês':'meses'}`}</button>`; }).join('')}${ed.by?'<button type="button" class="chip" data-act="glBy" data-v="">Sem prazo</button>':''}</div></div>
-    </div>
-    <p class="gl-preview" data-live="glPrev" data-key="gl-prev-${ed.k}-${esc(ed.to)}-${ed.by||''}">${previewText(p, ed)}</p>
-    <div class="gl-edit-btns"><button type="button" class="btn ghost" data-act="glCancel">Cancelar</button><button type="button" class="btn dark" data-act="glSave" data-id="${p.id}">${ic('check')} Salvar meta</button></div>
-  </div>`;
+// abre o editor já preenchido com as metas atuais
+function openEditor(p){
+  const vals = {}; for (const g of goalsOf(p)) vals[g.k] = String(g.to).replace('.',',');
+  const bys = [...new Set(goalsOf(p).map(g=>g.by||''))];
+  state.gl = { pid:p.id, vals, by: bys.length===1 ? bys[0] : (bys.find(Boolean)||'') };
 }
-// prévia ao vivo: diferença, % e ritmo semanal (com alerta de ritmo acelerado)
-function previewText(p, ed){
-  const cur = currentOf(p, ed.k), to = num(ed.to), K = GOAL_KINDS[ed.k];
-  if (!cur) return 'Registre uma avaliação com esta medida para definir a meta.';
-  if (to==null) return `Hoje: <b>${fmt(cur.v)} ${K.u}</b>. Digite o valor que ${esc(firstName(p.name))} quer alcançar.`;
-  const d = to - cur.v; if (Math.abs(d) < 0.05) return 'A meta é igual ao valor de hoje: escolha outro valor.';
-  const unit = ed.k==='bf' ? ' pontos' : ' '+K.u;
-  let t = `De <b>${fmt(cur.v)}</b> para <b>${fmt(to)} ${K.u}</b>: ${d>0?'+':'−'}${fmt(Math.abs(d))}${unit}${ed.k!=='bf'?` (${d>0?'+':'−'}${fmt(Math.abs(d)/cur.v*100,0)}%)`:''}`;
-  const by = ed.by && ed.by > today() ? ed.by : null;
-  if (by){ const wk = Math.max(1, daysTo(by))/7, rate = Math.abs(d)/wk;
-    t += ` · ≈ ${fmt(rate, rate<1?2:1)}${unit} por semana`;
-    if (ed.k==='weight' && d<0 && rate > cur.v*0.01) t += ' <span class="gl-warn">ritmo acelerado: mais de 1% do peso por semana</span>';
+
+// prévia de uma linha do editor: diferença, % e ritmo semanal (com alerta de ritmo acelerado)
+function rowPreview(p, k, val, by){
+  const cur = currentOf(p, k), to = num(val), K = GOAL_KINDS[k];
+  if (!cur) return 'Sem esta medida nas avaliações';
+  if (to==null) return `Hoje ${fmt(cur.v)} ${K.u} · deixe em branco para não ter meta`;
+  const d = to - cur.v; if (Math.abs(d) < 0.05) return '<span class="gl-warn">Igual ao valor de hoje</span>';
+  if (k==='bf' && (to<3 || to>60)) return '<span class="gl-warn">Use um valor entre 3% e 60%</span>';
+  const unit = k==='bf' ? ' pontos' : ' '+K.u;
+  let t = `<b>${d>0?'+':'−'}${fmt(Math.abs(d))}${unit}</b>${k!=='bf'?(pc=>` (${d>0?'+':'−'}${fmt(pc, pc<1?1:0)}%)`)(Math.abs(d)/cur.v*100):''}`;
+  const b = by && by > today() ? by : null;
+  if (b){ const wk = Math.max(1, daysTo(b))/7, rate = Math.abs(d)/wk;
+    t += ` · ≈ ${fmt(rate, rate<1?2:1)}${unit}/semana`;
+    if (k==='weight' && d<0 && rate > cur.v*0.01) t += ' <span class="gl-warn">ritmo acelerado (mais de 1% do peso por semana)</span>';
   }
-  return t + '.';
+  return t;
+}
+function goalEditor(p, ed){
+  const fn = esc(firstName(p.name)), had = goalsOf(p).length;
+  const rows = GOAL_ORDER.map(k=>{ const c = currentOf(p,k), K = GOAL_KINDS[k], v = ed.vals[k] ?? '';
+    return `<label class="gl-erow t-${K.tone}${c?'':' off'}">
+      <span class="gl-r-ico">${plIcon(k)}</span>
+      <span class="gl-e-lbl"><b>${K.l}</b><small>${c ? `hoje ${fmt(c.v)} ${K.u}` : 'sem medida'}</small></span>
+      <span class="f-input gl-e-in"><input data-gk="v.${k}" data-key="gl-in-${k}-${esc(v)}" inputmode="decimal" value="${esc(v)}" placeholder="${c?'meta':'—'}" autocomplete="off" aria-label="Meta de ${K.l.toLowerCase()} em ${K.u}"${c?'':' disabled'}><em>${K.u}</em></span>
+      <span class="gl-e-diff" data-live="glDiff-${k}" data-key="gl-d-${k}-${esc(v)}-${ed.by||''}">${rowPreview(p, k, v, ed.by)}</span>
+    </label>`; }).join('');
+  return `<div class="card white gl-edit" data-key="gl-edit-${p.id}">
+    <div class="gl-edit-h"><span class="chip-ico">${ic('target','sm')}</span><span class="grow"><b>${had?'Editar metas':'Definir metas'} de ${fn}</b><small>Preencha só as medidas que fazem sentido. Em branco = sem meta.</small></span></div>
+    <div class="gl-erows">${rows}</div>
+    <div class="field gl-by"><div class="f-top"><span class="f-label">Prazo</span><span class="f-prev">opcional · vale para todas</span></div>
+      <div class="gl-by-row"><div class="f-input text"><input data-gk="by" data-key="gl-by-${ed.by||'none'}" type="date" value="${esc(ed.by||'')}" min="${addDays(today(),1)}" aria-label="Prazo das metas"></div>
+      <div class="gl-quick" data-key="gl-q-${ed.by||'none'}">${[1,3,6,12].map(m=>{ const v = addMonths(today(),m); return `<button type="button" class="chip${ed.by===v?' on':''}" data-act="glBy" data-v="${v}">${m===12?'1 ano':`${m} ${m===1?'mês':'meses'}`}</button>`; }).join('')}${ed.by?'<button type="button" class="chip" data-act="glBy" data-v="">Sem prazo</button>':''}</div></div></div>
+    <p class="gl-note">${ic('lock','sm')}<span>O ponto de partida é a avaliação mais recente. Mudar o valor de uma meta recomeça a contagem a partir de hoje; a anterior fica no histórico.</span></p>
+    <div class="gl-edit-btns">${had?`<button type="button" class="btn ghost gl-clear" data-act="glClear" data-id="${p.id}">${ic('trash','sm')}<span>Encerrar todas</span></button>`:''}<span class="grow"></span><button type="button" class="btn ghost" data-act="glCancel">Cancelar</button><button type="button" class="btn dark" data-act="glSave" data-id="${p.id}">${ic('check')} Salvar metas</button></div>
+  </div>`;
 }
 function emptyGoals(p, has){
   return `<div class="card gl-empty">
     <span class="gl-empty-ico">${ic('target')}</span>
-    <div class="grow"><b>Defina uma meta para ${esc(firstName(p.name))}</b><p>Peso, % de gordura, cintura ou massa magra, com prazo. O progresso aparece aqui e no portal, e motiva a cada avaliação.</p></div>
-    ${has ? `<button type="button" class="btn dark sm" data-act="glNew" data-id="${p.id}">${ic('plus','sm')} Definir meta</button>` : '<span class="small muted">Disponível após a primeira avaliação</span>'}
+    <div class="grow"><b>Defina as metas de ${esc(firstName(p.name))}</b><p>Peso, % de gordura, cintura e massa magra, com prazo. O progresso aparece aqui, em cada avaliação, nos gráficos e no portal.</p></div>
+    ${has ? `<button type="button" class="btn dark sm" data-act="glNew" data-id="${p.id}">${ic('plus','sm')} Definir metas</button>` : '<span class="small muted">Disponível após a primeira avaliação</span>'}
   </div>`;
+}
+// histórico completo (só o nutricionista vê os detalhes; o paciente vê as conquistas no quadro)
+function historyHtml(p){
+  const h = (p.plan?.history ?? []).slice().reverse(); if (!h.length) return '';
+  return `<details class="gl-hist"><summary>${ic('clock','sm')}<span>Metas anteriores</span><em>${h.length}</em>${ic('chev','sm gl-chev')}</summary>
+    <ul>${h.map(x=>{ const K = GOAL_KINDS[x.k]; return `<li class="${x.done?'ok':''}"><span class="gl-hi">${x.done?ic('check','sm'):plIcon(x.k,'sm')}</span><span class="grow"><b>${K.l}: ${fmt(x.from)} → ${fmt(x.to)} ${K.u}</b><small>${fmtDate(x.fromDate,{day:'numeric',month:'short',year:'2-digit'})} – ${fmtDate(x.endedAt,{day:'numeric',month:'short',year:'2-digit'})} · ${x.done?'alcançada':x.last!=null?`chegou a ${fmt(x.last)} ${K.u}`:'encerrada'}</small></span></li>`; }).join('')}</ul></details>`;
 }
 function goalsSection(p){
   const goals = goalsOf(p), ed = state.gl?.pid===p.id ? state.gl : null, has = !!listOf(p.id).length;
-  const canAdd = has && goals.length < GOAL_ORDER.length && GOAL_ORDER.some(k=>currentOf(p,k) && !goals.some(g=>g.k===k));
-  let body = goals.map(g => ed && ed.id===g.id ? goalEditor(p, ed) : goalCardHtml(statusOf(p,g), {mode:'nutri', pid:p.id, edit:true})).join('');
-  if (ed && !ed.id) body += goalEditor(p, ed);
-  if (!goals.length && !ed) body = emptyGoals(p, has);
-  return `<h2 class="sec">Metas ${goals.length && canAdd && !ed ? `<button data-act="glNew" data-id="${p.id}">+ nova meta</button>` : ''}</h2><div class="gl-list">${body}</div>`;
+  const body = ed ? goalEditor(p, ed)
+    : goals.length ? goalsBoardHtml(statusAll(p), {mode:'nutri', title:'Progresso das metas', pid:p.id, edit:true, history:p.plan?.history})
+    : emptyGoals(p, has);
+  return `<h2 class="sec">Metas</h2>${body}${ed ? '' : historyHtml(p)}`;
 }
-// painel do paciente: as metas ativas como cartões largos
-function homeGoals(p){ return goalsOf(p).map(g=>goalCardHtml(statusOf(p,g), {mode:'nutri', cls:'span2 span2-d'})).join(''); }
-// etiqueta no cartão da lista de pacientes
+// painel do paciente: o quadro de metas na largura toda
+function homeGoals(p){ return goalsOf(p).length ? goalsBoardHtml(statusAll(p), {mode:'nutri', title:`Metas de ${firstName(p.name)}`, pid:p.id, edit:true, history:p.plan?.history, cls:'span2 span4-d'}) : ''; }
+// detalhe da avaliação: como as metas estavam naquela data
+function detailGoals(p, a){
+  const st = statusAll(p, a.date); if (!st.length) return '';
+  return `<h2 class="sec">Metas nesta avaliação <span class="sec-note">${fmtDate(a.date,{day:'numeric',month:'short',year:'numeric'})}</span></h2>${goalsBoardHtml(st, {mode:'nutri', title:'Progresso até esta data', asOf:a.date})}`;
+}
+// etiqueta no cartão da lista de pacientes: progresso médio das metas
 function goalTag(p){
-  const st = goalsOf(p).map(g=>statusOf(p,g)); if (!st.length) return '';
+  const st = statusAll(p); if (!st.length) return '';
   const open = st.filter(s=>!s.done);
-  if (!open.length) return `<span class="tag green">${ic('check','sm')}Meta alcançada</span>`;
-  const s = open[0];
-  return `<span class="tag gl-tag" style="--p:${s.pct.toFixed(3)}">${ic('target','sm')}Meta ${Math.round(s.pct*100)}%</span>`;
+  if (!open.length) return `<span class="tag green">${ic('check','sm')}${st.length>1?'Metas alcançadas':'Meta alcançada'}</span>`;
+  const avg = st.reduce((t,s)=>t+(s.done?1:s.pct),0)/st.length;
+  return `<span class="tag gl-tag" style="--p:${avg.toFixed(3)}">${ic('target','sm')}${st.length>1?'Metas':'Meta'} ${Math.round(avg*100)}%</span>`;
 }
-// janela de avaliação concluída: meta alcançada com esta avaliação?
+// janela de avaliação concluída: metas alcançadas com esta avaliação
 function goalReached(p, a){
-  for (const g of goalsOf(p)){ const s = statusOf(p,g); if (s.done && s.doneOn===a.date) return `Meta alcançada: ${goalTitle(g.k,g.to).replace(/^Chegar a /,'')}!`; }
-  return null;
+  const hit = statusAll(p).filter(s=>s.done && s.doneOn===a.date);
+  if (!hit.length) return null;
+  const g = hit[0].goal, K = GOAL_KINDS[g.k];
+  return hit.length===1 ? `Meta de ${K.short} alcançada: ${fmt(g.to)} ${K.u}!` : `${hit.length} metas alcançadas nesta avaliação!`;
+}
+// frase de progresso das metas para a janela de avaliação concluída
+function goalsLine(p, a){
+  const now = statusAll(p), before = goalsStatus(goalsOf(p), listOf(p.id).filter(x=>x.id!==a.id), p);
+  if (!now.length) return '';
+  return 'Metas: ' + now.map(s=>{ const b = before.find(x=>x.goal.id===s.goal.id), pc = Math.round((s.done?1:s.pct)*100), pb = b ? Math.round((b.done?1:b.pct)*100) : null;
+    return `${GOAL_KINDS[s.goal.k].short} ${s.done?'✓':pc+'%'}${pb!=null && pb!==pc && !s.done ? ` (${pc>pb?'+':'−'}${Math.abs(pc-pb)})` : ''}`; }).join(' · ') + '.';
+}
+// linha da meta no gráfico de evolução (medida do gráfico → meta correspondente)
+function goalFor(p, metric){ const k = GOAL_METRIC[metric]; const g = k && goalsOf(p).find(x=>x.k===k); return g ? g.to : null; }
+// abre o editor na ficha do paciente (de qualquer lugar: painel, janela de avaliação concluída…)
+function openGoals(pid){
+  const p = P(pid); if (!p) return;
+  if (!listOf(p.id).length) return toast('Registre a primeira avaliação para definir metas');
+  const here = state.route==='patient' && state.param===p.id;
+  if (!here) go('patient', p.id);
+  openEditor(p); render();
+  setTimeout(()=>{ const e = document.querySelector('.gl-edit'); e?.scrollIntoView({behavior:'smooth', block:'start'}); e?.querySelector('input:not(:disabled)')?.focus({preventScroll:true}); }, here ? 80 : 450);
+}
+// lê os campos do editor (a digitação já vai para o estado; isto garante o valor final)
+function syncEditor(){
+  if (!state.gl) return;
+  document.querySelectorAll('.gl-edit input[data-gk]').forEach(el=>{ if (el.dataset.gk==='by') state.gl.by = el.value; else state.gl.vals[el.dataset.gk.slice(2)] = el.value; });
+}
+// encerra metas: vão para o histórico com o resultado
+function retire(p, goals){
+  const plan = planOf(p); plan.history ||= [];
+  for (const g of goals){ const s = statusOf(p, g); plan.history.push({ ...g, endedAt: today(), done: s.done, last: s.curDate ? s.cur : null }); }
+  plan.history = plan.history.slice(-30);
 }
 
 /* =========================================================
@@ -279,9 +331,10 @@ function onInput(el){
     return true;
   }
   if (el.dataset.gk && state.gl){
-    state.gl[el.dataset.gk] = el.value;
-    const pv = document.querySelector('[data-live="glPrev"]'); const p = P(state.gl.pid);
-    if (pv && p) pv.innerHTML = previewText(p, state.gl);
+    const p = P(state.gl.pid); if (!p) return true;
+    // digitação: guarda no estado e atualiza só as prévias (sem redesenhar a tela, para não perder o foco)
+    if (el.dataset.gk==='by') state.gl.by = el.value; else state.gl.vals[el.dataset.gk.slice(2)] = el.value;
+    for (const k of GOAL_ORDER){ const d = document.querySelector(`[data-live="glDiff-${k}"]`); if (d) d.innerHTML = rowPreview(p, k, state.gl.vals[k] ?? '', state.gl.by); }
     if (el.dataset.gk==='by') document.querySelectorAll('.gl-quick .chip').forEach(c=>c.classList.toggle('on', c.dataset.v===el.value));
     return true;
   }
@@ -292,37 +345,41 @@ function onInput(el){
    AÇÕES
    ========================================================= */
 const acts = {
-  glNew: async b => { const p = P(b.dataset.id); if (!p) return; const used = goalsOf(p).map(g=>g.k);
-    const k = GOAL_ORDER.find(k=>!used.includes(k) && currentOf(p,k)); if (!k) return toast('Todas as medidas já têm meta');
-    state.gl = { pid:p.id, id:null, k, to:'', by:'' }; render();
-    setTimeout(()=>document.getElementById('gl-to')?.focus({preventScroll:true}), 80);
-    setTimeout(()=>document.querySelector('.gl-edit')?.scrollIntoView({behavior:'smooth', block:'center'}), 60); },
-  glEdit: async b => { const p = P(b.dataset.id), g = p && goalsOf(p).find(x=>x.id===b.dataset.g); if (!g) return;
-    state.gl = { pid:p.id, id:g.id, k:g.k, to:String(g.to).replace('.',','), by:g.by||'' }; render(); },
-  glKind: async b => { if (!state.gl) return; state.gl.k = b.dataset.k; state.gl.to = ''; render(); setTimeout(()=>document.getElementById('gl-to')?.focus({preventScroll:true}), 60); },
-  glBy: async b => { if (!state.gl) return; state.gl.by = b.dataset.v; render(); },
+  glNew: async b => { const p = P(b.dataset.id); if (!p) return; openGoals(p.id); },
+  glEdit: async b => { const p = P(b.dataset.id); if (!p) return; openGoals(p.id); },
+  glBy: async b => { if (!state.gl) return; syncEditor(); state.gl.by = b.dataset.v; render(); },
   glCancel: async () => { state.gl = null; render(); },
+  // salva as 4 medidas de uma vez: preenchida = meta; em branco = sem meta (a que existia vai para o histórico)
   glSave: async b => {
     const p = P(b.dataset.id), ed = state.gl; if (!p || !ed) return;
-    ed.to = document.getElementById('gl-to')?.value ?? ed.to; ed.by = document.getElementById('gl-by')?.value ?? ed.by;
-    const to = num(ed.to), cur = currentOf(p, ed.k);
-    if (!cur) return toast('Sem medida registrada para esta meta');
-    if (to==null || to<=0) return toast('Informe o valor da meta');
-    if (ed.k==='bf' && (to<3 || to>60)) return toast('% de gordura entre 3 e 60');
-    if (Math.abs(to-cur.v) < 0.05) return toast('A meta precisa ser diferente do valor de hoje');
-    if (ed.by && ed.by <= today()) return toast('O prazo precisa ser uma data futura');
-    const plan = planOf(p), goals = [...(plan.goals||[])], old = ed.id ? goals.find(g=>g.id===ed.id) : null;
-    // editar só o valor/prazo mantém o ponto de partida; trocar a medida recomeça do valor de hoje
-    const keep = old && old.k===ed.k;
-    const g = { id: old?.id || crypto.randomUUID(), k: ed.k, to, from: keep ? old.from : cur.v, fromDate: keep ? old.fromDate : cur.date, by: ed.by || null };
-    plan.goals = old ? goals.map(x=>x.id===old.id ? g : x) : [...goals, g];
+    syncEditor();
+    const plan = planOf(p), old = goalsOf(p), oldBy = [...new Set(old.map(g=>g.by||''))];
+    const by = ed.by || null;
+    if (by && by <= today() && !(oldBy.length===1 && oldBy[0]===by)) return toast('O prazo precisa ser uma data futura');
+    const next = [], gone = [];
+    for (const k of GOAL_ORDER){
+      const raw = (ed.vals[k] ?? '').trim(), prev = old.find(g=>g.k===k), K = GOAL_KINDS[k];
+      if (!raw){ if (prev) gone.push(prev); continue; }
+      const to = num(raw), cur = currentOf(p, k);
+      if (to==null || to<=0) return toast(`${K.l}: valor inválido`);
+      if (!cur) return toast(`${K.l}: sem medida registrada nas avaliações`);
+      if (k==='bf' && (to<3 || to>60)) return toast('% de gordura: use um valor entre 3 e 60');
+      if (prev && Math.abs(prev.to - to) < 1e-6){ next.push({ ...prev, by }); continue; }
+      if (Math.abs(to - cur.v) < 0.05) return toast(`${K.l}: a meta precisa ser diferente do valor de hoje (${fmt(cur.v)} ${K.u})`);
+      // valor novo (ou meta nova): começa no valor da avaliação mais recente; a anterior vai para o histórico
+      if (prev) gone.push(prev);
+      next.push({ id: crypto.randomUUID(), k, to, from: cur.v, fromDate: cur.date, by });
+    }
+    if (!next.length && !old.length) return toast('Preencha pelo menos uma meta');
+    retire(p, gone); plan.goals = next;
     state.gl = null; await ctx.save(); render();
-    const s = statusOf(p, g);
-    toast(s.done ? 'Meta salva — e já alcançada ✓' : `Meta salva ✓ ${firstName(p.name)} vê o progresso no portal`);
+    const st = statusAll(p), hit = st.filter(s=>s.done).length;
+    toast(!next.length ? 'Metas encerradas · ficam no histórico' : `${next.length===1?'Meta salva':`${next.length} metas salvas`} ✓${hit?` ${hit===1?'Uma já foi alcançada':`${hit} já alcançadas`}`:` ${firstName(p.name)} acompanha no portal`}`);
+    setTimeout(()=>document.querySelector('.gl-board')?.scrollIntoView({behavior:'smooth', block:'center'}), 120);
   },
-  glDel: async b => { const p = P(b.dataset.id), g = p && goalsOf(p).find(x=>x.id===b.dataset.g); if (!g) return;
-    sheet('Remover meta?', `${goalTitle(g.k,g.to)}. O histórico de avaliações continua igual.`, [
-      {label:'Remover meta', cls:'danger', icon:ic('trash','sm'), fn:async()=>{ planOf(p).goals = goalsOf(p).filter(x=>x.id!==g.id); await ctx.save(); render(); toast('Meta removida'); }},
+  glClear: async b => { const p = P(b.dataset.id); if (!p) return;
+    sheet('Encerrar todas as metas?', 'Elas saem do quadro e do portal e ficam em “Metas anteriores”, com o resultado alcançado. As avaliações não mudam.', [
+      {label:'Encerrar metas', cls:'danger', icon:ic('trash','sm'), fn:async()=>{ retire(p, goalsOf(p)); planOf(p).goals = []; state.gl = null; await ctx.save(); render(); toast('Metas encerradas · ficam no histórico'); }},
       {label:'Cancelar'}]); },
   enF: async b => setEnergy(state.param, {formula:b.dataset.v}),
   enA: async b => setEnergy(state.param, {activity:Number(b.dataset.v)}),
@@ -346,5 +403,12 @@ const acts = {
   rtReset: async () => { const next = { ...ctx.nutri() }; delete next.returnMsg; ctx.setNutri(next); await options.saveNutri(next); render(); toast('Textos originais restaurados'); },
 };
 
-return { goalsSection, homeGoals, goalTag, goalReached, energySection, tdeeOf, viewEnergy, viewReturns, returnsBanner, pendingCount, onInput, acts };
+// etiqueta da meta calórica (topo do plano alimentar): leva à calculadora
+function energyChip(pid){
+  const p = P(pid); if (!p || !p.plan?.energy) return '';
+  const e = energyOfP(p); if (!e) return '';
+  return `<button class="tag" data-act="go" data-to="energy" data-id="${p.id}">${ic('flame','sm')}Meta ${kcal(e.target)} kcal · P ${Math.round(e.macros.p.g)} g</button>`;
+}
+
+return { energyFor: energyOfP, goalsSection, homeGoals, detailGoals, goalTag, goalReached, goalsLine, goalFor, openGoals, energyChip, energySection, tdeeOf, viewEnergy, viewReturns, returnsBanner, pendingCount, onInput, acts };
 }

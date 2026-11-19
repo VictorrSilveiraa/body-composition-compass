@@ -96,6 +96,7 @@ function viewDiet(id){
     rec.assessmentId && ctx.findA(rec.assessmentId) ? `<button class="tag" data-act="go" data-to="detail" data-id="${rec.assessmentId}">${ic('clip','sm')}${esc(consultLabel(rec.assessmentId))}</button>` : '',
     `<button class="tag ${rec.visible?'green':''}" data-act="dtVis" data-id="${id}">${ic(rec.visible?'check':'lock','sm')}${rec.visible?'Visível no portal':'Só você vê'}</button>`,
     rec.data.source==='webdiet' ? `<span class="tag">${ic('ul','sm')}Importado do WebDiet</span>` : '',
+    ctx.energyChip?.(rec.profileId) || '', // meta calórica do gasto energético (referência ao revisar o plano)
   ].filter(Boolean).join('');
   const portal = ctx.portalState(rec.profileId);
   const foot = `<div class="card white dt-share">

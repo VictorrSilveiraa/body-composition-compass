@@ -3,6 +3,7 @@
  * Montado só na hora de imprimir, fora da tela do app, com a mesma estética do site.
  */
 import {num,fmt,fmtDate,calc,bmiClass,bfClass,whrRisk,PROTOCOLS,FOLDS,CIRC_TRUNK,CIRC_LIMBS,foldVal,esc,initials,today,GROUPS} from './calculos.js';
+import {goalsStatus,GOAL_KINDS,activityLabel,adjustLabel} from './plano';
 
 /*
  * Contexto extra de cada exportação (opcional — o relatório funciona sem ele):
@@ -38,6 +39,17 @@ function dietBlock(a){
     <table class="rp-table rp-tight rp-diet"><thead><tr><th>Horário</th><th>Refeição</th><th>Alimentos (opção principal)</th></tr></thead><tbody>${meals}</tbody></table>
     <p class="rp-legend-s">O plano completo, com quantidades, trocas e lista de compras, está no PDF do plano alimentar e no portal do paciente.</p></section>`;
 }
+
+/** metas do paciente: como estavam na data da avaliação (ou hoje, no relatório de evolução) */
+function goalsBlock(list, p, upTo, title='Metas do acompanhamento'){
+  const st = goalsStatus(CTX.goals || [], list, p, upTo); if (!st.length) return '';
+  const rows = st.map(s => { const g = s.goal, K = GOAL_KINDS[g.k], pc = Math.round((s.done ? 1 : s.pct) * 100);
+    const sit = s.done ? `<span class="rp-status good">Alcançada</span>` : `<span class="rp-status ${s.pace==='away'?'bad':'neu'}">Faltam ${fmt(s.left)} ${g.k==='bf'?'pp':K.u}</span>`;
+    return `<tr><td>${esc(K.l)}</td><td class="rp-muted">${fmt(g.from)} ${K.u}<br><small>${fmtDate(g.fromDate,{day:'2-digit',month:'2-digit',year:'2-digit'})}</small></td><td class="rp-v">${fmt(s.cur)} ${K.u}</td><td class="rp-v">${fmt(g.to)} ${K.u}${g.by?`<br><small class="rp-muted">até ${fmtDate(g.by,{day:'2-digit',month:'2-digit',year:'2-digit'})}</small>`:''}</td><td><span class="rp-gbar"><i style="width:${pc}%"></i></span><b class="rp-gpct">${pc}%</b></td><td>${sit}</td></tr>`; }).join('');
+  return `<section class="rp-block"><div class="rp-sec-h"><h3>${ic('target')} ${title}</h3><span class="rp-muted">${upTo ? 'situação na data desta avaliação' : 'situação atual'}</span></div>
+    <table class="rp-table rp-goals"><thead><tr><th>Medida</th><th>Início</th><th>${upTo ? 'Nesta avaliação' : 'Atual'}</th><th>Meta</th><th>Progresso</th><th>Situação</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+}
+const kcalTxt = v => Math.round(v).toLocaleString('pt-BR') + ' kcal/dia';
 
 const ICON = {
   heart:'<path d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 8 3.5C20 15.4 12 20 12 20z"/>',
@@ -173,7 +185,12 @@ export function buildReport({a, p, list}, o = {}){
     r.bmi!=null && ['IMC', fmt(r.bmi)+' kg/m²', 'Normal: 18,5 a 24,9', st(bmiClass(r.bmi), bmiCls(r.bmi))],
     r.whr!=null && ['Relação cintura/quadril (RCQ)', fmt(r.whr,2), sex==='F'?'Risco baixo: abaixo de 0,80':'Risco baixo: abaixo de 0,95', st(whrRisk(r.whr,sex), whrCls(r.whr))],
     r.whtr!=null && ['Relação cintura/altura (RCE)', fmt(r.whtr,2), 'Ideal: abaixo de 0,50', st(r.whtr<0.5?'Adequada':r.whtr<0.6?'Atenção':'Risco elevado', r.whtr<0.5?'good':r.whtr<0.6?'warn':'bad')],
-    r.bmr!=null && ['Metabolismo basal (TMB)', fmt(r.bmr,0)+' kcal/dia', 'Energia gasta em repouso total', st('Estimativa','neu')],
+    ...(() => { const e = CTX.energy ? CTX.energy(a) : null;
+      // com o gasto energético configurado: basal da fórmula escolhida, gasto total e meta calórica
+      if (e) return [['Metabolismo basal (TMB)', kcalTxt(e.bmr), `Repouso total · ${esc(e.label)}`, st('Estimativa','neu')],
+        ['Gasto energético total', kcalTxt(e.tdee), `Basal × atividade ${esc(activityLabel(e.activity).toLowerCase())} (×${String(e.activity).replace('.',',')})`, st('Estimativa','neu')],
+        ['Meta calórica diária', kcalTxt(e.target), `${esc(adjustLabel(e.adjust))} · P ${Math.round(e.macros.p.g)} g · G ${Math.round(e.macros.f.g)} g · C ${Math.round(e.macros.c.g)} g`, st('Plano','good')]];
+      return [r.bmr!=null && ['Metabolismo basal (TMB)', fmt(r.bmr,0)+' kcal/dia', 'Energia gasta em repouso total', st('Estimativa','neu')]]; })(),
     r.sumProto!=null && [`Soma das dobras (${pr.short})`, fmt(r.sumProto)+' mm', 'Quanto menor, menos gordura subcutânea', rp?.sumProto!=null?delta(r.sumProto,rp.sumProto,-1,1,'mm'):st('Base','neu')],
   ].filter(Boolean);
   const indicators = rows.length ? `<section class="rp-block">
@@ -266,7 +283,7 @@ export function buildReport({a, p, list}, o = {}){
   const foot = o.foot === false ? '' : footer(ex.evaluator);
   if (o.summary) return `<div class="rp-page">${header}${person}${hero}${comp}${scales}${indicators}${foot}</div>`;
   return `<div class="rp-page">${header}${person}${hero}${comp}${scales}${indicators}</div>
-    <div class="rp-page">${compare}${o.evo === false ? '' : evo}${measures}${notes}${photosBlock(a)}${dietBlock(a)}${o.guide === false ? '' : guide}${foot}</div>`;
+    <div class="rp-page">${compare}${goalsBlock(list.slice(0, idx+1), p, a.date)}${o.evo === false ? '' : evo}${measures}${notes}${photosBlock(a)}${dietBlock(a)}${o.guide === false ? '' : guide}${foot}</div>`;
 }
 
 /* =========================================================
@@ -368,7 +385,7 @@ export function buildEvolution({p, list}, o = {}){
     ${folds?`<div class="rp-grp"><h4>Dobras cutâneas (mm)</h4><table class="rp-table rp-tight">${th}<tbody>${folds}</tbody></table></div>`:''}</div>${legendLine}</section>` : '';
 
   return `<div class="rp-page">${hd}${person}${headline}${kpis}<section><div class="rp-sec-h"><h3>${ic('chart')} Gráficos de evolução</h3><span class="rp-muted">valor inicial → atual</span></div><div class="rp-charts rp-charts2">${charts}</div></section></div>
-    <div class="rp-page">${table}${fl}${photosPairs(first.a, last.a, 'Antes e depois: primeira × última avaliação')}${o.guide === false ? '' : glossary()}${o.foot === false ? '' : footer()}</div>`;
+    <div class="rp-page">${goalsBlock(list, p)}${table}${fl}${photosPairs(first.a, last.a, 'Antes e depois: primeira × última avaliação')}${o.guide === false ? '' : glossary()}${o.foot === false ? '' : footer()}</div>`;
 }
 
 /** Comparativo entre duas avaliações (A = antes, B = depois). */

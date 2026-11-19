@@ -96,7 +96,10 @@ async function loadPortal(code: string): Promise<PortalResult> {
       if (raw && typeof raw === 'object') {
         const goals = (Array.isArray(raw.goals) ? raw.goals : []).filter((g): g is NonNullable<PortalData['patient']['plan']>['goals'][number] => !!g && typeof g === 'object' && typeof (g as { to?: unknown }).to === 'number' && typeof (g as { from?: unknown }).from === 'number');
         const e = raw.energy as NonNullable<PortalData['patient']['plan']>['energy'];
-        plan = { goals, energy: e && typeof e === 'object' && e.share ? e : null };
+        // histórico: o paciente vê só as conquistas (metas alcançadas)
+        const history = (Array.isArray((raw as { history?: unknown }).history) ? (raw as { history: unknown[] }).history : [])
+          .filter((h): h is NonNullable<NonNullable<PortalData['patient']['plan']>['history']>[number] => !!h && typeof h === 'object' && (h as { done?: unknown }).done === true);
+        plan = { goals, energy: e && typeof e === 'object' && e.share ? e : null, history };
       }
     } catch { /* sem plano */ }
 

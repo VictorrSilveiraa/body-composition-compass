@@ -119,7 +119,9 @@ function tourSteps(){
   const has = db.profiles.length>0, nm = (nutri.name||'').trim() ? firstName(nutri.name) : '';
   return [
     {art:'hello', title: nm ? `Boas-vindas, ${nm}!` : 'Boas-vindas!', text:'Em menos de um minuto você conhece o essencial: onde ficam seus pacientes, como registrar uma avaliação e acompanhar a evolução.', cta:'Começar tour'},
-    {sel:['.nav [data-to="patients"]'], icon:ic('users'), title:'Pacientes', text:'Sua lista de atendimento. Busque por nome ou telefone, filtre quem está com retorno atrasado e abra a ficha de cada um.'},
+    {sel:['.nav [data-to="patients"]'], icon:ic('users'), title:'Pacientes', text:'Sua lista de atendimento. Busque por nome ou telefone, filtre quem está com retorno atrasado e abra a ficha de cada um — com metas e gasto energético.'},
+    // retornos: no computador fica no menu; no celular, o aviso aparece no Início quando há quem avisar
+    (isDesk() || CS.pendingCount()>0) && {sel:['.nav [data-to="returns"]','.rt-banner'], icon:ic('bell'), title:'Retornos da semana', text:'Quem está com retorno atrasado ou chegando nos próximos 7 dias. Um toque abre o WhatsApp com a mensagem pronta para agendar.'},
     has
       ? {sel:['.side-cta','.top-home [data-act="new"]','.cta-new'], icon:ic('plus'), title:'Nova avaliação', text:'Quando o paciente chegar, comece por aqui. Se precisar parar no meio, o rascunho fica salvo para continuar depois.'}
       : {sel:['.cta-first','.side-pt'], icon:ic('plus'), title:'Cadastre o primeiro paciente', text:'Tudo começa aqui. Nome, sexo, nascimento e altura bastam — contato, objetivo e retorno você completa quando quiser.'},
@@ -130,7 +132,7 @@ function tourSteps(){
     has
       ? {art:'done', title:'Tudo pronto!', text:'Bom atendimento! Seus pacientes e avaliações estão a um toque de distância.', cta:'Começar a usar'}
       : {art:'done', title:'Tudo pronto!', text:'Que tal cadastrar seu primeiro paciente agora? Leva menos de um minuto.', cta:'Cadastrar paciente', alt:'Explorar sozinho', action:'newProfile'},
-  ];
+  ].filter(Boolean);
 }
 function startTour(){
   if (tourOn || !options.tour) return;
@@ -240,10 +242,10 @@ function sparkline(vals, color='var(--blue-ink)'){
   const L = P.at(-1);
   return `<svg class="spark" viewBox="0 0 ${W} ${H}" style="width:100%;height:44px;margin-top:8px" preserveAspectRatio="none"><path d="${smoothPath(P)}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg><div style="position:relative;height:0"><span class="spark-dot" style="position:absolute;right:${(W-L[0])/W*100}%;bottom:${(H-L[1])/H*44 - 6}px;transform:translateX(50%);width:12px;height:12px;border-radius:50%;background:var(--green-2);box-shadow:0 0 0 3px var(--surface)"></span></div>`;
 }
-function lineChart(pts, {unit='', d=1, color='var(--ink)', fill='var(--blue)'}={}){
+function lineChart(pts, {unit='', d=1, color='var(--ink)', fill='var(--blue)', goal=null}={}){
   if (!pts.length) return `<div class="empty"><p>Sem dados para esta medida ainda.</p></div>`;
   const W=400,H=220,pl=22,pr=22,pt=34,pb=34;
-  const ys = pts.map(p=>p.y); let mn=Math.min(...ys), mx=Math.max(...ys);
+  const ys = pts.map(p=>p.y); let mn=Math.min(...ys, ...(goal!=null?[goal]:[])), mx=Math.max(...ys, ...(goal!=null?[goal]:[]));
   if (mn===mx){ mn-=1; mx+=1; } const pad=(mx-mn)*.18; mn-=pad; mx+=pad;
   const X = i => pts.length===1 ? W/2 : pl + i*(W-pl-pr)/(pts.length-1);
   const Y = v => pt + (1-(v-mn)/(mx-mn))*(H-pt-pb);
@@ -259,6 +261,7 @@ function lineChart(pts, {unit='', d=1, color='var(--ink)', fill='var(--blue)'}={
     <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${fill}" stop-opacity=".95"/><stop offset="1" stop-color="${fill}" stop-opacity="0"/></linearGradient></defs>
     ${[0,.5,1].map(t=>`<line x1="${pl}" x2="${W-pr}" y1="${pt+t*(H-pt-pb)}" y2="${pt+t*(H-pt-pb)}" stroke="var(--line)" stroke-dasharray="3 6"/>`).join('')}
     ${area?`<path d="${area}" fill="url(#${gid})"/>`:''}
+    ${goal!=null?`<g class="goal-line"><line x1="${pl}" x2="${W-pr}" y1="${Y(goal)}" y2="${Y(goal)}"/><rect x="${W-pr-66}" y="${Y(goal)-11}" width="66" height="22" rx="11"/><text x="${W-pr-33}" y="${Y(goal)+5}" text-anchor="middle">Meta ${fmt(goal,d)}</text></g>`:''}
     ${line?`<path d="${line}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`:''}
     ${P.map((p,i)=>`
       <circle style="--i:${i}" cx="${p[0]}" cy="${p[1]}" r="${i===P.length-1?7:5}" fill="${i===P.length-1?'var(--yellow-2)':'var(--surface)'}" stroke="${color}" stroke-width="2.5"/>
@@ -736,6 +739,7 @@ function viewDetail(id){
   </div>
 
   ${phSection(a)}
+  ${CS.detailGoals(p, a)}
   ${DS.assessmentSection(a)}
 
   <div class="two-col">
@@ -792,7 +796,7 @@ function viewCompare(){
     <div class="card white" data-key="evo-${state.evo}">
       <div class="card-head"><span class="label"><b style="font-size:18px">${m.l}</b><br><span class="small muted">${pts.length} ${pts.length>1?'registros':'registro'}${m.u?' · '+m.u:''}</span></span>
         <span style="margin-left:auto">${pts.length>1?deltaChip(lastv,first,m.dir,m.u,d):''}</span></div>
-      ${lineChart(pts,{d,color,fill})}
+      ${lineChart(pts,{d,color,fill,goal:CS.goalFor(p, state.evo)})}
       <div class="stat-row">
         <div class="stat" style="background:var(--card)"><small>Inicial</small><b>${fmt(first,d)}</b></div>
         <div class="stat" style="background:var(--card)"><small>Atual</small><b>${fmt(lastv,d)}</b></div>
@@ -1379,13 +1383,15 @@ function doneAssessment(a){
   paLoad(p.id);
   const actions = [
     { label:`Avisar ${fn} no WhatsApp`, sub: p.phone ? 'Mensagem pronta com o resultado' : 'Copia a mensagem para enviar', icon: waSvg('ico wa-ico'), primary:true, fn: () => sendAssessment(p, a) },
+    // metas são revistas a cada consulta: atualizar (se já existem) ou definir a partir desta avaliação
+    { label: p.plan?.goals?.length ? 'Revisar as metas' : 'Definir metas', sub: p.plan?.goals?.length ? 'Progresso atualizado com esta avaliação' : 'Peso, % de gordura, cintura e massa magra', icon: ic('target'), fn: () => CS.openGoals(p.id) },
     DS.has() && { label:'Montar o plano alimentar', sub:'Importar do WebDiet ou montar do zero', icon: ic('leaf'), fn: () => DS.acts.dtNew({dataset:{pid:p.id, aid:a.id}}) },
     { label:'Gerar relatório em PDF', sub: pv ? 'Completo, resumo ou comparativo' : 'Completo ou resumo em 1 página', icon: ic('pdf'), fn: () => ACT.print({dataset:{id:a.id}}) },
   ].filter(Boolean);
   done({ tone:'green', confetti:true,
     kicker: n===1 ? 'Primeira avaliação · ponto de partida' : `${n}ª avaliação${days ? ` · ${plural(days,'dia','dias')} desde a anterior` : ''}`,
     title: `Avaliação de ${fn} concluída`,
-    text: next && daysTo(next)>0 ? `Retorno sugerido: ${fmtDate(next,{day:'numeric',month:'long'})} (em ${plural(daysTo(next),'dia','dias')}).` : '',
+    text: [next && daysTo(next)>0 ? `Retorno sugerido: ${fmtDate(next,{day:'numeric',month:'long'})} (em ${plural(daysTo(next),'dia','dias')}).` : '', CS.goalsLine(p, a)].filter(Boolean).join(' '),
     stats, badge: badge ? { icon: ic('flame'), text: badge } : null, actions, dismiss:'Ver a avaliação' }, 'Avaliação salva ✓');
 }
 async function sendAssessment(p, a){
@@ -1437,6 +1443,7 @@ async function pdfExport(kind, data){
   if (PH) for (const id of ids.filter(Boolean)) for (const m of phOf(id)) { const u = await PH.url(m).catch(()=>''); if (u) (photos[id] ||= {})[m.pose] = u; }
   const st = pStatus(p);
   const ctx = { photos, goal: goalLabel(p.goal) || '', nextReturn: !p.archived && st.next ? st.next : null,
+    goals: p.plan?.goals || [], energy: p.plan?.energy ? (a => CS.energyFor(p, a)) : null,
     nutri: { name: (nutri.name||'').trim(), crn: crnLabel(), phone: fmtPhone(nutri.phone), place: (nutri.place||'').trim() },
     diets: options.diets ? options.diets.ofPatient(p.id).map(r=>({ title:r.title, prescribedAt:r.prescribedAt, assessmentId:r.assessmentId, data:r.data })) : [] };
   if (Object.keys(photos).length) toast('Preparando o PDF com as fotos…');
@@ -1445,6 +1452,7 @@ async function pdfExport(kind, data){
 /* ---------- plano alimentar (src/lib/diet-screens.js) ---------- */
 const DS = dietScreens({
   options, state, ic, go, render, toast, sheet, dropdown, dpill, paged, findA, listOf, prof, setActive, nutriName, crnLabel, firstName,
+  energyChip: pid => CS.energyChip(pid),
   done: options.done ? spec => done(spec) : null,
   db: () => db, app: () => app,
   // situação do acesso ao portal (para explicar ao nutricionista se o paciente já consegue ver o plano)

@@ -1,5 +1,5 @@
 import { esc, fmt, fmtDate, today } from './calculos.js';
-import { GOAL_KINDS, activityLabel, type Energy, type GoalKind, type GoalStatus } from './plano';
+import { GOAL_KINDS, activityLabel, type Energy, type GoalHist, type GoalKind, type GoalStatus } from './plano';
 
 /*
  * Cartões de META e de ENERGIA DIÁRIA — o mesmo HTML no app do nutricionista e no portal do paciente.
@@ -23,7 +23,9 @@ const S: Record<string, string> = {
 export const plIcon = (n: string, cls = '') => `<svg class="ico ${cls}" viewBox="0 0 24 24" aria-hidden="true">${S[n] ?? ''}</svg>`;
 const dShort = (iso: string) => fmtDate(iso, { day: 'numeric', month: 'short' });
 const dYear = (iso: string) => fmtDate(iso, { day: 'numeric', month: 'short', year: 'numeric' });
-const monthOf = (iso: string) => fmtDate(iso, { month: 'long', year: 'numeric' });
+const MON = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+/** "dez/26" */
+const monYY = (iso: string) => `${MON[Number(iso.slice(5, 7)) - 1]}/${iso.slice(2, 4)}`;
 const plural = (n: number, a: string, b: string) => `${n} ${n === 1 ? a : b}`;
 export const kcal = (v: number) => Math.round(v).toLocaleString('pt-BR');
 export const factor = (v: number) => String(v).replace('.', ',');
@@ -35,40 +37,62 @@ export function goalTitle(k: GoalKind, to: number) {
 }
 const amount = (k: GoalKind, v: number) => (k === 'bf' ? `${fmt(v)} pontos` : `${fmt(v)} ${GOAL_KINDS[k].u}`);
 
-/** frase de situação da meta (o paciente lê em 2ª pessoa) */
-export function goalLine(s: GoalStatus, mode: 'nutri' | 'patient') {
+/** situação de uma meta em uma linha curta (o paciente lê em 2ª pessoa) */
+export function goalShort(s: GoalStatus, mode: 'nutri' | 'patient', asOf?: string) {
   const g = s.goal, you = mode === 'patient';
-  if (s.done) return you ? `Meta alcançada em ${fmtDate(s.doneOn!, { day: 'numeric', month: 'long' })}. Parabéns!` : `Alcançada em ${dYear(s.doneOn!)}.`;
+  if (s.done) return `Alcançada em ${dShort(s.doneOn!)}${you ? ' — parabéns!' : ''}`;
   const left = `Faltam <b>${amount(g.k, s.left)}</b>`;
-  if (!s.curDate || s.curDate <= g.fromDate) return `${left}. ${you ? 'Seu progresso aparece a partir da próxima avaliação.' : 'O progresso aparece a partir da próxima avaliação.'}`;
-  if (s.pace === 'away') return `${left}. ${you ? 'A última medida se afastou um pouco da meta: vamos retomar juntos!' : 'A última medida se afastou da meta.'}`;
-  // previsão que já passou (a última avaliação é antiga e o ritmo era bom): a próxima avaliação deve mostrar a meta
-  if (s.eta && s.eta <= today()) return `${left}. No ritmo atual, ${you ? 'você pode alcançar a meta' : 'a meta pode ser alcançada'} já na próxima avaliação.`;
-  if (s.eta && s.pace === 'on') return `${left}. No ritmo atual, ${you ? 'você chega lá' : 'chega lá'} por volta de ${monthOf(s.eta)}${g.by ? ', dentro do prazo' : ''}.`;
-  if (s.eta && s.pace === 'behind') return `${left}. No ritmo atual, a previsão é ${monthOf(s.eta)}, depois do prazo.`;
-  return `${left}.`;
+  if (asOf) return `${left} nesta data`; // visão de uma avaliação passada: sem previsões
+  if (!s.curDate || s.curDate <= g.fromDate) return `${left} · conta a partir da próxima avaliação`;
+  if (s.pace === 'away') return `${left} · ${you ? 'afastou um pouco, bora retomar' : 'afastou-se na última avaliação'}`;
+  // previsão que já passou (a última avaliação é antiga e o ritmo era bom): deve aparecer na próxima avaliação
+  if (s.eta && s.eta <= today()) return `${left} · ${you ? 'quase lá!' : 'quase lá'}`;
+  if (s.eta && s.pace === 'on') return `${left} · previsão ${monYY(s.eta)}${g.by ? ', no prazo' : ''}`;
+  if (s.eta && s.pace === 'behind') return `${left} · previsão ${monYY(s.eta)}, após o prazo`;
+  return `${left}`;
 }
 
-export function goalCardHtml(s: GoalStatus, o: { mode: 'nutri' | 'patient'; pid?: string; edit?: boolean; cls?: string }) {
-  const g = s.goal, K = GOAL_KINDS[g.k], p = s.done ? 1 : s.pct, pct = Math.round(p * 100);
-  const due = g.by ? (s.done ? '' : s.daysLeft! > 0 ? `${plural(s.daysLeft!, 'dia', 'dias')} até ${dShort(g.by)}` : s.daysLeft === 0 ? 'Prazo é hoje' : `Prazo era ${dShort(g.by)}`) : '';
-  const late = !!g.by && !s.done && (s.daysLeft ?? 0) < 0;
-  const acts = o.edit && o.pid ? `<div class="gl-acts">
-      <button type="button" class="gl-a" data-act="glEdit" data-id="${o.pid}" data-g="${g.id}" aria-label="Editar meta">${plIcon('edit', 'sm')}</button>
-      <button type="button" class="gl-a" data-act="glDel" data-id="${o.pid}" data-g="${g.id}" aria-label="Remover meta">${plIcon('trash', 'sm')}</button></div>` : '';
-  return `<article class="card gl-card t-${K.tone}${s.done ? ' done' : ''}${o.cls ? ' ' + o.cls : ''}" data-key="gl-${g.id}-${s.done ? 1 : 0}" style="--p:${p.toFixed(4)}">
-    <div class="gl-top">
-      <span class="chip-ico">${plIcon(s.done ? 'check' : g.k)}</span>
-      <span class="gl-h"><small>Meta · ${esc(K.l)}</small><b>${esc(goalTitle(g.k, g.to))}</b></span>
-      ${s.done ? `<span class="gl-done">${plIcon('check', 'sm')}Alcançada</span>` : `<span class="gl-pct" aria-label="${pct}% do caminho"><b>${pct}</b>%</span>`}
+/** prazo comum das metas (quando todas têm o mesmo) e a data em que foram definidas */
+function boardSub(list: GoalStatus[], now = today()) {
+  const bys = [...new Set(list.map((s) => s.goal.by || ''))], since = list.map((s) => s.goal.fromDate).sort()[0]!;
+  const open = list.some((s) => !s.done);
+  if (bys.length === 1 && bys[0]) {
+    const by = bys[0], d = Math.round((new Date(by + 'T12:00').getTime() - new Date(now + 'T12:00').getTime()) / 864e5);
+    return { by, txt: `Prazo ${dYear(by)}${open ? (d > 0 ? ` · faltam ${plural(d, 'dia', 'dias')}` : d === 0 ? ' · é hoje' : ' · prazo encerrado') : ''}`, late: open && d < 0 };
+  }
+  return { by: null, txt: `Desde ${dYear(since)}${bys.some(Boolean) ? ' · prazos diferentes' : ' · sem prazo'}`, late: false };
+}
+
+/**
+ * QUADRO DE METAS: todas as metas do paciente num cartão só — uma linha por medida
+ * (celular: uma coluna, compacta; telas largas: duas colunas).
+ */
+export function goalsBoardHtml(list: GoalStatus[], o: { mode: 'nutri' | 'patient'; title?: string; pid?: string; edit?: boolean; cls?: string; history?: GoalHist[]; asOf?: string }) {
+  if (!list.length) return '';
+  const done = list.filter((s) => s.done).length, sub = boardSub(list, o.asOf);
+  const avg = Math.round((list.reduce((t, s) => t + (s.done ? 1 : s.pct), 0) / list.length) * 100);
+  const rows = list.map((s, i) => {
+    const g = s.goal, K = GOAL_KINDS[g.k], p = s.done ? 1 : s.pct, pct = Math.round(p * 100);
+    return `<div class="gl-row t-${K.tone}${s.done ? ' done' : ''}" style="--p:${p.toFixed(4)};--i:${i}" role="group" aria-label="Meta de ${esc(K.l)}: ${pct}%">
+      <span class="gl-r-ico">${plIcon(s.done ? 'check' : g.k)}</span>
+      <div class="gl-r-main">
+        <div class="gl-r-top"><b>${esc(K.l)}</b>${s.done ? `<em class="gl-r-pct ok">${plIcon('check', 'sm')}</em>` : `<em class="gl-r-pct">${pct}%</em>`}<span class="gl-r-v"><span title="Valor de ${s.curDate ? dShort(s.curDate) : 'início'}">${fmt(s.cur)}</span><i aria-hidden="true">→</i><strong>${fmt(g.to)}</strong><small>${esc(K.u)}</small></span></div>
+        <div class="gl-r-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i></i></div>
+        <small class="gl-r-msg">${goalShort(s, o.mode, o.asOf)}</small>
+      </div>
+    </div>`;
+  }).join('');
+  const wins = (o.history ?? []).filter((h) => h.done).slice(-4).reverse();
+  const title = o.title ?? (o.mode === 'patient' ? 'Suas metas' : 'Metas');
+  return `<article class="card gl-board${o.cls ? ' ' + o.cls : ''}" data-key="gl-board-${list.map((s) => s.goal.id + (s.done ? 1 : 0)).join('')}">
+    <div class="gl-b-head">
+      <span class="gl-b-ring" style="--gp:${(avg / 100).toFixed(3)}" aria-hidden="true"><b>${done === list.length ? plIcon('check', 'sm') : `${avg}<small>%</small>`}</b></span>
+      <span class="gl-b-tt"><b>${esc(title)}</b><small class="${sub.late ? 'late' : ''}">${esc(sub.txt)}</small></span>
+      <span class="gl-b-sum">${done ? `${done} de ${list.length} ${done === 1 ? 'alcançada' : 'alcançadas'}` : plural(list.length, 'meta', 'metas')}</span>
+      ${o.edit && o.pid ? `<button type="button" class="gl-b-edit" data-act="glEdit" data-id="${o.pid}" aria-label="Editar metas">${plIcon('edit', 'sm')}<span>Editar</span></button>` : ''}
     </div>
-    <div class="gl-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Progresso da meta">
-      <div class="gl-bar"><i></i></div>
-      <span class="gl-knob"><em>${fmt(s.cur)}<small>${esc(K.u)}</small></em></span>
-    </div>
-    <div class="gl-ends"><span><small>Início · ${dShort(g.fromDate)}</small>${fmt(g.from)} ${esc(K.u)}</span><span><small>Meta${g.by ? ' · ' + dShort(g.by) : ''}</small>${fmt(g.to)} ${esc(K.u)}</span></div>
-    <p class="gl-msg">${goalLine(s, o.mode)}</p>
-    ${due || acts ? `<div class="gl-foot">${due ? `<span class="gl-due${late ? ' late' : ''}">${plIcon('clock', 'sm')}${due}</span>` : '<span></span>'}${acts}</div>` : ''}
+    <div class="gl-rows">${rows}</div>
+    ${wins.length ? `<div class="gl-wins"><small>${o.mode === 'patient' ? 'Suas conquistas' : 'Conquistas anteriores'}</small>${wins.map((h) => `<span class="gl-win">${plIcon('check', 'sm')}${esc(GOAL_KINDS[h.k].l)} ${fmt(h.to)} ${esc(GOAL_KINDS[h.k].u)}<em>${monYY(h.endedAt)}</em></span>`).join('')}</div>` : ''}
   </article>`;
 }
 

@@ -24,8 +24,8 @@ import { dietAct, dietHtml, dietMini, newDietUi, nowMinutes, variantOf, KIND_COL
 import { mealKind, qtyParts, fmtAmount } from '@/lib/diet-parse';
 import { dietFileName, dietImage, exportDietPdf, shareOrDownload } from '@/lib/diet-export';
 import { exportPdf } from '@/lib/report.js';
-import { energyInputs, energyOf, goalSeries, goalStatus } from '@/lib/plano';
-import { energyCardHtml, goalCardHtml } from '@/lib/plano-view';
+import { GOAL_METRIC, energyInputs, energyOf, goalsStatus } from '@/lib/plano';
+import { energyCardHtml, goalsBoardHtml } from '@/lib/plano-view';
 
 /*
  * Portal do paciente: entrada com o código que o nutricionista compartilhou e um app SOMENTE de leitura,
@@ -84,10 +84,10 @@ function Ring({ val, max = 40, color = 'var(--peach)' }: { val: number | null; m
     </svg>
   );
 }
-function LineChart({ pts, d = 1, color = 'var(--ink)', fill = 'var(--blue)' }: { pts: { date: string; y: number }[]; d?: number; color?: string; fill?: string }) {
+function LineChart({ pts, d = 1, color = 'var(--ink)', fill = 'var(--blue)', goal = null }: { pts: { date: string; y: number }[]; d?: number; color?: string; fill?: string; goal?: number | null }) {
   if (!pts.length) return <div className="empty"><p>Sem dados para esta medida ainda.</p></div>;
-  const W = 400, H = 220, pl = 22, pr = 22, pt = 34, pb = 34, ys = pts.map((p) => p.y);
-  let mn = Math.min(...ys), mx = Math.max(...ys); if (mn === mx) { mn -= 1; mx += 1; } const pad = (mx - mn) * 0.18; mn -= pad; mx += pad;
+  const W = 400, H = 220, pl = 22, pr = 22, pt = 34, pb = 34, ys = pts.map((p) => p.y), gs = goal != null ? [goal] : [];
+  let mn = Math.min(...ys, ...gs), mx = Math.max(...ys, ...gs); if (mn === mx) { mn -= 1; mx += 1; } const pad = (mx - mn) * 0.18; mn -= pad; mx += pad;
   const X = (i: number) => (pts.length === 1 ? W / 2 : pl + (i * (W - pl - pr)) / (pts.length - 1));
   const Y = (v: number) => pt + (1 - (v - mn) / (mx - mn)) * (H - pt - pb);
   const P = pts.map((p, i) => [X(i), Y(p.y)] as const), line = smoothPath(P);
@@ -99,6 +99,7 @@ function LineChart({ pts, d = 1, color = 'var(--ink)', fill = 'var(--blue)' }: {
       <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={fill} stopOpacity=".95" /><stop offset="1" stopColor={fill} stopOpacity="0" /></linearGradient></defs>
       {[0, 0.5, 1].map((t) => <line key={t} x1={pl} x2={W - pr} y1={pt + t * (H - pt - pb)} y2={pt + t * (H - pt - pb)} stroke="var(--line)" strokeDasharray="3 6" />)}
       {area && <path d={area} fill={`url(#${gid})`} />}
+      {goal != null && <g className="goal-line"><line x1={pl} x2={W - pr} y1={Y(goal)} y2={Y(goal)} /><rect x={W - pr - 66} y={Y(goal) - 11} width="66" height="22" rx="11" /><text x={W - pr - 33} y={Y(goal) + 5} textAnchor="middle">Meta {fmt(goal, d)}</text></g>}
       {line && <path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" />}
       {P.map((p, i) => (
         <g key={i}>
@@ -278,13 +279,16 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
   const pdfCtx = () => {
     const photos: Record<string, Record<string, string>> = {};
     if (data.share.photos) for (const ph of data.photos) (photos[ph.assessmentId] ||= {})[ph.pose] = ph.url;
+    const ecfg = data.patient.plan?.energy;
     return { photos, goal: data.patient.goal ? GOAL[data.patient.goal] ?? '' : '', nextReturn: next,
+      goals: data.patient.plan?.goals ?? [], energy: ecfg ? (a: A) => energyOf(ecfg, energyInputs(pp, a)) : null,
       nutri: { name: data.nutri.name, crn, phone: data.nutri.phone, place: data.nutri.place },
       diets: diets.map((d) => ({ title: d.title, prescribedAt: d.prescribedAt, assessmentId: d.assessmentId, data: d.data })) };
   };
   const pp = { name: data.patient.name, sex: data.patient.sex, birth: data.patient.birth, height: data.patient.height };
   /* metas (com progresso) e energia diária — o mesmo cartão que o nutricionista vê */
-  const goalsHtml = useMemo(() => (data.patient.plan?.goals ?? []).map((g) => goalCardHtml(goalStatus(g, goalSeries(g.k, list, pp)), { mode: 'patient' })).join(''), [data, list]);
+  const goalsHtml = useMemo(() => goalsBoardHtml(goalsStatus(data.patient.plan?.goals, list, pp), { mode: 'patient', history: data.patient.plan?.history ?? [] }), [data, list]);
+  const goalOf = (metric: string) => { const k = GOAL_METRIC[metric]; return (k && data.patient.plan?.goals?.find((g) => g.k === k)?.to) ?? null; };
   const energyHtml = useMemo(() => {
     const cfg = data.patient.plan?.energy; if (!cfg || !last) return '';
     const e = energyOf(cfg, energyInputs(pp, last)); return e ? energyCardHtml(e, { mode: 'patient', date: last.date, nutri: data.nutri.name || '' }) : '';
@@ -366,7 +370,10 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
         const stats = [st('Peso', num(last.weight), prev ? num(prev.weight) : null, 'kg', 0, 'kg'), st('Gordura', num(rL['bf']), num(rP['bf']), '%', -1, 'pts'), st('Massa magra', num(rL['leanMass']), num(rP['leanMass']), 'kg', 1, 'kg')].filter((x): x is DoneStat => !!x);
         const bfs = rs.slice(0, -1).map((r) => num(r['bf'])).filter((v): v is number => v != null);
         const bf = num(rL['bf']);
-        const badge = bf != null && bfs.length >= 2 && bf < Math.min(...bfs) - 0.05 ? { icon: <Flame className="ico" />, text: 'Seu menor % de gordura até agora. Continue assim!' } : undefined;
+        // meta alcançada nesta avaliação vale mais que qualquer outro destaque
+        const hit = goalsStatus(data.patient.plan?.goals, list, pp).filter((s) => s.done && s.doneOn === last.date);
+        const badge = hit.length ? { icon: <Target className="ico" />, text: hit.length === 1 ? `Você alcançou sua meta de ${hit[0]!.goal.k === 'bf' ? '% de gordura' : hit[0]!.goal.k === 'weight' ? 'peso' : hit[0]!.goal.k === 'waist' ? 'cintura' : 'massa magra'}. Parabéns!` : `Você alcançou ${hit.length} metas de uma vez. Parabéns!` }
+          : bf != null && bfs.length >= 2 && bf < Math.min(...bfs) - 0.05 ? { icon: <Flame className="ico" />, text: 'Seu menor % de gordura até agora. Continue assim!' } : undefined;
         setNews({ tone: 'green', confetti: true, icon: <ClipboardList className="ico" />, kicker: `Avaliação de ${dLong(last.date)}`, title: `${fn}, sua nova avaliação chegou`,
           text: prev ? `Comparando com a avaliação de ${fmtDate(prev.date, { day: 'numeric', month: 'long' })}.` : 'Esta é a sua primeira avaliação: o ponto de partida da sua evolução.',
           stats, ...(badge ? { badge } : {}),
@@ -416,7 +423,7 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
         </div>
       );
     })()}
-    {goalsHtml && <div className="gl-list pp-goals">{parseHtml(goalsHtml)}</div>}
+    {goalsHtml && <div className="pp-goals">{parseHtml(goalsHtml)}</div>}
     {!last ? empty(`Assim que ${nutriName} registrar sua primeira avaliação, tudo aparece aqui.`) : (<>
       <div className="dash">
         <div className="card blue span2 span2-d hero" onClick={() => go('medidas')} style={{ cursor: 'pointer' }}>
@@ -519,7 +526,7 @@ function PortalApp({ data, code, onExit, onRefresh }: { data: PortalData; code: 
           <div className="card white" key={'evo-' + m.k}>
             <div className="card-head"><span className="label"><b style={{ fontSize: 18 }}>{m.l}</b><br /><span className="small muted">{pts.length} {pts.length > 1 ? 'registros' : 'registro'}{m.u ? ' · ' + m.u : ''}</span></span>
               <span style={{ marginLeft: 'auto' }}>{pts.length > 1 && <Delta cur={fl} prev={f0} dir={m.dir} unit={m.u} d={d} />}</span></div>
-            <LineChart pts={pts} d={d} color={color} fill={fill} />
+            <LineChart pts={pts} d={d} color={color} fill={fill} goal={goalOf(m.k)} />
             <div className="stat-row">
               <div className="stat" style={{ background: 'var(--card)' }}><small>Inicial</small><b>{fmt(f0, d)}</b></div>
               <div className="stat" style={{ background: 'var(--card)' }}><small>Atual</small><b>{fmt(fl, d)}</b></div>

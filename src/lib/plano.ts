@@ -13,7 +13,9 @@ export type GoalKind = 'weight' | 'bf' | 'waist' | 'lean';
 export type Goal = { id: string; k: GoalKind; to: number; from: number; fromDate: string; by?: string | null };
 export type FormulaKey = 'auto' | 'mifflin' | 'harris' | 'katch' | 'cunningham' | 'fao';
 export type EnergyCfg = { formula: FormulaKey; activity: number; adjust: number; protein: number; fat: number; share?: boolean };
-export type CarePlan = { goals?: Goal[]; energy?: EnergyCfg | null };
+/** meta encerrada (trocada ou removida): fica no histórico, com o resultado */
+export type GoalHist = Goal & { endedAt: string; done: boolean; last: number | null };
+export type CarePlan = { goals?: Goal[]; energy?: EnergyCfg | null; history?: GoalHist[] };
 
 type Person = { sex: string; birth: string; height?: unknown };
 type Assess = { id?: string; date: string; weight?: unknown; height?: unknown; circ?: Record<string, unknown> | null };
@@ -26,6 +28,13 @@ export const GOAL_KINDS: Record<GoalKind, { l: string; short: string; u: string;
   lean: { l: 'Massa magra', short: 'massa magra', u: 'kg', tone: 'green' },
 };
 export const GOAL_ORDER: GoalKind[] = ['weight', 'bf', 'waist', 'lean'];
+/** medida dos gráficos de evolução (METRICS) que corresponde a cada meta */
+export const GOAL_METRIC: Record<string, GoalKind> = { weight: 'weight', bf: 'bf', leanMass: 'lean', c_waist: 'waist' };
+/** status de todas as metas, opcionalmente só até uma data (como estavam naquela avaliação) */
+export function goalsStatus(goals: Goal[] | undefined, list: Assess[], p: Person, upTo?: string, now = today()) {
+  const L = upTo ? list.filter((a) => a.date <= upTo) : list;
+  return (goals ?? []).filter((g) => !upTo || g.fromDate <= upTo).sort((a, b) => GOAL_ORDER.indexOf(a.k) - GOAL_ORDER.indexOf(b.k)).map((g) => goalStatus(g, goalSeries(g.k, L, p), upTo ?? now));
+}
 
 export function goalValue(k: GoalKind, a: Assess, r: Res): number | null {
   if (k === 'weight') { const w = num(a.weight); return w != null && w > 0 ? w : null; }

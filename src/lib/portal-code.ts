@@ -50,7 +50,7 @@ export type PortalDiet = { id: string; title: string; prescribedAt: string | nul
 export type PortalData = {
   patient: { name: string; sex: 'F' | 'M'; birth: string; height: number | null; goal: string | null; returnDays: number | null;
     /** metas e (só se o nutricionista liberar) a energia diária */
-    plan?: { goals: import('./plano').Goal[]; energy: import('./plano').EnergyCfg | null } | null };
+    plan?: { goals: import('./plano').Goal[]; energy: import('./plano').EnergyCfg | null; history?: import('./plano').GoalHist[] } | null };
   nutri: { name: string; crn: string; specialty: string; phone: string; place: string; returnDays: number | null };
   assessments: PortalAssessment[];
   photos: PortalPhoto[];
