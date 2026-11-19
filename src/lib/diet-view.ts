@@ -52,19 +52,51 @@ function qtyHtml(qty: string) {
 const subLine = (s: DietSub) => { const q = qtyParts(s.qty), amt = fmtAmount(q); return `<span class="dt-alt" style="--cc:${CAT_COLOR[foodCat(s.name)]}"><i></i><b>${esc(s.name)}</b>${s.detail ? `<em>${esc(s.detail)}</em>` : ''}${q.measure || amt ? `<span>${esc([q.measure, amt].filter(Boolean).join(' · '))}</span>` : ''}</span>`; };
 
 /* ---------- relógio do dia: cada refeição no seu horário ---------- */
+/* a faixa branca "se desenha" do primeiro ao último horário; as bolinhas aparecem quando a faixa chega nelas.
+   CK_DRAW precisa bater com a animação .dt-ck-span (dtCkDraw) do styles.css */
+const CK_DRAW = { delay: 0.3, dur: 1.4, ease: [0.45, 0.05, 0.25, 1] as const };
+/** em que fração do tempo a curva de animação chega na fração `f` do caminho */
+function easeTime(f: number, [x1, y1, x2, y2]: readonly [number, number, number, number]) {
+  const b = (p1: number, p2: number, s: number) => 3 * p1 * s * (1 - s) ** 2 + 3 * p2 * s * s * (1 - s) + s ** 3;
+  let lo = 0, hi = 1;
+  for (let k = 0; k < 22; k++) { const s = (lo + hi) / 2; if (b(y1, y2, s) < f) lo = s; else hi = s; }
+  return b(x1, x2, (lo + hi) / 2);
+}
 export function dayClock(d: Diet, nowMin: number | undefined, size = 220) {
-  const c = size / 2, r = size / 2 - 18, pos = (min: number, rr = r) => { const a = (min / 1440) * 2 * Math.PI - Math.PI / 2; return [c + rr * Math.cos(a), c + rr * Math.sin(a)] as const; };
-  const arc = (a0: number, a1: number, rr: number) => { const [x0, y0] = pos(a0, rr), [x1, y1] = pos(a1, rr); return `M${x0.toFixed(1)},${y0.toFixed(1)} A${rr},${rr} 0 ${a1 - a0 > 720 ? 1 : 0} 1 ${x1.toFixed(1)},${y1.toFixed(1)}`; };
-  const timed = d.meals.filter((m) => minutesOf(m.time) != null);
-  const ticks = Array.from({ length: 24 }, (_, h) => { const [x0, y0] = pos(h * 60, r - 13), [x1, y1] = pos(h * 60, r - (h % 6 ? 9 : 5)); return `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" class="${h % 6 ? '' : 'big'}"/>`; }).join('');
-  const labels = [0, 6, 12, 18].map((h) => { const [x, y] = pos(h * 60, r - 24); return `<text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="middle">${String(h).padStart(2, '0')}h</text>`; }).join('');
-  const first = timed.length ? minutesOf(timed[0]!.time)! : null, last = timed.length ? minutesOf(timed.at(-1)!.time)! : null;
-  const span = first != null && last != null && last > first ? `<path d="${arc(first, last, r)}" class="dt-ck-span"/>` : '';
+  const c = size / 2, r = size / 2 - 18, f1 = (n: number) => n.toFixed(1);
+  const pos = (min: number, rr = r) => { const a = (min / 1440) * 2 * Math.PI - Math.PI / 2; return [c + rr * Math.cos(a), c + rr * Math.sin(a)] as const; };
+  const arc = (a0: number, a1: number, rr: number) => { const [x0, y0] = pos(a0, rr), [x1, y1] = pos(a1, rr); return `M${f1(x0)},${f1(y0)} A${rr},${rr} 0 ${a1 - a0 > 720 ? 1 : 0} 1 ${f1(x1)},${f1(y1)}`; };
+  // refeições com horário, em ordem (o plano pode vir fora de ordem)
+  const timed = d.meals.map((m) => ({ m, t: minutesOf(m.time) })).filter((x): x is { m: DietMeal; t: number } => x.t != null).sort((a, b) => a.t - b.t);
+  // trecho do dia = o círculo inteiro menos a maior pausa entre duas refeições (a noite) — assim uma ceia depois da meia-noite não quebra a faixa
+  let start = timed[0]?.t ?? 0, len = 0;
+  if (timed.length > 1) {
+    let gap = timed[0]!.t + 1440 - timed.at(-1)!.t, after = 0;
+    for (let i = 1; i < timed.length; i++) { const g = timed[i]!.t - timed[i - 1]!.t; if (g > gap) { gap = g; after = i; } }
+    start = timed[after]!.t; len = 1440 - gap;
+  }
+  const spanPx = (len / 1440) * 2 * Math.PI * r;
+  const span = len > 0 ? `<path d="${arc(start, start + len, r)}" class="dt-ck-span" style="--len:${f1(spanPx)};--off:${f1(spanPx + 24)}"/>` : '';
+  const ticks = Array.from({ length: 24 }, (_, h) => { const [x0, y0] = pos(h * 60, r - 13), [x1, y1] = pos(h * 60, r - (h % 6 ? 9 : 5)); return `<line x1="${f1(x0)}" y1="${f1(y0)}" x2="${f1(x1)}" y2="${f1(y1)}" class="${h % 6 ? '' : 'big'}"/>`; }).join('');
+  const labels = [0, 6, 12, 18].map((h) => { const [x, y] = pos(h * 60, r - 25); return `<text x="${f1(x)}" y="${f1(y + 3.5)}" text-anchor="middle">${String(h).padStart(2, '0')}h</text>`; }).join('');
+  // lua no meio da noite (22h–6h), para a faixa escura não parecer uma barra de carregamento
+  const [mx, my] = pos(2 * 60);
+  const moon = `<g class="dt-ck-moon" transform="translate(${f1(mx - 5.5)},${f1(my - 5.5)}) scale(.46)">${P['jantar']}</g>`;
   const cur = nowMin != null ? currentMeal(d, nowMin) : null;
-  const dots = timed.map((m, i) => { const [x, y] = pos(minutesOf(m.time)!), k = mealKind(m.name, m.time), on = cur?.meal.id === m.id;
-    return `<g class="dt-ck-dot${on ? ' on' : ''}" style="--i:${i}"><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${on ? 11 : 8}" fill="${KIND_COLOR[k]}"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${on ? 4 : 3}" fill="var(--ink)"/></g>`; }).join('');
-  const hand = nowMin != null ? (() => { const [x, y] = pos(nowMin, r - 30); return `<line x1="${c}" y1="${c}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="dt-ck-hand"/><circle cx="${c}" cy="${c}" r="4" class="dt-ck-pin"/>`; })() : '';
-  return `<svg class="dt-ck-svg" viewBox="0 0 ${size} ${size}" role="img" aria-label="Horários das refeições ao longo do dia"><circle cx="${c}" cy="${c}" r="${r}" class="dt-ck-track"/><path d="${arc(22 * 60, 24 * 60 + 6 * 60 - 1, r)}" class="dt-ck-night"/>${span}<g class="dt-ck-ticks">${ticks}</g><g class="dt-ck-lbl">${labels}</g>${hand}${dots}</svg>`;
+  const dots = timed
+    .map(({ m, t }) => {
+      const [x, y] = pos(t), k = mealKind(m.name, m.time), on = cur?.meal.id === m.id;
+      const frac = len > 0 ? ((t - start + 1440) % 1440) / len : 0;
+      const dl = Math.max(0.2, CK_DRAW.delay + CK_DRAW.dur * easeTime(Math.min(1, frac), CK_DRAW.ease) - 0.1);
+      const at = `cx="${f1(x)}" cy="${f1(y)}"`;
+      return { on, html: `<g class="dt-ck-dot${on ? ' on' : ''}" style="--dl:${dl.toFixed(2)}s"><title>${esc(`${m.time} · ${m.name}`)}</title>${on ? `<circle ${at} r="11" fill="${KIND_COLOR[k]}" class="dt-ck-ping"/>` : ''}<circle ${at} r="${on ? 11 : 8}" fill="${KIND_COLOR[k]}" class="dt-ck-face"/><circle ${at} r="${on ? 4 : 3}" fill="var(--ink)"/></g>` };
+    })
+    .sort((a, b) => Number(a.on) - Number(b.on)) // a refeição em destaque fica por cima das vizinhas
+    .map((x) => x.html).join('');
+  // "agora": marcador sobre o anel (o ponteiro antigo ficava escondido atrás do centro); gira desde 00h até a hora atual
+  const now = nowMin != null ? `<g class="dt-ck-now" style="--rot:${f1((nowMin / 1440) * 360)}deg;transform-origin:${c}px ${c}px"><title>Agora</title><line x1="${c}" y1="${c - r - 12}" x2="${c}" y2="${c - r + 12}" class="halo"/><line x1="${c}" y1="${c - r - 12}" x2="${c}" y2="${c - r + 12}"/><circle cx="${c}" cy="${c - r - 14}" r="3.4"/></g>` : '';
+  const label = timed.length ? `Horários das refeições: ${timed.map(({ m }) => `${m.time} ${m.name}`).join(', ')}` : 'Horários das refeições ao longo do dia';
+  return `<svg class="dt-ck-svg" viewBox="0 0 ${size} ${size}" role="img" aria-label="${esc(label)}"><circle cx="${c}" cy="${c}" r="${r}" class="dt-ck-track"/><circle cx="${c}" cy="${c}" r="${r}" class="dt-ck-ring"/><path d="${arc(22 * 60, 30 * 60, r)}" class="dt-ck-night"/>${moon}${span}<g class="dt-ck-ticks">${ticks}</g><g class="dt-ck-lbl">${labels}</g>${now}${dots}</svg>`;
 }
 
 /* ---------- uma refeição ---------- */

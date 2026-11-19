@@ -1813,23 +1813,41 @@ button.kpi:active{scale:.97}
 .dt-blob.b2{width:120px;height:120px;right:auto;left:-40px;top:auto;bottom:-50px;animation-delay:-3s;background:oklch(0.877 0.093 129 / .55)}
 @keyframes dtFloat{50%{transform:translate(-10px,12px) scale(1.04)}}
 .dt-clock{position:relative;width:min(230px,70vw);aspect-ratio:1;margin:8px auto 0}
-.dt-ck-svg{width:100%;height:100%;overflow:visible}
-.dt-ck-track{fill:oklch(1 0 0 / .55);stroke:none}
-.dt-ck-night{fill:none;stroke:oklch(0.182 0 0 / .1);stroke-width:18;stroke-linecap:round}
-.dt-ck-span{fill:none;stroke:var(--surface);stroke-width:18;stroke-linecap:round;stroke-dasharray:1200;stroke-dashoffset:1200;animation:dtDraw 1.6s var(--ease) .25s forwards}
-@keyframes dtDraw{to{stroke-dashoffset:0}}
-.dt-ck-ticks line{stroke:oklch(0.182 0 0 / .25);stroke-width:1.4;stroke-linecap:round}
-.dt-ck-ticks line.big{stroke:oklch(0.182 0 0 / .55);stroke-width:2}
-.dt-ck-lbl text{font-size:10px;font-weight:600;fill:var(--ink-2);font-family:inherit}
-.dt-ck-hand{stroke:var(--ink);stroke-width:2.5;stroke-linecap:round;opacity:.75}
-.dt-ck-pin{fill:var(--ink)}
-.dt-ck-dot{transform-box:fill-box;transform-origin:center;animation:pop .6s var(--spring) calc(.5s + var(--i) * .09s) backwards}
-.dt-ck-dot circle:first-child{stroke:var(--surface);stroke-width:3}
-.dt-ck-dot.on circle:first-child{animation:dtPulse 2.2s ease-in-out infinite}
-@keyframes dtPulse{50%{stroke-width:8;stroke:oklch(1 0 0 / .6)}}
-.dt-ck-center{position:absolute;inset:27%;border-radius:50%;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.1;box-shadow:0 0 0 8px oklch(1 0 0 / .45);padding:6px}
-.dt-ck-center small{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--green-ink)}
-.dt-ck-center b{font-size:26px;font-weight:600;margin:3px 0 2px}
+/* relógio: o estado final é o "parado"; as animações só partem de um começo (backwards),
+   então sem animação (PDF, movimento reduzido) tudo aparece completo */
+.dt-ck-svg{width:100%;height:100%;overflow:visible;animation:dtCkIn .7s var(--ease) backwards}
+@keyframes dtCkIn{from{opacity:0;scale:.9}}
+.dt-ck-track{fill:oklch(1 0 0 / .5);stroke:none}
+.dt-ck-ring{fill:none;stroke:oklch(1 0 0 / .45);stroke-width:18}
+.dt-ck-night{fill:none;stroke:oklch(0.36 0.05 135 / .13);stroke-width:18;stroke-linecap:round}
+.dt-ck-moon path{fill:none;stroke:oklch(0.182 0 0 / .4);stroke-width:2.6;stroke-linejoin:round}
+.dt-ck-span{fill:none;stroke:var(--surface);stroke-width:18;stroke-linecap:round;stroke-dasharray:var(--len) 9999;filter:drop-shadow(0 1px 2px oklch(0.3 0.05 135 / .12));animation:dtCkDraw 1.4s cubic-bezier(.45,.05,.25,1) .3s backwards}
+@keyframes dtCkDraw{from{stroke-dashoffset:var(--off)}}
+.dt-ck-ticks{animation:dtCkFade .6s ease .15s backwards}
+.dt-ck-ticks line{stroke:oklch(0.182 0 0 / .22);stroke-width:1.4;stroke-linecap:round}
+.dt-ck-ticks line.big{stroke:oklch(0.182 0 0 / .5);stroke-width:2}
+.dt-ck-lbl{animation:dtCkFade .6s ease .25s backwards}
+.dt-ck-lbl text{font-size:9.5px;font-weight:700;letter-spacing:.02em;fill:var(--ink-2);font-family:inherit}
+@keyframes dtCkFade{from{opacity:0}}
+/* marcador da hora atual sobre o anel */
+.dt-ck-now{transform-box:view-box;transform:rotate(var(--rot));transition:transform .8s var(--ease);animation:dtCkSweep 1.5s var(--ease) .35s backwards}
+@keyframes dtCkSweep{from{transform:rotate(0deg);opacity:0}12%{opacity:1}}
+.dt-ck-now line{stroke:var(--ink);stroke-width:2.6;stroke-linecap:round}
+.dt-ck-now line.halo{stroke:var(--surface);stroke-width:6}
+.dt-ck-now circle{fill:var(--ink);stroke:var(--surface);stroke-width:2}
+/* bolinhas das refeições: aparecem quando a faixa chega no horário delas */
+.dt-ck-dot{transform-box:fill-box;transform-origin:center;animation:pop .55s var(--spring) var(--dl,.5s) backwards}
+.dt-ck-face{stroke:var(--surface);stroke-width:3}
+.dt-ck-dot.on .dt-ck-face{stroke-width:3.5;filter:drop-shadow(0 2px 4px oklch(0.2 0.03 135 / .25))}
+.dt-ck-ping{transform-box:fill-box;transform-origin:center;opacity:0;pointer-events:none;animation:dtCkPing 2.6s cubic-bezier(.2,.6,.35,1) calc(var(--dl,.5s) + .5s) infinite backwards}
+@keyframes dtCkPing{0%{opacity:0;scale:1}12%{opacity:.75}100%{opacity:0;scale:2.3}}
+.dt-ck-center{position:absolute;inset:27%;border-radius:50%;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.1;box-shadow:0 0 0 7px oklch(1 0 0 / .4),0 6px 18px -6px oklch(0.3 0.05 135 / .3);padding:6px;animation:pop .7s var(--spring) .2s backwards}
+.dt-ck-center>*{animation:dtCkUp .5s var(--ease) .45s backwards}
+.dt-ck-center>b{animation-delay:.52s}
+.dt-ck-center>span{animation-delay:.6s}
+@keyframes dtCkUp{from{opacity:0;translate:0 5px}}
+.dt-ck-center small{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--green-ink)}
+.dt-ck-center b{font-size:26px;font-weight:600;margin:3px 0 2px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .dt-ck-center span{font-size:12px;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dt-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .dt-stats .stat{background:var(--card);text-align:center;padding:12px 6px}
@@ -2123,7 +2141,7 @@ button.kpi:active{scale:.97}
   .dt-intro{grid-template-columns:190px minmax(0,1fr)}
   .dt-intro-art{width:180px}
 }
-@media (prefers-reduced-motion:reduce){ .dt-blob,.dt-badge.now,.dt-scanline,.dt-doc .d-scan,.dt-doc .d-ok,.dt-ck-dot.on circle:first-child{animation:none} .dt-ck-span{stroke-dashoffset:0} .dt-doc .d-ok{stroke-dashoffset:0} }
+@media (prefers-reduced-motion:reduce){ .dt-blob,.dt-badge.now,.dt-scanline,.dt-doc .d-scan,.dt-doc .d-ok,.dt-clock *{animation:none!important;transition:none!important} .dt-doc .d-ok{stroke-dashoffset:0} }
 
 /* ---------- plano alimentar em PDF ---------- */
 .dp{font-family:'Urbanist',system-ui,-apple-system,sans-serif;color:#141414;font-size:12.5px;line-height:1.4;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -2132,8 +2150,8 @@ button.kpi:active{scale:.97}
 .dp-head h1{font-size:24px;font-weight:600;line-height:1.1;margin:4px 0}
 .dp-head p{color:#3a3a3a}
 .dp-clock{width:120px;flex:none}
-.dp-clock .dt-ck-span{animation:none;stroke-dashoffset:0}
-.dp-clock .dt-ck-dot{animation:none}
+.dp-clock *{animation:none!important}
+.dp-clock .dt-ck-span{filter:none}
 .dp-stats{display:flex;gap:16px;margin:6px 2px 4px;font-size:12px;color:#3a3a3a}
 .dp-stats b{font-size:15px;color:#141414}
 .dp-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin:0 2px 10px;font-size:10.5px;color:#555}
