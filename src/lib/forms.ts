@@ -1,4 +1,4 @@
-import { esc, fmt } from './calculos.js';
+import { esc, fmt, fmtDate } from './calculos.js';
 
 /*
  * FORMULÁRIOS DO PACIENTE — descritos uma vez e usados em três lugares:
@@ -27,12 +27,12 @@ const AGUA: [string, string][] = [['<1', 'Menos de 1 litro'], ['1-2', '1 a 2 lit
 export const PRE_FORM: FormDef = {
   k: 'pre_consulta', title: 'Pré-consulta', sub: 'Como foram as últimas semanas · leva uns 2 minutos',
   sections: [
-    { k: 'corpo', l: 'Alimentação', icon: 'apple', fields: [
+    { k: 'corpo', l: 'Alimentação', d: 'Como foi seguir o plano nas últimas semanas', icon: 'apple', fields: [
       { k: 'adesao', l: 'Como foi seguir o plano alimentar?', t: 'scale', ends: ['Muito difícil', 'Segui tudo'] },
       { k: 'fome', l: 'Como esteve sua fome?', t: 'choice', opts: [['pouca', 'Pouca'], ['normal', 'Normal'], ['muita', 'Muita'], ['emocional', 'Fome emocional']] },
       { k: 'peso', l: 'Seu peso em casa', t: 'num', u: 'kg', min: 20, max: 400, step: 0.1, hint: 'Se tiver balança. Pode deixar em branco.' },
     ] },
-    { k: 'rotina', l: 'Rotina', icon: 'moon', fields: [
+    { k: 'rotina', l: 'Rotina', d: 'Sono, intestino, água e treinos', icon: 'moon', fields: [
       { k: 'sono_h', l: 'Horas de sono por noite', t: 'num', u: 'h', min: 0, max: 16, step: 0.5 },
       { k: 'sono_q', l: 'Qualidade do sono', t: 'scale', ends: ['Péssima', 'Ótima'] },
       { k: 'intestino', l: 'Intestino', t: 'choice', opts: [['regular', 'Regular'], ['preso', 'Preso'], ['solto', 'Solto'], ['variavel', 'Variável']] },
@@ -40,7 +40,7 @@ export const PRE_FORM: FormDef = {
       { k: 'treino_x', l: 'Treinos por semana', t: 'num', u: 'x', min: 0, max: 14, step: 1 },
       { k: 'treino_d', l: 'Como foram os treinos?', t: 'text', ph: 'Ex.: musculação 4x, corrida no sábado' },
     ] },
-    { k: 'consulta', l: 'Para a consulta', icon: 'chat', fields: [
+    { k: 'consulta', l: 'Para a consulta', d: 'O que você quer conversar no retorno', icon: 'chat', fields: [
       { k: 'dificuldades', l: 'O que foi mais difícil?', t: 'long', ph: 'Ex.: lanche da tarde no trabalho, fim de semana…' },
       { k: 'duvidas', l: 'Dúvidas ou pedidos', t: 'long', ph: 'Ex.: trocar o jantar, receitas para levar marmita…' },
     ] },
@@ -50,48 +50,48 @@ export const PRE_FORM: FormDef = {
 export const ANAMNESE_FORM: FormDef = {
   k: 'anamnese', title: 'Ficha de saúde', sub: 'Anamnese · preencha só o que souber',
   sections: [
-    { k: 'saude', l: 'Saúde', icon: 'heart', fields: [
+    { k: 'saude', l: 'Saúde', d: 'Condições que você tem ou já teve', icon: 'heart', fields: [
       { k: 'doencas', l: 'Doenças ou condições', t: 'chips', other: true, opts: [['hipertensao', 'Pressão alta'], ['diabetes', 'Diabetes'], ['pre_diabetes', 'Pré-diabetes'], ['hipotireoidismo', 'Hipotireoidismo'], ['colesterol', 'Colesterol alto'], ['sop', 'SOP'], ['refluxo', 'Gastrite / refluxo'], ['ansiedade', 'Ansiedade / depressão'], ['nenhuma', 'Nenhuma']] },
       { k: 'cirurgias', l: 'Cirurgias', t: 'text', ph: 'Ex.: vesícula (2019)' },
     ] },
-    { k: 'remedios', l: 'Medicamentos e suplementos', icon: 'pill', fields: [
+    { k: 'remedios', l: 'Medicamentos e suplementos', d: 'O que você toma hoje, com a dose se souber', icon: 'pill', fields: [
       { k: 'medicamentos', l: 'Medicamentos em uso', t: 'long', ph: 'Nome e dose. Ex.: levotiroxina 50 mcg' },
       { k: 'suplementos', l: 'Suplementos', t: 'long', ph: 'Ex.: whey, creatina 5 g, vitamina D' },
     ] },
-    { k: 'alergias', l: 'Alergias e intolerâncias', icon: 'alert', fields: [
+    { k: 'alergias', l: 'Alergias e intolerâncias', d: 'E os alimentos que você não come', icon: 'alert', fields: [
       { k: 'alergias', l: 'Alergias ou intolerâncias', t: 'chips', other: true, opts: [['lactose', 'Lactose'], ['gluten', 'Glúten'], ['frutos_mar', 'Frutos do mar'], ['castanhas', 'Amendoim / castanhas'], ['ovo', 'Ovo'], ['nenhuma', 'Nenhuma']] },
       { k: 'aversoes', l: 'Alimentos que não come ou não gosta', t: 'text', ph: 'Ex.: fígado, quiabo' },
     ] },
-    { k: 'rotina', l: 'Rotina', icon: 'clock', fields: [
+    { k: 'rotina', l: 'Rotina', d: 'Trabalho, horários e refeições', icon: 'clock', fields: [
       { k: 'profissao', l: 'Trabalho e rotina', t: 'text', ph: 'Ex.: escritório, 8h às 18h' },
       { k: 'acorda', l: 'Acorda às', t: 'time' },
       { k: 'dorme', l: 'Dorme às', t: 'time' },
       { k: 'refeicoes', l: 'Refeições por dia', t: 'num', min: 1, max: 12, step: 1 },
       { k: 'come_fora', l: 'Come fora de casa', t: 'choice', opts: [['raro', 'Raramente'], ['1-2', '1 a 2x por semana'], ['3-5', '3 a 5x por semana'], ['diario', 'Quase todo dia']] },
     ] },
-    { k: 'sono', l: 'Sono e água', icon: 'moon', fields: [
+    { k: 'sono', l: 'Sono e água', d: 'Como você dorme e quanto bebe', icon: 'moon', fields: [
       { k: 'sono_h', l: 'Horas de sono por noite', t: 'num', u: 'h', min: 0, max: 16, step: 0.5 },
       { k: 'sono_q', l: 'Qualidade do sono', t: 'scale', ends: ['Péssima', 'Ótima'] },
       { k: 'agua', l: 'Água por dia', t: 'choice', opts: AGUA },
     ] },
-    { k: 'intestino', l: 'Intestino', icon: 'drop', fields: [
+    { k: 'intestino', l: 'Intestino', d: 'Como funciona no dia a dia', icon: 'drop', fields: [
       { k: 'int_freq', l: 'Frequência', t: 'choice', opts: [['diario', 'Todo dia'], ['alternado', 'Dia sim, dia não'], ['raro', '2x por semana ou menos']] },
       { k: 'int_cons', l: 'Como costuma ser', t: 'choice', opts: [['normal', 'Normal'], ['preso', 'Endurecido'], ['solto', 'Amolecido'], ['variavel', 'Varia']] },
     ] },
-    { k: 'treino', l: 'Atividade física', icon: 'bolt', fields: [
+    { k: 'treino', l: 'Atividade física', d: 'Treinos e esportes', icon: 'bolt', fields: [
       { k: 'modalidade', l: 'O que pratica', t: 'text', ph: 'Ex.: musculação e corrida' },
       { k: 'treino_x', l: 'Vezes por semana', t: 'num', u: 'x', min: 0, max: 14, step: 1 },
       { k: 'treino_min', l: 'Duração de cada treino', t: 'num', u: 'min', min: 0, max: 600, step: 5 },
     ] },
-    { k: 'peso', l: 'Histórico de peso', icon: 'scale', fields: [
+    { k: 'peso', l: 'Histórico de peso', d: 'Como seu peso mudou ao longo dos anos', icon: 'scale', fields: [
       { k: 'peso_max', l: 'Maior peso na vida adulta', t: 'num', u: 'kg', min: 20, max: 400, step: 0.1 },
       { k: 'peso_min', l: 'Menor peso na vida adulta', t: 'num', u: 'kg', min: 20, max: 400, step: 0.1 },
       { k: 'dietas', l: 'Dietas ou tratamentos que já fez', t: 'long', ph: 'Ex.: low carb em 2023, perdeu 6 kg e voltou' },
     ] },
-    { k: 'exames', l: 'Exames', icon: 'clip', fields: [
+    { k: 'exames', l: 'Exames', d: 'Resultados recentes, se tiver', icon: 'clip', fields: [
       { k: 'exames', l: 'Exames recentes e alterações', t: 'long', ph: 'Ex.: glicemia 104, vitamina D 18 (março de 2026)' },
     ] },
-    { k: 'objetivo', l: 'Expectativas', icon: 'target', fields: [
+    { k: 'objetivo', l: 'Expectativas', d: 'Aonde você quer chegar', icon: 'target', fields: [
       { k: 'expectativa', l: 'O que você espera do acompanhamento?', t: 'long' },
     ] },
   ],
@@ -146,3 +146,38 @@ export function answersHtml(def: FormDef, a: Answers, o: { only?: string[]; high
   }).join('');
   return secs || `<p class="small muted">${esc(o.empty ?? 'Nada preenchido ainda.')}</p>`;
 }
+
+/** "1 resposta", "3 respostas" */
+export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** junta respostas: as mais novas valem por cima; o que ficou em branco nelas mantém o valor anterior */
+export function mergeAnswers(base: Answers | null | undefined, ...newer: (Answers | null | undefined)[]): Answers {
+  return newer.reduce<Answers>((acc, n) => ({ ...acc, ...(n ?? {}) }), { ...(base ?? {}) });
+}
+/** campos cujo texto mudou de uma versão para outra (só os que existem na mais nova) */
+export function changedKeys(def: FormDef, before: Answers | null | undefined, after: Answers | null | undefined): string[] {
+  const b = before ?? {}, a = after ?? {};
+  return fieldsOf(def).filter((f) => { const t = answerText(f, a); return !!t && t !== answerText(f, b); }).map((f) => f.k);
+}
+/** progresso por seção */
+export function sectionsProgress(def: FormDef, a: Answers | null | undefined) {
+  return def.sections.map((s) => ({ k: s.k, l: s.l, icon: s.icon, n: a ? s.fields.filter((f) => answerText(f, a)).length : 0, total: s.fields.length }));
+}
+/** seções essenciais da ficha de saúde (as que mudam o plano): sem elas, o portal pede para completar */
+export const ANAM_ESSENTIAL = ['saude', 'remedios', 'alergias', 'rotina'];
+export const anamMissing = (a: Answers | null | undefined) => sectionsProgress(ANAMNESE_FORM, a).filter((s) => ANAM_ESSENTIAL.includes(s.k) && !s.n);
+
+/** pontos de atenção da pré-consulta (o nutricionista vê em destaque) */
+export function preAlerts(a: Answers | null | undefined): string[] {
+  if (!a) return [];
+  const out: string[] = [], n = (k: string) => (a[k] == null || a[k] === '' ? null : Number(a[k]));
+  const ad = n('adesao'); if (ad != null && ad <= 2) out.push(`Dificuldade com o plano (${ad}/5)`);
+  if (a['fome'] === 'emocional') out.push('Fome emocional'); else if (a['fome'] === 'muita') out.push('Muita fome');
+  const sq = n('sono_q'), sh = n('sono_h');
+  if (sh != null && sh < 6) out.push(`Dorme pouco (${fmt(sh, Number.isInteger(sh) ? 0 : 1)} h)`); else if (sq != null && sq <= 2) out.push('Sono ruim');
+  if (a['intestino'] === 'preso') out.push('Intestino preso'); else if (a['intestino'] === 'solto') out.push('Intestino solto');
+  if (a['agua'] === '<1') out.push('Pouca água');
+  return out;
+}
+/** data de envio por extenso ("19 de novembro") */
+export const fmtSent = (iso: string) => fmtDate(iso.slice(0, 10), { day: 'numeric', month: 'long' }) as string;

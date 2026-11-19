@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import { isCode, normCode, type PortalAssessment, type PortalData, type PortalDiet, type PortalPhoto, type PortalResult, type SubmitResult } from './portal-code';
-import { ANAMNESE_FORM, FORMS, cleanAnswers, type FormKind } from './forms';
+import { ANAMNESE_FORM, FORMS, PRE_FORM, cleanAnswers, mergeAnswers, type FormKind } from './forms';
 
 /*
  * Portal do paciente — roda SÓ no servidor.
@@ -144,8 +144,13 @@ async function loadPortal(code: string): Promise<PortalResult> {
         const pre = rows.find((r) => r.tipo === 'pre_consulta'), an = rows.find((r) => r.tipo === 'anamnese');
         // ficha para pré-preencher: a revisada pelo nutricionista ou, se não houver, a última enviada pelo paciente
         const pl = await db.from('pacientes').select('plano').eq('id', access.paciente_id).eq('owner_id', access.owner_id).maybeSingle();
-        const reviewed = (pl.error ? null : (pl.data as { plano?: { anamnese?: { data?: unknown } } } | null)?.plano?.anamnese?.data) ?? an?.dados ?? null;
-        forms = { pre: pre?.created_at ?? null, anamnese: an?.created_at ?? null, anamneseData: reviewed ? cleanAnswers(ANAMNESE_FORM, reviewed) : null };
+        // ficha atual = a revisada pelo nutricionista + o que o paciente enviou depois dela (ainda não revisado)
+        const rev = pl.error ? null : (pl.data as { plano?: { anamnese?: { data?: unknown; at?: string } } } | null)?.plano?.anamnese ?? null;
+        const newer = rows.filter((r) => r.tipo === 'anamnese' && (!rev?.at || r.created_at > rev.at)).reverse();
+        const merged = mergeAnswers(rev?.data ? cleanAnswers(ANAMNESE_FORM, rev.data) : null, ...newer.map((r) => cleanAnswers(ANAMNESE_FORM, r.dados)));
+        forms = { pre: pre?.created_at ?? null, preData: pre ? cleanAnswers(PRE_FORM, pre.dados) : null,
+          anamnese: an?.created_at ?? null, anamneseData: Object.keys(merged).length ? merged : null,
+          anamneseAt: newer.at(-1)?.created_at ?? rev?.at ?? null, reviewed: !!rev?.at && !newer.length };
       }
     } catch { /* sem formulários */ }
 

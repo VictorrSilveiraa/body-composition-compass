@@ -15,7 +15,7 @@ import { calc, bmiClass, bfClass, whrRisk, fmt, fmtDate, toDate, today, ageAt, f
 import { poseLabel, POSES } from '@/lib/poses.js';
 import { fmtCode, isCode, normCode, type PortalData, type PortalPhoto } from '@/lib/portal-code';
 import { getPatientPortal, submitPortalForm } from '@/lib/portal.functions';
-import { FORMS, type Answers, type FormKind } from '@/lib/forms';
+import { ANAMNESE_FORM, FORMS, anamMissing, filledCount, fieldsOf, fmtSent, type Answers, type FormKind } from '@/lib/forms';
 import { PortalForm } from '@/components/portal-form';
 import type { SubmitResult } from '@/lib/portal-code';
 import { pageReady, ripple, scan, withPageTransition } from '@/lib/motion';
@@ -299,7 +299,10 @@ function PortalApp({ data, code, onExit, onRefresh, submit }: { data: PortalData
   const [forms, setForms] = useState(data.forms ?? null);
   const preDone = !!(forms?.pre && last && forms.pre.slice(0, 10) >= last.date);
   const preAsk = !!forms && !!last && left != null && left <= 10 && !preDone;
-  const anamAsk = !!forms && !forms.anamnese && !forms.anamneseData;
+  /* ficha de saúde: o portal pede para completar enquanto faltar alguma seção essencial (saúde, remédios, alergias, rotina) */
+  const anamN = filledCount(ANAMNESE_FORM, forms?.anamneseData), ANAM_T = fieldsOf(ANAMNESE_FORM).length;
+  const anamMiss = forms ? anamMissing(forms.anamneseData) : [];
+  const anamAsk = !!forms && anamMiss.length > 0;
   /* PDF das avaliações (mesmo relatório do nutricionista, só com o que foi compartilhado) */
   const pdfCtx = () => {
     const photos: Record<string, Record<string, string>> = {};
@@ -439,7 +442,7 @@ function PortalApp({ data, code, onExit, onRefresh, submit }: { data: PortalData
         <span className="pf-cta-go">Responder <ChevronRight className="ico sm" /></span>
       </div>
     )}
-    {preDone && left != null && left <= 10 && <div className="pf-ok"><Check className="ico sm" /> Pré-consulta enviada em {fmtDate(forms!.pre!.slice(0, 10), { day: 'numeric', month: 'long' })}. <button onClick={() => go('form', 'pre')}>Responder de novo</button></div>}
+    {preDone && left != null && left <= 10 && <div className="pf-ok"><Check className="ico sm" /> Pré-consulta enviada em {fmtDate(forms!.pre!.slice(0, 10), { day: 'numeric', month: 'long' })}. <button onClick={() => go('form', 'pre')}>Ver respostas</button></div>}
     {hasDiet && (() => {
       const d = diets[0]!, mini = dietMini(d.data, nowMin), cur = mini.cur;
       const v = cur ? variantOf(cur.meal, uiFor(d.id)).v : null;
@@ -459,7 +462,12 @@ function PortalApp({ data, code, onExit, onRefresh, submit }: { data: PortalData
     })()}
     {goalsHtml && <div className="pp-goals">{parseHtml(goalsHtml)}</div>}
     {anamAsk && (
-      <button className="act-row pf-anam" onClick={() => go('form', 'anamnese')}><span className="chip-ico"><Heart className="ico sm" /></span><span className="grow"><b>Complete sua ficha de saúde</b><span>Doenças, remédios, alergias, rotina e treino · uns 5 minutos</span></span><em className="row-badge">novo</em><ChevronRight className="ico sm" /></button>
+      <button className="card pf-anam" onClick={() => go('form', 'anamnese')}>
+        <span className="an-ring" style={{ ['--p' as string]: Math.round((anamN / ANAM_T) * 100) }} aria-hidden="true">{anamN ? <b>{anamN}</b> : <Heart className="ico sm" />}</span>
+        <span className="grow"><small>Ficha de saúde · {anamN} de {ANAM_T}</small><b>{anamN ? 'Complete sua ficha de saúde' : 'Preencha sua ficha de saúde'}</b>
+          <span>{anamN ? `Falta: ${anamMiss.map((m) => ({ saude: 'saúde', remedios: 'remédios', alergias: 'alergias', rotina: 'rotina' })[m.k] ?? m.l.toLowerCase()).join(', ')}` : 'Doenças, remédios, alergias e rotina · uns 5 minutos'}</span></span>
+        <ChevronRight className="ico" />
+      </button>
     )}
     {!last ? empty(`Assim que ${nutriName} registrar sua primeira avaliação, tudo aparece aqui.`) : (<>
       <div className="dash">
@@ -536,8 +544,8 @@ function PortalApp({ data, code, onExit, onRefresh, submit }: { data: PortalData
       <button className="act-row" onClick={() => go('medidas')}><span className="chip-ico"><Ruler className="ico sm" /></span><span className="grow"><b>Medidas</b><span>Composição, índices, circunferências e dobras</span></span><ChevronRight className="ico sm" /></button>
       {hasPhotos && <button className="act-row" onClick={() => go('fotos')}><span className="chip-ico"><Camera className="ico sm" /></span><span className="grow"><b>Fotos</b><span>Antes e depois, lado a lado</span></span><ChevronRight className="ico sm" /></button>}
       <button className="act-row" onClick={() => go('avaliacoes')}><span className="chip-ico"><ClipboardList className="ico sm" /></span><span className="grow"><b>Avaliações</b><span>{list.length} {list.length === 1 ? 'registro' : 'registros'} com todos os detalhes</span></span>{!!badges.avaliacoes && <em className="row-badge">{badges.avaliacoes === 1 ? 'nova' : `${badges.avaliacoes} novas`}</em>}<ChevronRight className="ico sm" /></button>
-      {forms && <button className="act-row" onClick={() => go('form', 'pre')}><span className="chip-ico"><ClipboardList className="ico sm" /></span><span className="grow"><b>Pré-consulta</b><span>{preDone ? `Enviada em ${fmtDate(forms.pre!.slice(0, 10), { day: 'numeric', month: 'short' })} · dá para responder de novo` : 'Como foram suas semanas, antes do retorno'}</span></span>{preAsk && <em className="row-badge">pendente</em>}<ChevronRight className="ico sm" /></button>}
-      {forms && <button className="act-row" onClick={() => go('form', 'anamnese')}><span className="chip-ico"><Heart className="ico sm" /></span><span className="grow"><b>Ficha de saúde</b><span>{forms.anamnese || forms.anamneseData ? 'Atualize se algo mudou (remédios, exames, rotina)' : 'Saúde, remédios, alergias, rotina e treino'}</span></span><ChevronRight className="ico sm" /></button>}
+      {forms && <button className="act-row" onClick={() => go('form', 'pre')}><span className="chip-ico"><ClipboardList className="ico sm" /></span><span className="grow"><b>Pré-consulta</b><span>{preDone ? `Enviada em ${fmtSent(forms.pre!)} · ver respostas` : 'Como foram suas semanas, antes do retorno'}</span></span>{preAsk && <em className="row-badge">pendente</em>}<ChevronRight className="ico sm" /></button>}
+      {forms && <button className="act-row" onClick={() => go('form', 'anamnese')}><span className="chip-ico"><Heart className="ico sm" /></span><span className="grow"><b>Ficha de saúde</b><span>{anamN ? `${anamN} de ${ANAM_T} itens · ${anamAsk ? 'faltam itens importantes' : 'atualize se algo mudar'}` : 'Saúde, remédios, alergias, rotina e treino'}</span></span>{anamAsk && <em className="row-badge">{anamN ? 'incompleta' : 'pendente'}</em>}<ChevronRight className="ico sm" /></button>}
       <button className="act-row" onClick={() => go('guia')}><span className="chip-ico"><BookOpen className="ico sm" /></span><span className="grow"><b>Entenda seus números</b><span>O que cada medida significa e as faixas de referência</span></span><ChevronRight className="ico sm" /></button>
       <button className="act-row" onClick={startTour}><span className="chip-ico"><Target className="ico sm" /></span><span className="grow"><b>Como usar o portal</b><span>Reveja em 30 segundos o tour de apresentação</span></span><ChevronRight className="ico sm" /></button>
     </div>
@@ -827,13 +835,16 @@ function PortalApp({ data, code, onExit, onRefresh, submit }: { data: PortalData
       <header className="top"><button className="icon-btn" onClick={() => go('inicio')} aria-label="Voltar"><ChevronLeft className="ico" /></button><div className="title-block"><small>Portal</small><b>{FORMS[kind].title}</b></div></header>
       <div className="card empty"><h3>Formulário ainda não disponível</h3><p>Fale com {nutriName} pelo WhatsApp enquanto isso.</p></div>
     </>);
-    return <PortalForm def={FORMS[kind]} draftKey={`avf.pp.form.${code}.${kind}`} initial={kind === 'anamnese' ? forms.anamneseData : null} nutri={nutriName}
+    const isA = kind === 'anamnese';
+    return <PortalForm def={FORMS[kind]} draftKey={`avf.pp.form.${code}.${kind}`} nutri={nutriName}
+      initial={isA ? forms.anamneseData : forms.preData ?? null} sentAt={isA ? forms.anamnese : forms.pre} reviewed={!!forms.reviewed} current={isA || preDone}
       onSubmit={(a) => submit(kind, a)} onBack={() => go('inicio')}
-      onSent={(at, n) => {
-        setForms((f) => (f ? { ...f, ...(kind === 'anamnese' ? { anamnese: at } : { pre: at }) } : f));
+      onSent={(at, ans) => {
+        const n = Object.keys(ans).length;
+        setForms((f) => (f ? { ...f, ...(isA ? { anamnese: at, anamneseAt: at, anamneseData: { ...(f.anamneseData ?? {}), ...ans }, reviewed: false } : { pre: at, preData: ans }) } : f));
         go('inicio');
         window.setTimeout(() => setNews({ tone: 'green', confetti: true, icon: <Check className="ico" />, kicker: kind === 'anamnese' ? 'Ficha de saúde' : 'Pré-consulta',
-          title: 'Respostas enviadas!', text: `${n} ${n === 1 ? 'resposta chegou' : 'respostas chegaram'} para ${nutriName}. ${kind === 'anamnese' ? 'Ela entra na sua ficha depois da revisão.' : 'Assim a consulta já começa do ponto certo.'}`, dismiss: 'Fechar' }), 450);
+          title: 'Respostas enviadas!', text: `${n} ${n === 1 ? 'resposta chegou' : 'respostas chegaram'} para ${nutriName}. ${isA ? 'Sua ficha já está atualizada aqui no portal.' : 'Assim a consulta já começa do ponto certo.'}`, dismiss: 'Fechar' }), 450);
       }} />;
   };
   const screens: Record<Tab, () => ReactNode> = { form: FormView, inicio: Home, dieta: hasDiet ? DietScreen : Home, evolucao: Evolution, medidas: Measures, fotos: hasPhotos ? Photos : Home, avaliacoes: Assessments, avaliacao: Detail, guia: Guide };

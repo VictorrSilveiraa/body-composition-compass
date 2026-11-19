@@ -57,7 +57,11 @@ export type PortalData = {
   diets: PortalDiet[];
   share: { photos: boolean; notes: boolean };
   /** formulários (null = banco ainda sem a tabela de respostas): quando cada um foi enviado por último e a ficha atual para pré-preencher */
-  forms?: { pre: string | null; anamnese: string | null; anamneseData: import('./forms').Answers | null } | null;
+  forms?: {
+    pre: string | null; preData?: import('./forms').Answers | null;
+    /** último envio da ficha pelo paciente; ficha atual (revisada + envios mais novos); quando mudou; se o nutricionista já revisou */
+    anamnese: string | null; anamneseData: import('./forms').Answers | null; anamneseAt?: string | null; reviewed?: boolean;
+  } | null;
   updatedAt: string | null;
 };
 export type PortalResult = { ok: true; data: PortalData } | { ok: false; reason: 'invalid' | 'unavailable' };

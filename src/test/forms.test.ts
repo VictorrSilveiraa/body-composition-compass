@@ -26,3 +26,26 @@ describe('Formulários do paciente', () => {
     expect(answersHtml(PRE_FORM, {})).toContain('Nada preenchido');
   });
 });
+
+import { anamMissing, changedKeys, mergeAnswers, plural, preAlerts, sectionsProgress } from '@/lib/forms';
+describe('Anamnese única e pontos de atenção', () => {
+  it('junta a versão revisada com os envios do paciente (o mais novo vale)', () => {
+    const base = { medicamentos: 'losartana', sono_h: 7 }, env1 = { sono_h: 6, alergias: ['lactose'] }, env2 = { sono_h: 5 };
+    const m = mergeAnswers(base, env1, env2);
+    expect(m).toEqual({ medicamentos: 'losartana', sono_h: 5, alergias: ['lactose'] });
+    expect(changedKeys(ANAMNESE_FORM, base, m).sort()).toEqual(['alergias', 'sono_h']);
+    expect(changedKeys(ANAMNESE_FORM, m, m)).toEqual([]);
+  });
+  it('progresso por seção e seções essenciais que faltam', () => {
+    const a = { doencas: ['nenhuma'], medicamentos: 'nenhum' };
+    expect(sectionsProgress(ANAMNESE_FORM, a).find((s) => s.k === 'saude')).toMatchObject({ n: 1, total: 2 });
+    expect(anamMissing(a).map((s) => s.k)).toEqual(['alergias', 'rotina']);
+    expect(anamMissing(null).length).toBe(4);
+  });
+  it('pré-consulta: pontos de atenção', () => {
+    expect(preAlerts({ adesao: 2, fome: 'emocional', sono_h: 5, intestino: 'preso', agua: '<1' })).toEqual(['Dificuldade com o plano (2/5)', 'Fome emocional', 'Dorme pouco (5 h)', 'Intestino preso', 'Pouca água']);
+    expect(preAlerts({ adesao: 5, fome: 'normal', sono_h: 8, sono_q: 4 })).toEqual([]);
+    expect(plural(1, 'resposta', 'respostas')).toBe('1 resposta');
+    expect(plural(3, 'resposta', 'respostas')).toBe('3 respostas');
+  });
+});
