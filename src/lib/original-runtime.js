@@ -434,7 +434,7 @@ function viewPhotoCompare(p, list){
     return chips + `<div class="phc-one">
       <figure class="phc-fig" data-act="phView" data-aid="${a.id}" data-pose="${k}">${phImg(phGet(a.id,k), poseLabel(k))}${cap(a,'Única foto')}</figure>
       <div class="phc-one-txt"><h3>Falta só mais uma</h3><p>Com uma segunda consulta fotografada na pose <b>${poseLabel(k).toLowerCase()}</b>, você compara o antes e depois lado a lado, deslizando ou sobrepondo as fotos.</p>
-      <div class="phc-one-acts">${last.id!==a.id ? `<button class="btn dark sm" data-act="phCam" data-aid="${last.id}" data-pose="${k}">${ic('camera','sm')} Fotografar em ${shortDate(last.date)}</button>` : ''}<button class="btn ghost sm" data-act="phShare">${ic('image','sm')} Criar imagem</button></div></div></div>`;
+      <div class="phc-one-acts">${last.id!==a.id ? `<button class="btn dark sm" data-act="phCam" data-aid="${last.id}" data-pose="${k}">${ic('camera','sm')} Fotografar em ${shortDate(last.date)}</button>` : ''}</div></div></div>`;
   }
   const A = findA(state.phA), B = findA(state.phB), mA = phGet(A.id,k), mB = phGet(B.id,k), rA = calc(A,p), rB = calc(B,p);
   const mode = state.phMode || 'side', x = state.phX ?? 50, o = state.phO ?? 50;
@@ -445,7 +445,6 @@ function viewPhotoCompare(p, list){
   let h = chips + `<div class="ph-layout"><div class="ph-main">
     <div class="ph-bar">
       <div class="seg ph-modes" role="tablist" aria-label="Modo de comparação">${[['side','Lado a lado'],['wipe','Deslizar'],['fade','Sobrepor']].map(([v,l])=>`<button role="tab" aria-selected="${mode===v}" class="${mode===v?'on':''}" data-act="phMode" data-v="${v}">${l}</button>`).join('')}</div>
-      <button class="btn dark sm ph-share" data-act="phShare" aria-label="Criar imagem para redes sociais">${ic('image','sm')}<span>Criar imagem</span></button>
     </div>
     <div class="phc phc-${mode}" style="--x:${x}%;--o:${o/100}">`;
   if (mode==='side') h += `<figure class="phc-fig" data-act="phView" data-aid="${A.id}" data-pose="${k}">${phImg(mA,'Antes')}${cap(A,'Antes')}</figure>
@@ -798,6 +797,7 @@ function viewCompare(){
   const p = prof(), list = listOf(p.id);
   let h = `<header class="top"><button class="icon-btn" data-act="go" data-to="home">${ic('back')}</button>
     <div class="title-block"><small>${esc(p.name)}</small><b>Evolução</b></div><div class="grow"></div>
+    ${state.cmpTab==='ph' && PH && list.some(a=>phOf(a.id).length) ? `<button class="btn dark sm ph-create" data-act="phShare" aria-label="Criar imagem para redes sociais">${ic('image','sm')}<span>Criar imagem</span></button>` : ''}
     ${list.length && state.cmpTab!=='ph'?`<button class="icon-btn" data-act="exportCmp" aria-label="Exportar PDF" title="${state.cmpTab==='ab'?'Exportar comparativo em PDF':'Exportar evolução em PDF'}">${ic('pdf')}</button>`:''}</header>
     <div class="seg full" style="margin-bottom:16px">
       <button data-act="cmpTab" data-v="evo" class="${state.cmpTab==='evo'?'on':''}">Linha do tempo</button>

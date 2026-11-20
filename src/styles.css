@@ -3773,3 +3773,11 @@ button.idc-st:active{scale:.97}
 .ps-field select{font-size:14px;padding:0 10px 0 12px;text-overflow:ellipsis}
 .ps-tabs{gap:4px}
 .ps-tabs .chip{flex:1 0 auto;padding:8px 9px;font-size:13px}
+
+/* Fotos da Evolução: "Criar imagem" no topo e seletor de modo em largura total */
+.btn.ph-create{height:42px;padding:0 16px;gap:7px;flex:none;width:auto;white-space:nowrap}
+.ph-create .ico{width:17px;height:17px}
+.ph-bar .ph-modes{display:flex;flex:1;width:100%}
+.ph-bar .ph-modes button{flex:1;padding:10px 8px;white-space:nowrap}
+@media (max-width:480px){ .ph-bar .ph-modes button{font-size:13.5px;padding:10px 4px} .btn.ph-create{height:40px;padding:0 13px} }
+@media (max-width:340px){ .btn.ph-create span{display:none} .btn.ph-create{width:44px;padding:0;justify-content:center} }

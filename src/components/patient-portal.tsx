@@ -694,16 +694,14 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
     const cap = (a: A, tag: string) => { const r = rOf(a); return <span className="phc-cap"><b>{tag}</b><span>{fmtDate(a.date, { day: '2-digit', month: 'short', year: 'numeric' })}</span><small>{fmt(num(a.weight))} kg{num(r['bf']) != null ? ` · ${fmt(num(r['bf']))}% gordura` : ''}</small></span>; };
     const chips = <div className="chips ph-poses">{poses.map((P) => <button key={P.k} className={'chip' + (P.k === k ? ' on' : '')} onClick={() => setPose(P.k)}>{P.l}<span className="n">{list.filter((a) => photoOf(a.id, P.k)).length}</span></button>)}</div>;
     return (<>
-      <Head title="Fotos" sub={data.patient.name} back={() => go('inicio')} />
+      <Head title="Fotos" sub={data.patient.name} back={() => go('inicio')} right={A ? <button type="button" className="btn dark sm ph-create" onClick={() => openStudio(k, A.id, (B ?? A).id)} aria-label="Criar imagem para redes sociais"><ImageIcon className="ico sm" /><span>Criar imagem</span></button> : undefined} />
       {!A || !B ? <div className="card blue empty"><div className="e-ico"><Camera className="ico" /></div><h3>Sem fotos ainda</h3><p>Suas fotos aparecem aqui quando forem registradas.</p></div>
         : dated.length < 2 ? (<>{chips}<div className="phc-one">
           <figure className="phc-fig" onClick={() => openViewer(k, A.id)}><img src={photoOf(A.id, k)!.url} alt={poseLabel(k)} />{cap(A, 'Única foto')}</figure>
-          <div className="phc-one-txt"><h3>Falta só mais uma</h3><p>Na próxima avaliação com foto na pose <b>{poseLabel(k).toLowerCase()}</b>, você compara o antes e depois lado a lado.</p>
-            <div className="phc-one-acts"><button type="button" className="btn ghost sm" onClick={() => openStudio(k, A.id, A.id)}><ImageIcon className="ico sm" /> Criar imagem</button></div></div></div></>)
+          <div className="phc-one-txt"><h3>Falta só mais uma</h3><p>Na próxima avaliação com foto na pose <b>{poseLabel(k).toLowerCase()}</b>, você compara o antes e depois lado a lado.</p></div></div></>)
         : (<>{chips}
           <div className="ph-layout"><div className="ph-main">
-            <div className="ph-bar"><div className="seg ph-modes">{([['side', 'Lado a lado'], ['wipe', 'Deslizar'], ['fade', 'Sobrepor']] as const).map(([v, l]) => <button key={v} className={mode === v ? 'on' : ''} onClick={() => setMode(v)}>{l}</button>)}</div>
-              <button type="button" className="btn dark sm ph-share" onClick={() => openStudio(k, A.id, B.id)}><ImageIcon className="ico sm" /><span>Criar imagem</span></button></div>
+            <div className="ph-bar"><div className="seg ph-modes">{([['side', 'Lado a lado'], ['wipe', 'Deslizar'], ['fade', 'Sobrepor']] as const).map(([v, l]) => <button key={v} className={mode === v ? 'on' : ''} onClick={() => setMode(v)}>{l}</button>)}</div></div>
             <div className={'phc phc-' + mode} style={{ ['--x' as string]: `${sx}%`, ['--o' as string]: String(so / 100) }}>
               {mode === 'side' ? (<>
                 <figure className="phc-fig" onClick={() => openViewer(k, A.id)}><img src={photoOf(A.id, k)!.url} alt="Antes" />{cap(A, 'Antes')}</figure>
