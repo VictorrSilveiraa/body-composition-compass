@@ -163,7 +163,56 @@ const RE_MEAL = /^(\d{1,2}\s*[:hH]\s*\d{2})\s*(?:[-–—]|\|)?\s*(.+)$/;
 const RE_SUBS = /^[•·\-*]?\s*op[cç][oõ]es\s+de\s+substitui[cç][aã]o\s+(?:para|de|do|da)\s+(.+?)\s*:?\s*$/i;
 const RE_SUBS_LOOSE = /^[•·\-*]?\s*(?:substitui[cç][oõ]es|substitutos|trocas?)\s*(?:para|de|do|da)?\s*(.*?)\s*:?\s*$/i;
 const RE_NOTES = /^(observa[cç][oõ]es|obs\.?|orienta[cç][oõ]es)\s*:\s*(.*)$/i;
-const RE_FOOTER = /^(p[aá]gina\s+\d+\s*\/\s*\d+|acesse o|conte[uú]do completo|da sua consulta|feito por estudante|gerado (por|em)|webdiet)/i;
+const RE_FOOTER = /^(p[aá]gina\s+\d+\s*(\/|de)\s*\d+|acesse o|conte[uú]do completo|da sua consulta|feito por estudante|gerado (por|em)|webdiet)/i;
+const RE_PAGENUM = /^(p[aá]g(ina)?\.?\s*)?\d{1,3}\s*(\/|de|of)\s*\d{1,3}$/i;
+
+/*
+ * PDFs personalizados (WebDiet com layout próprio e outros programas): a refeição também é reconhecida
+ * pelo NOME (café da manhã, almoço, "Refeição 2"…), com o horário em qualquer lugar da linha ou sem horário.
+ */
+const MEAL_NAME = /^(?:\d{1,2}\s*[ªaº°o]?\s*refei[cç][aã]o|refei[cç][aã]o\s*\d{0,2}|caf[eé](?:\s+da\s+manh[aã])?|desjejum|cola[cç][aã]o|lanche(?:\s+(?:da|do|de)\s+(?:manh[aã]|tarde|noite|meio[- ]dia))?|almo[cç]o|jantar|janta|ceia|pr[eé][\s-]?treino|p[oó]s[\s-]?treino|intra[\s-]?treino|merenda|brunch|suplementa[cç][aã]o)(?=$|[\s\d(|:,.–—-])/i;
+const RE_TIME_ANY = /(?:^|[\s(|–—-])(?:[àa]s\s+)?(\d{1,2})\s*(?::|h|hs|horas?)\s*(\d{2})?(?=$|[\s)|–—-])/i;
+const RE_KCAL = /\s*[-–—|(]?\s*\d+(?:[.,]\d+)?\s*kcal\)?/gi;
+const RE_QTY_WORD = /\d+(?:[.,]\d+)?\s*(?:g|gr|ml|kg|unid|unidades?|colher|colheres|fatias?|x[ií]caras?|copos?|conchas?|por[cç])/i;
+const RE_VARIANT = /^(?:op[cç][aã]o|alternativa|card[aá]pio|sugest[aã]o)\s*(?:\d{1,2}|[a-e])?\s*:?$/i;
+const RE_TABLE_HEAD = /^(alimentos?|itens?|item|refei[cç][aã]o)\b.*\b(quantidade|qtd|qtde|medida|por[cç][aã]o|gramas?|caseira)\b/i;
+const RE_SUBS_ALT = /^[•·\-*]?\s*(?:pode(?:r[aá])?\s+(?:ser\s+)?substitu[ií](?:r|do|da|dos|das)?|substitua|substituir|op[cç][oõ]es\s+de\s+troca|trocar?\s+por)\s*(?:por|pelo|pela|pelos|pelas|com)?\s*:?\s*(.*)$/i;
+const RE_OR_LINE = /^(?:ou|ou\s*:|ou\s*[-–])\s+(.+)$/i;
+const RE_QTY_FIRST = /^((?:\d+(?:[.,]\d+)?|[½¼¾]|meia|meio|uma?|duas|dois|tr[eê]s)\s*(?:g|gr|ml|kg|unidades?|unid\.?|colher(?:es)?(?:\s+de\s+(?:sopa|ch[aá]|sobremesa|caf[eé]))?(?:\s+(?:cheias?|rasas?))?|fatias?|x[ií]caras?|copos?|conchas?|por[cç](?:[aã]o|[oõ]es)|pegadores?|escumadeiras?|potes?|scoops?|doses?|punhados?|peda[cç]os?|fil[eé]s?|bifes?)(?=$|[\s.,)])\.?(?:\s+(?:m[eé]dios?|pequenos?|grandes?|m[eé]dias?|pequenas?))?)\s+(?:de\s+|do\s+|da\s+)?(.+)$/i;
+const BULLET = /^[•·◦▪●○◯\-*–]\s*/;
+
+/** linha é o título de uma refeição? devolve horário e nome */
+function mealTitle(l: Line, byName: boolean): { time: string | null; name: string } | null {
+  const t = l.text;
+  const mm = t.match(RE_MEAL);
+  if (mm && (l.bold || l.cells.length <= 2 || Math.abs(l.center - l.pageW / 2) < l.pageW * 0.08) && !/^\d{1,2}[:h]\d{2}\s*-\s*\d/.test(t)) {
+    const rest = clean(mm[2]!.replace(RE_KCAL, ''));
+    if (!RE_QTY_WORD.test(rest) && rest.length <= 70) return { time: normTime(mm[1]!), name: rest };
+  }
+  if (!byName) return null;
+  const s = clean(t.replace(BULLET, '').replace(RE_KCAL, ''));
+  if (s.length > 70 || /[.;]$/.test(s) || s.split(' ').length > 9) return null;
+  const tm = s.match(RE_TIME_ANY);
+  let noTime = clean(tm ? s.replace(tm[0], ' ') : s).replace(/\(\s*\)/g, '');
+  if ((noTime.match(/\(/g) ?? []).length !== (noTime.match(/\)/g) ?? []).length) noTime = noTime.replace(/[()]/g, ' ');
+  noTime = clean(noTime).replace(/^[\s|:–—-]+|[\s|:–—-]+$/g, '').trim();
+  if (!MEAL_NAME.test(noTime) || RE_QTY_WORD.test(noTime)) return null;
+  // uma refeição de verdade: sozinha na linha (ou com o horário ao lado), em destaque ou curta
+  if (!(l.cells.length <= 2 || l.bold)) return null;
+  let name = noTime.replace(/\s*[-–—|:]\s*$/, '');
+  if (name === name.toUpperCase() && /[A-ZÀ-Ý]{3}/.test(name)) name = name.charAt(0) + name.slice(1).toLowerCase(); // "CAFÉ DA MANHÃ" → "Café da manhã"
+  return { time: tm ? normTime(`${tm[1]}:${tm[2] ?? '00'}`) : null, name };
+}
+/** quantidade em várias colunas ("100g" | "4 colheres de sopa") → "4 colheres de sopa (100g)" */
+function qtyFrom(cells: Cell[]): string {
+  const vals = cells.slice(1).map((c) => clean(c.s)).filter((s) => s && s !== '-' && s !== '—');
+  if (!vals.length) return '';
+  if (vals.length === 1) return vals[0]!;
+  const grams = vals.find((v) => /^\d+(?:[.,]\d+)?\s*(?:g|gr|ml)$/i.test(v));
+  const measure = vals.find((v) => v !== grams && /\D/.test(v) && !/^\d+(?:[.,]\d+)?\s*kcal$/i.test(v));
+  if (grams && measure) return `${measure} (${grams.replace(/\s+/g, '').replace(/gr$/i, 'g')})`;
+  return vals.filter((v) => !/kcal$/i.test(v)).join(' · ');
+}
 
 function buildLines(pages: PdfPage[]): Line[] {
   // cabeçalho/rodapé: o mesmo texto, na mesma altura, em várias páginas
@@ -177,6 +226,7 @@ function buildLines(pages: PdfPage[]): Line[] {
       if (!s || i.rot) return false;
       if (pages.length > 1 && (rep.get(s + '@' + Math.round(i.y)) ?? 0) >= minRep && (i.y < p.h * 0.14 || i.y > p.h * 0.84)) return false;
       if (i.y > p.h * 0.9 && RE_FOOTER.test(s)) return false;
+      if ((i.y > p.h * 0.88 || i.y < p.h * 0.08) && RE_PAGENUM.test(s)) return false;
       return true;
     }).sort((a, b) => a.y - b.y || a.x - b.x);
     const rows: PdfItem[][] = [];
@@ -204,8 +254,8 @@ function metaFrom(pages: PdfPage[]) {
   let patientName = '', prescribedAt: string | null = null, prescriber = '';
   const all = pages.flatMap((p) => p.items.map((i) => ({ ...i, s: clean(i.s), ph: p.h, pw: p.w })));
   for (const i of all) {
-    const pm = i.s.match(/paciente[:\s]+([^|]+?)\s*(?:\||$)/i); if (pm && !patientName) patientName = clean(pm[1]!);
-    const dm = i.s.match(/prescri(?:to|ção|cao)[^0-9]*(\d{2})\/(\d{2})\/(\d{4})/i); if (dm && !prescribedAt) prescribedAt = `${dm[3]}-${dm[2]}-${dm[1]}`;
+    const pm = i.s.match(/paciente[:\s]+([^|]+?)\s*(?:\||$)/i) ?? i.s.match(/^nome(?:\s+do\s+paciente)?\s*:\s*([^|]+?)\s*(?:\||$)/i); if (pm && !patientName && pm[1]!.length < 60) patientName = clean(pm[1]!);
+    const dm = i.s.match(/prescri(?:to|ção|cao)[^0-9]*(\d{2})\/(\d{2})\/(\d{4})/i) ?? i.s.match(/^data(?:\s+da\s+consulta)?\s*:?\s*(\d{2})\/(\d{2})\/(\d{4})/i); if (dm && !prescribedAt) prescribedAt = `${dm[3]}-${dm[2]}-${dm[1]}`;
   }
   // assinatura: texto repetido no rodapé, à direita (ex.: "Nutricionista Ana Souza — CRN 3-1234")
   if (pages.length) {
@@ -214,6 +264,25 @@ function metaFrom(pages: PdfPage[]) {
     prescriber = clean(right.join(' ')).replace(/^(aluno\(a\)|aluna|aluno|nutricionista|nutri\.?)\s+/i, '');
   }
   return { patientName, prescribedAt, prescriber };
+}
+
+/** acrescenta trocas ("Melão - 240g - ou - Banana - 1 unidade") ao alimento indicado (ou ao último da refeição) */
+function addSubs(meal: { foods: DietFood[] }, subsFor: string, text: string) {
+  const target = meal.foods.find((f) => normTxt(f.name + (f.detail ? ` (${f.detail})` : '')) === normTxt(subsFor) || normTxt(f.name) === normTxt(subsFor))
+    ?? (subsFor ? meal.foods.find((f) => normTxt(subsFor).startsWith(normTxt(f.name))) : undefined) ?? meal.foods.at(-1);
+  for (const alt of text.split(/\s+[-–]\s*ou\s*[-–]\s+|\s+[-–]\s*ou\s+|\s+ou\s+[-–]\s+|\s*;\s*|\s+ou\s+(?=\d)/i)) {
+    const a = clean(alt.replace(BULLET, '')); if (!a) continue;
+    const am = a.match(/^(.+?)\s+[-–:]\s+(\d.*|\(?\d.*|[\d½¼¾].*|.*\d\s*(?:g|ml)\)?)$/i);
+    const qf = !am ? a.match(RE_QTY_FIRST) : null;
+    const nameRaw = am ? am[1]! : qf ? qf[2]!.replace(/^(?:de|do|da)\s+/i, '').replace(/^./, (c) => c.toUpperCase()) : a, qty = am ? am[2]! : qf ? qf[1]! : '';
+    target?.subs.push({ ...splitName(nameRaw), qty: clean(qty) });
+  }
+}
+/** linha parece um alimento com quantidade? (tabela de 2+ colunas com medida, ou "2 ovos cozidos") */
+function looksFood(l: Line): boolean {
+  const s0 = l.text.replace(BULLET, '');
+  if (l.cells.length >= 2 && !/:\s*$|^[^:]{1,25}:/.test(l.cells[0]!.s) && l.cells.slice(1).some((c) => RE_QTY_WORD.test(c.s) || /^\d+(?:[.,]\d+)?\s*(?:g|ml)$/i.test(c.s))) return true;
+  return BULLET.test(l.text) && RE_QTY_FIRST.test(s0);
 }
 
 export function emptyDiet(): Diet {
@@ -237,9 +306,11 @@ export function parseDiet(pages: PdfPage[]): Diet {
     const l = lines[i]!, t = l.text, nt = normTxt(t), next = lines[i + 1];
 
     // ----- títulos de seção -----
-    const mm = t.match(RE_MEAL);
-    if (mm && (l.bold || isCentered(l) || l.cells.length === 1) && !/^\d{1,2}[:h]\d{2}\s*-\s*\d/.test(t)) {
-      const time = normTime(mm[1]!), rest = fixWords(mm[2]!);
+    // refeição: "09:30 Café da manhã" (padrão) ou, fora de listas de compras e receitas, pelo nome
+    // ("Café da manhã – 07h00", "ALMOÇO", "Refeição 3 (15:00)", sem horário…)
+    const mt = mealTitle(l, mode !== 'shopping' && mode !== 'recipe');
+    if (mt) {
+      const time = mt.time, rest = fixWords(mt.name);
       const lab = rest.match(/^(.*?)\s*[([]\s*((?:op[cç][aã]o|alternativa|varia[cç][aã]o)\s*[^)\]]*)[)\]]\s*$/i) ?? rest.match(/^(.*?)\s+[-–]\s+((?:op[cç][aã]o|alternativa)\s*\S*)\s*$/i);
       meal = { time, base: clean(lab ? lab[1]! : rest), label: lab ? fixWords(lab[2]!).replace(/^./, (c) => c.toUpperCase()) : '', foods: [], notes: [] };
       raw.push(meal); mode = 'foods'; subsFor = ''; recipe = null; section = null; continue;
@@ -275,38 +346,61 @@ export function parseDiet(pages: PdfPage[]): Diet {
       continue;
     }
     if (mode === 'section' && section) { section.lines.push(fixWords(t)); continue; }
+    // alimentos antes de qualquer título reconhecido: não se perdem — entram numa refeição para o nutricionista ajustar
+    // cabeçalho de PDF personalizado (dados do paciente e do nutricionista): não vira texto de orientação
+    if (!meal && mode === 'intro' && /^(?:(?:paciente|nome|data|idade|peso|altura|crn|nutricionista|telefone|whats(?:app)?|e-?mail|instagram|consult[oó]rio|endere[cç]o)(?=$|[\s:.,-])|dra?\.|nutri\.|@)/i.test(t)) continue;
+    if (!meal && mode === 'intro' && looksFood(l)) { meal = { time: null, base: 'Refeição', label: '', foods: [], notes: [] }; raw.push(meal); mode = 'foods'; }
     if (!meal) { if (mode === 'intro' && t) { section ??= (() => { const s = { id: did('s'), title: 'Orientações', lines: [] as string[] }; d.sections.push(s); return s; })(); section.lines.push(fixWords(t)); } continue; }
 
+    // "Opção 1", "Alternativa B"… como subtítulo dentro da refeição: nova opção da mesma refeição
+    if (RE_VARIANT.test(t) && t.length < 30) {
+      const label = fixWords(t.replace(/:\s*$/, '')).replace(/^./, (c) => c.toUpperCase());
+      if (!meal.foods.length && !meal.label) meal.label = label;
+      else { meal = { time: meal.time, base: meal.base, label, foods: [], notes: [] }; raw.push(meal); }
+      mode = 'foods'; subsFor = ''; continue;
+    }
+    // cabeçalho da tabela ("Alimento | Quantidade | Medida caseira")
+    if (RE_TABLE_HEAD.test(nt) || (l.cells.length >= 2 && l.cells.every((c) => /^(alimentos?|quantidade|qtd\.?|qtde\.?|medida( caseira)?|porcao|porcoes|gramas?|peso|kcal|calorias|substituicoes|opcoes)$/.test(normTxt(c.s))))) continue;
     const sm = t.match(RE_SUBS) ?? (l.bold ? t.match(RE_SUBS_LOOSE) : null);
     if (sm) { subsFor = clean(sm[1] ?? ''); mode = 'subs'; continue; }
+    // "Pode substituir por: …" / "Trocas: …" (com ou sem as opções na mesma linha)
+    const sa = meal.foods.length ? t.match(RE_SUBS_ALT) : null;
+    if (sa) { subsFor = meal.foods.at(-1)!.name; mode = 'subs'; if (clean(sa[1] ?? '')) addSubs(meal, subsFor, sa[1]!); continue; }
+    // "ou 2 fatias de pão integral": troca do último alimento
+    const om = meal.foods.length && mode !== 'notes' ? t.replace(BULLET, '').match(RE_OR_LINE) : null;
+    if (om) { addSubs(meal, meal.foods.at(-1)!.name, om[1]!); continue; }
     const nm = t.match(RE_NOTES);
     if (nm) { mode = 'notes'; if (nm[2]) meal.notes.push(fixWords(nm[2])); continue; }
 
     if (mode === 'subs' && !(l.cells.length >= 2 && !/ - ou - | ou /i.test(t) && !/ - /.test(l.cells[0]!.s))) {
-      const target = meal.foods.find((f) => normTxt(f.name + (f.detail ? ` (${f.detail})` : '')) === normTxt(subsFor) || normTxt(f.name) === normTxt(subsFor))
-        ?? meal.foods.find((f) => normTxt(subsFor).startsWith(normTxt(f.name))) ?? meal.foods.at(-1);
-      for (const alt of t.split(/\s+[-–]\s*ou\s*[-–]\s+|\s+[-–]\s*ou\s+|\s+ou\s+[-–]\s+/i)) {
-        const a = clean(alt); if (!a) continue;
-        const am = a.match(/^(.+?)\s+[-–]\s+(\d.*|\(?\d.*|[\d½¼¾].*|.*\d\s*(?:g|ml)\)?)$/i);
-        const nameRaw = am ? am[1]! : a, qty = am ? am[2]! : '';
-        target?.subs.push({ ...splitName(nameRaw), qty: clean(qty) });
-      }
+      addSubs(meal, subsFor, t);
       continue;
     }
     if (mode === 'notes') { meal.notes.push(fixWords(t)); continue; }
 
     // linha da tabela: alimento | quantidade
     if (l.cells.length >= 2) {
-      const qty = l.cells.slice(1).map((c) => c.s).find((s) => /\d/.test(s)) ?? l.cells[1]!.s;
-      meal.foods.push({ id: did('f'), ...splitName(l.cells[0]!.s), qty: clean(qty), subs: [] });
+      const qty = l.cells.length === 2 ? l.cells[1]!.s : qtyFrom(l.cells);
+      meal.foods.push({ id: did('f'), ...splitName(l.cells[0]!.s.replace(BULLET, '')), qty: clean(qty), subs: [] });
       lastFoodY = l.y; lastFoodPage = l.page; mode = 'foods'; continue;
     }
-    // nome longo que quebrou em duas linhas
+    const s0 = t.replace(BULLET, '');
+    const isItem = BULLET.test(t) || RE_QTY_FIRST.test(s0) || RE_QTY_WORD.test(s0);
+    // nome longo que quebrou em duas linhas (não vale para um item novo da lista)
     const prev = meal.foods.at(-1);
-    if (prev && l.page === lastFoodPage && l.y - lastFoodY < 13) { const full = splitName(`${prev.name}${prev.detail ? ` (${prev.detail})` : ''} ${t}`); prev.name = full.name; if (full.detail) prev.detail = full.detail; else delete prev.detail; lastFoodY = l.y; continue; }
-    // alimento sem quantidade separada: tenta "Nome - 200g" / "Nome 200g"
-    const q = t.match(/^(.+?)\s+[-–]\s+(.+)$/) ?? t.match(/^(.+?)\s+(\d+(?:[.,]\d+)?\s*(?:g|ml|unidades?|colher(?:es)?|fatias?|x[ií]caras?).*)$/i);
-    meal.foods.push({ id: did('f'), ...splitName(q ? q[1]! : t), qty: q ? clean(q[2]!) : '', subs: [] });
+    if (prev && !isItem && l.page === lastFoodPage && l.y - lastFoodY < 13) { const full = splitName(`${prev.name}${prev.detail ? ` (${prev.detail})` : ''} ${t}`); prev.name = full.name; if (full.detail) prev.detail = full.detail; else delete prev.detail; lastFoodY = l.y; continue; }
+    // lista com a quantidade antes: "2 ovos cozidos", "1 colher de sopa de azeite"
+    const qf = s0.match(RE_QTY_FIRST);
+    if (qf && !/^\d+(?:[.,]\d+)?\s*(?:g|gr|ml|kg)\s*$/i.test(qf[2]!)) {
+      meal.foods.push({ id: did('f'), ...splitName(qf[2]!.replace(/^(?:de|do|da)\s+/i, '').replace(/^./, (c) => c.toUpperCase())), qty: clean(qf[1]!), subs: [] });
+      lastFoodY = l.y; lastFoodPage = l.page; mode = 'foods'; continue;
+    }
+    // "2 torradas integrais": o número do começo é a quantidade
+    const qn = s0.match(/^(\d+(?:[.,]\d+)?|meia|meio|uma?|duas|dois|tr[eê]s)\s+([A-Za-zÀ-ÿ][^\d]*)$/i);
+    if (qn) { meal.foods.push({ id: did('f'), ...splitName(qn[2]!.replace(/^./, (c) => c.toUpperCase())), qty: clean(qn[1]!), subs: [] }); lastFoodY = l.y; lastFoodPage = l.page; mode = 'foods'; continue; }
+    // alimento sem quantidade separada: tenta "Nome - 200g" / "Nome 200g" / "Nome: 200g"
+    const q = s0.match(/^(.+?)\s+[-–:]\s+(.+)$/) ?? s0.match(/^(.+?)\s*:\s*(\d.*)$/) ?? s0.match(/^(.+?)\s+(\d+(?:[.,]\d+)?\s*(?:g|gr|ml|unidades?|colher(?:es)?|fatias?|x[ií]caras?|copos?|conchas?).*)$/i);
+    meal.foods.push({ id: did('f'), ...splitName(q ? q[1]! : s0), qty: q ? clean(q[2]!) : '', subs: [] });
     lastFoodY = l.y; lastFoodPage = l.page;
   }
 
@@ -321,7 +415,8 @@ export function parseDiet(pages: PdfPage[]): Diet {
   for (const m of meals) {
     if (m.variants.length > 1) m.variants.forEach((v, i) => { if (!v.label) v.label = i === 0 ? 'Principal' : `Opção ${i + 1}`; });
   }
-  meals.sort((a, b) => (minutesOf(a.time) ?? 1e9) - (minutesOf(b.time) ?? 1e9));
+  // com horário em todas: em ordem de horário; senão, na ordem em que aparecem no PDF
+  if (meals.every((m) => minutesOf(m.time) != null)) meals.sort((a, b) => minutesOf(a.time)! - minutesOf(b.time)!);
   d.meals = meals;
   d.title = fixWords(d.title || 'Plano alimentar');
   if (/webdiet/i.test(JSON.stringify(pages.slice(0, 1))) || pages.some((p) => p.items.some((i) => /op[cç][oõ]es de substitui/i.test(i.s)))) d.source = 'webdiet';
