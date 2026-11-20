@@ -3520,3 +3520,44 @@ button.idc-st:active{scale:.97}
   .idc-pt .idc-nav{display:none}
   .idc-pt .idc-banner.has-nav{height:150px}
 }
+/* ===== Ficha do paciente no computador: cartão compacto (faixa ilustrada + linha de identidade) =====
+   foto sobre a faixa, nome e dados ao lado, contatos em ícones redondos à direita, números em pílulas,
+   e os botões de ação como uma barra leve — nada disputa atenção com os resultados logo abaixo */
+@media (min-width:1024px){ .pt-main{container:ptmain / inline-size} }
+@media (min-width:1024px){ @container ptmain (min-width:620px){
+  .idc.idc-pt{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"banner banner banner" "head id links" "head stats stats";
+    align-items:start;padding:8px 8px 18px;box-shadow:0 16px 40px -24px rgba(18,18,18,.22),0 0 0 1px var(--line)}
+  .idc.idc-pt .idc-banner{grid-area:banner;height:96px;border-radius:24px}
+  .idc.idc-pt .idc-banner .idc-art{inset:-14px -30px}
+  .idc.idc-pt .idc-edit{top:50%;translate:0 -50%;height:38px;font-size:13.5px}
+  .idc.idc-pt .idc-head{grid-area:head;margin:-44px 0 0;padding:0 0 0 18px;align-items:flex-start}
+  .idc.idc-pt .idc-av .avatar{width:88px;height:88px;font-size:30px}
+  .idc.idc-pt .idc-prog{display:none}
+  .idc.idc-pt .idc-id{grid-area:id;padding:14px 0 0 16px;text-align:left}
+  .idc.idc-pt .idc-id h1{font-size:26px;line-height:1.15}
+  .idc.idc-pt .idc-id p{display:inline;margin:0;font-size:14px}
+  .idc.idc-pt .idc-chips{display:inline-flex;margin:0 0 0 8px;vertical-align:1px}
+  .idc.idc-pt .idc-chips .tag{font-size:12px;padding:3px 9px}
+  /* contatos: só ícones redondos */
+  .idc.idc-pt .idc-links{grid-area:links;display:flex;gap:6px;margin:0;padding:14px 12px 0 0;background:none;border:0;border-radius:0}
+  .idc.idc-pt .idc-ln{width:42px;height:42px;min-width:0;min-height:0;padding:0;justify-content:center;border-radius:50%;background:var(--card);border:0!important}
+  .idc.idc-pt .idc-ln span{display:none}
+  .idc.idc-pt .idc-ln .ico,.idc.idc-pt .idc-ln svg{width:19px;height:19px}
+  .idc.idc-pt .idc-ln.wa{background:oklch(0.93 0.06 150)}
+  .idc.idc-pt .idc-ln:hover{background:var(--card-2)}
+  .idc.idc-pt .idc-ln.wa:hover{background:oklch(0.89 0.08 150)}
+  /* números: pílulas pequenas, sem divisórias */
+  .idc.idc-pt .idc-stats{grid-area:stats;display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0 16px;padding:0;background:none;border:0;border-radius:0}
+  .idc.idc-pt .idc-st{flex-direction:row;align-items:baseline;gap:6px;padding:7px 13px;border-radius:99px;background:var(--card);border:0!important}
+  .idc.idc-pt .idc-st b{font-size:15px;font-weight:700}
+  .idc.idc-pt .idc-st small{font-size:12.5px;color:var(--ink-2)}
+  .idc.idc-pt .idc-st.soon{background:var(--blue)} .idc.idc-pt .idc-st.late{background:var(--danger-soft)}
+  /* botões de ação abaixo do cartão: barra leve, pílulas baixas */
+  .idc-pt+.pt-actions{margin-top:14px}
+  @container pta (min-width:621px){
+    .idc-pt+.pt-actions .pa{min-height:46px;border-radius:99px;font-size:14px;padding:0 14px;gap:8px}
+    .idc-pt+.pt-actions .pa .ico{width:18px;height:18px}
+    .idc-pt+.pt-actions .pa:not(.main){background:none;box-shadow:inset 0 0 0 1.5px var(--line)}
+    .idc-pt+.pt-actions .pa:not(.main):hover{background:var(--card);box-shadow:none}
+  }
+}}
