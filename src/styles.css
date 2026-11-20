@@ -3354,3 +3354,77 @@ h2.sec.fold-h{justify-content:flex-start;gap:8px;flex-wrap:nowrap}
 
 .lg-brand-m{display:none}
 @media (max-width:959px){ .lg-art .lg-brand-m{display:flex} }
+/* ===== Cartão de identidade (ficha do paciente e perfil do nutricionista) =====
+   moldura branca em volta do banner, foto sobre a borda com anel de progresso, números e atalhos só com ícone */
+@property --p{syntax:'<number>';inherits:true;initial-value:0}
+.idc{container-type:inline-size;position:relative;background:var(--surface);border-radius:34px;padding:8px;box-shadow:0 0 0 1px var(--line),0 22px 44px -30px rgba(18,18,18,.32)}
+.idc-banner{--b1:var(--blue);--b2:var(--blue-2);--b3:var(--yellow);position:relative;height:128px;border-radius:26px;overflow:hidden;color:rgba(255,255,255,.75);
+  background:radial-gradient(34% 70% at 16% 30%,rgba(255,255,255,.85),transparent 70%),radial-gradient(42% 80% at 58% 82%,rgba(255,255,255,.5),transparent 72%),radial-gradient(38% 95% at 100% 0%,var(--b3),transparent 72%),linear-gradient(165deg,var(--b1),var(--b2))}
+.idc-banner.t-green{--b1:var(--green);--b2:var(--green-2);--b3:var(--blue)}
+.idc-banner.t-yellow{--b1:var(--yellow);--b2:var(--yellow-2);--b3:var(--peach)}
+.idc-banner.t-peach{--b1:oklch(0.9 0.05 55);--b2:var(--peach);--b3:var(--yellow)}
+.idc-banner.t-pink{--b1:oklch(0.9 0.045 20);--b2:var(--pink);--b3:var(--blue)}
+.idc-art{position:absolute;inset:-10px -30px;width:calc(100% + 60px);height:calc(100% + 20px);animation:idcDrift 14s ease-in-out infinite alternate}
+@keyframes idcDrift{to{transform:translateX(-24px)}}
+.idc-edit{position:absolute;top:10px;right:10px;display:inline-flex;align-items:center;gap:6px;height:42px;padding:0 15px 0 13px;border-radius:99px;font-size:14px;font-weight:600;color:var(--ink);
+  background:rgba(255,255,255,.8);-webkit-backdrop-filter:blur(12px) saturate(1.4);backdrop-filter:blur(12px) saturate(1.4);box-shadow:0 8px 20px -10px rgba(18,18,18,.35),inset 0 0 0 1px rgba(255,255,255,.6);transition:scale .2s var(--ease),background .2s}
+.idc-edit:active{scale:.94}
+.idc-edit .ico{width:16px;height:16px}
+.idc-head{position:relative;z-index:1;display:flex;justify-content:center;align-items:flex-end;gap:14px;margin-top:-56px}
+.idc-av{position:relative;padding:6px;border-radius:50%;background:var(--surface);animation:pop .6s var(--spring) .1s both}
+.idc-av .avatar{width:96px;height:96px;font-size:32px;box-shadow:none}
+/* anel: trilho claro + arco colorido até o progresso */
+.idc-av.has-ring::before,.idc-av.has-ring::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4.5px),#000 calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 4.5px),#000 calc(100% - 4px))}
+.idc-av.has-ring::before{background:var(--line)}
+.idc-av.has-ring::after{background:conic-gradient(from 210deg,oklch(0.7 0.11 260) 0%,oklch(0.72 0.13 160) calc(var(--p)*.5%),oklch(0.8 0.14 85) calc(var(--p)*1%),transparent calc(var(--p)*1% + .01%));animation:idcRing 1.3s cubic-bezier(.2,.8,.2,1) .2s both}
+@keyframes idcRing{from{--p:0}}
+.idc-prog{display:none}
+.idc-id{text-align:center;padding:12px 16px 0}
+.idc-id h1{font-size:24px;font-weight:600;line-height:1.15;overflow-wrap:anywhere}
+.idc-id p{font-size:14.5px;color:var(--ink-2);margin-top:5px;line-height:1.4}
+.idc-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:10px}
+.idc-chips .tag{background:var(--card)}
+.idc-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:16px 4px 0;background:var(--card);border-radius:24px;padding:14px 6px}
+.idc-st{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;min-width:0;padding:2px 4px;border-radius:16px;color:inherit;transition:background .2s}
+.idc-st b{font-size:22px;font-weight:600;line-height:1.15;font-variant-numeric:tabular-nums;white-space:nowrap}
+.idc-st small{font-size:12.5px;color:var(--muted);line-height:1.2}
+.idc-st.late b{color:var(--red-ink)} .idc-st.soon b{color:var(--blue-ink)}
+button.idc-st:active{scale:.97}
+.idc-links{display:flex;justify-content:center;gap:4px;padding:10px 0 4px}
+.idc-ln{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:64px;padding:6px 4px;border-radius:16px;color:var(--ink);text-decoration:none;font-size:11.5px;font-weight:600;transition:background .2s,scale .2s var(--ease)}
+.idc-ln .ico,.idc-ln svg{width:21px;height:21px}
+.idc-ln span{color:var(--ink-2)}
+.idc-ln:active{scale:.94}
+.idc-ln.wa svg{color:#1aa553}
+.idc-ln .nav-badge{position:absolute;top:0;right:12px}
+@media (hover:hover){ .idc-edit:hover{background:#fff} button.idc-st:hover,.idc-ln:hover{background:var(--card)} .idc-stats button.idc-st:hover{background:var(--surface)} }
+@container (max-width:380px){ .idc-edit span{display:none} .idc-edit{width:42px;padding:0;justify-content:center} .idc-st b{font-size:20px} }
+/* espaço largo (computador / tablet): foto à esquerda com a barra de progresso ao lado, números com divisórias e atalhos na base */
+@container (min-width:520px){
+  .idc{--pad:22px}
+  .idc-banner{height:150px}
+  .idc-head{justify-content:flex-start;padding-left:18px;margin-top:-62px}
+  .idc-prog{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:13px;color:var(--muted)}
+  .idc-prog b{font-size:13px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .idc-bar{display:flex;gap:3px}
+  .idc-bar i{width:4px;height:14px;border-radius:9px;background:var(--line)}
+  .idc-bar i.on{background:oklch(0.7 0.13 calc(270 - var(--i) * 10));animation:idcBar .4s cubic-bezier(.2,.8,.2,1) calc(.3s + var(--i) * 30ms) both}
+  .idc-id{text-align:left;padding:14px var(--pad) 0}
+  .idc-id h1{font-size:30px}
+  .idc-chips{justify-content:flex-start}
+  .idc-stats{margin:20px -8px 0;border-radius:0;background:none;padding:0;border-top:1px solid var(--line)}
+  .idc-st{padding:16px 6px;border-radius:0}
+  .idc-st+.idc-st{border-left:1px solid var(--line)}
+  .idc-st b{font-size:24px}
+  .idc-links{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:0;margin:0 -8px -8px;padding:0;background:var(--card);border-top:1px solid var(--line);border-radius:0 0 34px 34px;overflow:hidden}
+  .idc-ln{flex-direction:row;justify-content:center;gap:8px;min-height:56px;border-radius:0;font-size:13.5px}
+  .idc-ln+.idc-ln{border-left:1px solid var(--line)}
+  .idc-ln .nav-badge{position:static}
+}
+@keyframes idcBar{from{transform:scaleY(.2);opacity:0}}
+@media (prefers-reduced-motion:reduce){ .idc-art,.idc-av,.idc-av.has-ring::after,.idc-bar i.on{animation:none} }
+.idc+.pt-actions{margin-top:12px}
+.idc+.draft-banner{margin:12px 0 0}
+.idc~.rt-banner{margin:12px 0 0}
+.nu-av{background:var(--peach)}

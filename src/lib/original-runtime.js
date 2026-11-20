@@ -176,6 +176,28 @@ function setActive(id){ if (db.activeId===id) return; db.activeId = id; state.cm
 function pAvatar(p, cls=''){ return `<span class="avatar ${cls}" style="background:${avColor(p.id)}">${esc(initials(p.name))}</span>`; }
 function pMeta(p){ return [p.sex==='F'?'Feminino':'Masculino', ageAt(p.birth)!=null?ageAt(p.birth)+' anos':null, num(p.height)?fmt(num(p.height),0)+' cm':null].filter(Boolean).join(' · '); }
 const phoneDigits = s => String(s||'').replace(/\D/g,'');
+/* ---------- cartão de identidade (ficha do paciente e perfil do nutricionista) ----------
+   Banner ilustrado com moldura branca, foto sobre a borda (com anel de progresso), nome, linha de apoio,
+   três números e uma fileira de atalhos só com ícone. Celular: centralizado; computador: alinhado à esquerda. */
+const BANNER_TONES = ['peach','blue','green','yellow','pink'];
+const bannerTone = id => BANNER_TONES[[...String(id)].reduce((s,c)=>s+c.charCodeAt(0),0) % BANNER_TONES.length];
+const BANNER_ART = '<svg class="idc-art" viewBox="0 0 400 140" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M-10 108c60-26 112 22 178-6s104-58 170-34 70 8 90-4"/><path d="M-10 124c64-22 120 16 186-10s100-48 166-28 66 10 86 0" opacity=".6"/><path d="M-10 92c56-30 108 26 172-2s108-66 174-40 70 6 92-8" opacity=".35"/></g><g fill="currentColor"><circle cx="318" cy="34" r="3"/><circle cx="338" cy="52" r="2"/><circle cx="62" cy="38" r="2.4"/><circle cx="96" cy="22" r="1.6"/></g></svg>';
+function idCard(o){
+  const ring = o.ring!=null ? Math.max(0, Math.min(100, o.ring)) : null;
+  const stat = x => { const tag = x.attrs ? 'button' : 'div'; return `<${tag} class="idc-st${x.cls?' '+x.cls:''}" ${x.attrs||''}><b>${x.v}</b><small>${x.l}</small></${tag}>`; };
+  const link = x => x.href ? `<a class="idc-ln${x.cls?' '+x.cls:''}" href="${x.href}" ${x.ext?'target="_blank" rel="noopener"':''} aria-label="${x.label}" title="${x.label}">${x.icon}<span>${x.short||x.label}</span></a>`
+    : `<button class="idc-ln${x.cls?' '+x.cls:''}" ${x.attrs} aria-label="${x.label}" title="${x.label}">${x.icon}${x.badge?`<em class="nav-badge">${x.badge}</em>`:''}<span>${x.short||x.label}</span></button>`;
+  return `<section class="idc">
+    <div class="idc-banner t-${o.tone}">${BANNER_ART}<button class="idc-edit" ${o.edit}>${ic('edit','sm')}<span>Editar</span></button></div>
+    <div class="idc-head">
+      <div class="idc-av${ring!=null?' has-ring':''}" style="--p:${ring??0}"${ring!=null?` title="${esc(o.ringLabel)}"`:''}>${o.avatar}</div>
+      ${ring!=null ? `<div class="idc-prog" aria-label="${esc(o.ringLabel)}"><small>${esc(o.ringShort||'')}</small><span class="idc-bar">${Array.from({length:20},(_,i)=>`<i class="${i < Math.round(ring/5)?'on':''}" style="--i:${i}"></i>`).join('')}</span><b>${ring}%</b></div>` : ''}
+    </div>
+    <div class="idc-id"><h1>${o.name}</h1><p>${o.sub}</p>${o.chips?`<div class="idc-chips">${o.chips}</div>`:''}</div>
+    <div class="idc-stats">${o.stats.map(stat).join('')}</div>
+    ${o.links.length ? `<div class="idc-links" style="--n:${o.links.length}">${o.links.map(link).join('')}</div>` : ''}
+  </section>`;
+}
 // telefone sempre no padrão (11) 98765-4321 — fixo com 8 dígitos: (11) 3456-7890
 function fmtPhone(s){
   let d = phoneDigits(s); if (d.length>11 && d.startsWith('55')) d = d.slice(2); d = d.slice(0,11);
@@ -987,15 +1009,26 @@ function viewPatient(id){
   const metric = (label, val, unit, d0, dir, du, icn, cls='') => `<div class="card ${cls}"><div class="card-head"><span class="label">${label}</span><span class="chip-ico right">${ic(icn,'sm')}</span></div>
     <div class="mid">${val!=null?fmt(val):'—'}<small>${val!=null?unit:''}</small></div>${r0&&val!=null&&d0!=null?`<div class="sub">${deltaChip(val,d0,dir,du)} ${since}</div>`:''}</div>`;
   let h = `<header class="top"><button class="icon-btn" data-act="go" data-to="patients" aria-label="Pacientes">${ic('back')}</button>
-    <div class="title-block"><small>Pacientes</small><b>Ficha do paciente</b></div><div class="grow"></div>
-    <button class="icon-btn" data-act="go" data-to="onboard" data-id="${p.id}" aria-label="Editar paciente">${ic('edit')}</button></header>
+    <div class="title-block"><small>Pacientes</small><b>Ficha do paciente</b></div></header>
   <div class="pt-layout"><div class="pt-main">
-  <div class="card blue pt-hero">
-    <div class="pt-id">${pAvatar(p,'xl')}<div class="grow"><h1>${esc(p.name)}</h1><div class="small">${esc(pMeta(p))}</div></div></div>
-    <div class="pt-tags"><span class="tag ${st.cls==='muted'?'':st.cls}">${st.l}</span>${p.goal?`<span class="tag">${ic('target','sm')}${esc(goalLabel(p.goal))}</span>`:''}<span class="tag">${ic('clock','sm')}Retorno a cada ${returnEvery(p)} dias</span></div>
-    ${(p.phone||p.email) ? `<div class="pt-contact">${wa?`<a class="pc wa" href="${wa}" target="_blank" rel="noopener">${waSvg('sm')}WhatsApp</a>`:''}${p.phone?`<a class="pc" href="tel:${phoneDigits(p.phone)}">${ic('phone','sm')}${esc(fmtPhone(p.phone))}</a>`:''}${p.email?`<a class="pc" href="mailto:${esc(p.email)}">${ic('mail','sm')}<span>${esc(p.email)}</span></a>`:''}</div>`
-      : `<div class="pt-contact"><button class="pc" data-act="go" data-to="onboard" data-id="${p.id}">${ic('plus','sm')}Adicionar telefone ou e-mail</button></div>`}
-  </div>
+  ${(() => {
+    const acc = PA[p.id]?.access, gAvg = CS.goalsAvg(p);
+    const months = first ? Math.max(0, Math.round(-daysTo(first.date)/30.4)) : null;
+    const follow = !first ? '—' : months < 1 ? `${Math.max(1,-daysTo(first.date))}d` : months < 12 ? `${months} ${months===1?'mês':'meses'}` : `${(months/12).toFixed(1).replace('.0','').replace('.',',')} ${months<24?'ano':'anos'}`;
+    const ret = st.k==='arch' ? {v:'—', l:'Arquivado'} : st.k==='none' ? {v:'—', l:'Sem avaliação'} : st.k==='late' ? {v:`${-st.left} ${-st.left===1?'dia':'dias'}`, l:'De atraso no retorno', cls:'late'} : st.k==='soon' ? {v:st.left===0?'Hoje':`${st.left} ${st.left===1?'dia':'dias'}`, l:st.left===0?'Dia do retorno':'Até o retorno', cls:'soon'} : {v:fmtDate(st.next,{day:'2-digit',month:'short'}).replace('.',''), l:'Próximo retorno'};
+    const links = [
+      wa && {href:wa, ext:true, icon:waSvg('sm'), label:'Conversar no WhatsApp', short:'WhatsApp', cls:'wa'},
+      p.phone && {href:`tel:${phoneDigits(p.phone)}`, icon:ic('phone','sm'), label:`Ligar para ${esc(fmtPhone(p.phone))}`, short:'Ligar'},
+      p.email && {href:`mailto:${esc(p.email)}`, icon:ic('mail','sm'), label:`Enviar e-mail para ${esc(p.email)}`, short:'E-mail'},
+      acc?.active && {attrs:`data-act="paCopy" data-id="${p.id}" data-what="link"`, icon:ic('link','sm'), label:'Copiar link do portal do paciente', short:'Portal'},
+      !p.phone && !p.email && {attrs:`data-act="go" data-to="onboard" data-id="${p.id}"`, icon:ic('plus','sm'), label:'Adicionar telefone ou e-mail', short:'Contato'},
+    ].filter(Boolean);
+    return idCard({ tone: bannerTone(p.id), edit:`data-act="go" data-to="onboard" data-id="${p.id}" aria-label="Editar dados de ${esc(firstName(p.name))}"`,
+      avatar: pAvatar(p,'xl'), ring: gAvg, ringLabel: gAvg!=null ? `Progresso médio das metas: ${gAvg}%` : '', ringShort:'metas',
+      name: esc(p.name), sub: esc(pMeta(p)),
+      chips: p.goal && goalLabel(p.goal) ? `<span class="tag">${ic('target','sm')}${esc(goalLabel(p.goal))}</span>` : '',
+      stats: [{v:list.length, l:list.length===1?'Avaliação':'Avaliações'}, {v:follow, l:'Acompanhamento'}, ret], links });
+  })()}
   <div class="pt-actions">
     <button class="pa main" data-act="newFor" data-id="${p.id}">${ic(cont?'edit':'plus')}<span>${cont?'Continuar avaliação':'Nova avaliação'}</span></button>
     <button class="pa" data-act="openAs" data-to="home" data-id="${p.id}">${ic('home')}<span>Painel</span></button>
@@ -1057,21 +1090,23 @@ function viewPatient(id){
 function viewProfile(){
   const s = teamStats(), done = !!((nutri.name||'').trim() && (nutri.crn||'').trim());
   const row = (k, v) => `<div class="kv-row"><span class="k">${k}</span><span class="t ${v?'':'none'}">${v?esc(v):'Não informado'}</span></div>`;
-  return `<header class="top"><button class="icon-btn" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button><div class="title-block"><small>Sua conta</small><b>Perfil profissional</b></div><div class="grow"></div>
-    <button class="icon-btn" data-act="go" data-to="nutri" aria-label="Editar perfil">${ic('edit')}</button></header>
-  <div class="card yellow nu-hero">
-    <span class="avatar xl">${esc(initials(nutriName()))}</span>
-    <div class="grow"><span class="tag">${ic('steth','sm')}${esc((nutri.specialty||'').trim()||'Nutricionista')}</span><h1>${esc(nutriName())}</h1>
-      <div class="small">${[crnLabel()?esc(crnLabel()):null, esc(options.email||'')].filter(Boolean).join(' · ')}</div></div>
-  </div>
+  return `<header class="top"><button class="icon-btn" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button><div class="title-block"><small>Sua conta</small><b>Perfil profissional</b></div></header>
+  ${(() => {
+    const fields = [nutri.name, nutri.crn, nutri.specialty, nutri.phone, nutri.place], pct = Math.round(fields.filter(x=>String(x||'').trim()).length/fields.length*100), n = CS.pendingCount();
+    return idCard({ tone:'yellow', edit:'data-act="go" data-to="nutri" aria-label="Editar perfil profissional"',
+      avatar:`<span class="avatar xl nu-av">${esc(initials(nutriName()))}</span>`, ring: pct<100 ? pct : null, ringLabel:`Perfil ${pct}% completo`, ringShort:'perfil',
+      name: esc(nutriName()), sub: [esc((nutri.specialty||'').trim()||'Nutricionista'), crnLabel()?esc(crnLabel()):null].filter(Boolean).join(' · '),
+      chips: nutri.place ? `<span class="tag">${ic('pin','sm')}${esc(nutri.place)}</span>` : '',
+      stats: [{v:s.active, l:'Pacientes ativos', attrs:'data-act="go" data-to="patients"'}, {v:s.month, l:'Avaliações em 30 dias', attrs:'data-act="go" data-to="list"'}, {v:s.late, l:s.late===1?'Retorno atrasado':'Retornos atrasados', cls:s.late?'late':'', attrs:'data-act="go" data-to="returns"'}],
+      links: [
+        {attrs:'data-act="newProfile"', icon:ic('plus','sm'), label:'Cadastrar paciente', short:'Paciente'},
+        {attrs:'data-act="go" data-to="returns"', icon:ic('bell','sm'), label:'Retornos da semana', short:'Retornos', badge:n||0},
+        {attrs:'data-act="backupOut"', icon:ic('dl','sm'), label:'Exportar backup', short:'Backup'},
+        {attrs:'data-act="tour"', icon:ic('target','sm'), label:'Tour de apresentação', short:'Tour'},
+      ] });
+  })()}
   ${done?'':`<button class="draft-banner" data-act="go" data-to="nutri">${ic('badge')}<span class="grow">Complete seu perfil: nome e CRN entram como avaliador(a) nas novas avaliações e nos PDFs.</span><b>Completar</b></button>`}
   ${CS.returnsBanner()}
-  <div class="pt-kpis">
-    ${kpi('active','Pacientes ativos',s.active,'blue','users')}
-    ${kpi('late','Retornos atrasados',s.late,'peach','clock')}
-    ${kpi('month','Avaliações em 30 dias',s.month,'green','clip',false)}
-    ${kpi('all','Avaliações no total',s.all,'','chart',false)}
-  </div>
   <div class="two-col">
   <div>
     <h2 class="sec">Atendimento <button data-act="go" data-to="nutri">editar</button></h2>

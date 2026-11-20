@@ -173,6 +173,8 @@ function goalsMini(p){
   return [`<span class="an-ring" style="--p:${avg}" aria-hidden="true"><b>${avg}%</b></span>`, st.map(s=>`${GOAL_KINDS[s.goal.k].short} ${s.done?'✓':Math.round(s.pct*100)+'%'}`).join(' · '),
     `${st.length} ${st.length===1?'meta':'metas'}${done?` · ${done} ${done===1?'alcançada':'alcançadas'}`:''} · progresso médio`, ''];
 }
+/** progresso médio das metas (0–100) ou null sem metas — anel em volta da foto no cartão do paciente */
+function goalsAvg(p){ const st = statusAll(p); return st.length ? Math.round(st.reduce((t,s)=>t+(s.done?1:s.pct),0)/st.length*100) : null; }
 function energyMini(p){
   const last = listOf(p.id).at(-1), e = last && energyOfP(p, last); if (!e) return null;
   return [ic('flame','sm'), `Meta ${kcal(e.target)} kcal`, `Gasto ${kcal(e.tdee)} kcal · P ${Math.round(e.macros.p.g)} g · C ${Math.round(e.macros.c.g)} g · G ${Math.round(e.macros.f.g)} g`, ''];
@@ -436,5 +438,5 @@ function energyChip(pid){
   return `<button class="tag" data-act="go" data-to="energy" data-id="${p.id}">${ic('flame','sm')}Meta ${kcal(e.target)} kcal · P ${Math.round(e.macros.p.g)} g</button>`;
 }
 
-return { goalsMini, energyMini, energyFor: energyOfP, goalsSection, homeGoals, detailGoals, goalTag, goalReached, goalsLine, goalFor, openGoals, energyChip, energySection, tdeeOf, viewEnergy, viewReturns, returnsBanner, pendingCount, onInput, acts };
+return { goalsAvg, goalsMini, energyMini, energyFor: energyOfP, goalsSection, homeGoals, detailGoals, goalTag, goalReached, goalsLine, goalFor, openGoals, energyChip, energySection, tdeeOf, viewEnergy, viewReturns, returnsBanner, pendingCount, onInput, acts };
 }
