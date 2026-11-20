@@ -195,7 +195,13 @@ const readView = (): { tab: Tab; id: string | null } => {
   return { tab: v && v in ORDER ? v : 'inicio', id: q.get('id') };
 };
 
-function PortalApp({ data, code, onExit, onRefresh, submit, remove }: { data: PortalData; code: string; onExit: () => void; onRefresh: () => void; submit: (kind: FormKind, a: Answers) => Promise<SubmitResult>; remove: () => Promise<DeleteResult> }) {
+type RefreshResult = 'new' | 'same' | 'fail' | 'invalid';
+function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { data: PortalData; code: string; onExit: () => void; onRefresh: () => Promise<RefreshResult>; notice: string; submit: (kind: FormKind, a: Answers) => Promise<SubmitResult>; remove: () => Promise<DeleteResult> }) {
+  /* sair pede confirmação (mostra o código, que é preciso para entrar de novo); atualizar mostra que está buscando e o resultado */
+  const [askExit, setAskExit] = useState(false), [copied, setCopied] = useState(false);
+  const [sync, setSync] = useState<'' | 'busy' | 'same' | 'fail'>('');
+  const refresh = async () => { if (sync === 'busy') return; setSync('busy'); const r = await onRefresh().catch(() => 'fail' as const); setSync(r === 'same' ? 'same' : r === 'fail' ? 'fail' : ''); if (r === 'same' || r === 'fail') window.setTimeout(() => setSync(''), 2600); };
+  useEffect(() => { if (!askExit) return; const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setAskExit(false); }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [askExit]);
   const p = { sex: data.patient.sex, birth: data.patient.birth, height: data.patient.height };
   const sex = data.patient.sex;
   const list = useMemo(() => [...data.assessments].sort((x, y) => x.date.localeCompare(y.date)), [data]);
@@ -437,8 +443,8 @@ function PortalApp({ data, code, onExit, onRefresh, submit, remove }: { data: Po
       <div className="hello"><small>Olá,</small><b>{fn}</b></div>
       <div className="grow" />
       <span className="top-date">{fmtDate(today(), { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-      <button className="icon-btn" onClick={onRefresh} aria-label="Atualizar"><RefreshCw className="ico" /></button>
-      <button className="icon-btn" onClick={onExit} aria-label="Sair deste aparelho"><LogOut className="ico" /></button>
+      <button className={'icon-btn pp-sync' + (sync === 'busy' ? ' busy' : '')} onClick={() => void refresh()} aria-label={sync === 'busy' ? 'Atualizando…' : 'Buscar novidades'} title="Buscar novidades" disabled={sync === 'busy'}><RefreshCw className="ico" /></button>
+      <button className="icon-btn" onClick={() => setAskExit(true)} aria-label="Sair deste aparelho" title="Sair deste aparelho"><LogOut className="ico" /></button>
     </header>
     <h1 className="headline">{summary}</h1>
     {preAsk && !hidden.includes('pre') && (
@@ -872,12 +878,25 @@ function PortalApp({ data, code, onExit, onRefresh, submit, remove }: { data: Po
             <span className="row"><span className="avatar" style={{ background: 'var(--peach)' }}>{initials(nutriName)}</span><span className="grow"><b>{nutriName}</b><small>{crn || data.nutri.specialty || 'Acompanhamento'}</small></span></span>
             {wa && <a className="side-wa" href={wa} target="_blank" rel="noopener"><WaIcon /><span>Falar no WhatsApp</span></a>}
           </div>
-          <button className="side-prof" onClick={onExit} title="Sair deste aparelho"><span className="avatar" style={{ background: 'var(--yellow-2)' }}>{initials(data.patient.name)}</span><span className="grow"><b>{data.patient.name}</b><small>Sair deste aparelho</small></span><LogOut className="ico sm" /></button>
+          <button className="side-prof" onClick={() => setAskExit(true)} title="Sair deste aparelho"><span className="avatar" style={{ background: 'var(--yellow-2)' }}>{initials(data.patient.name)}</span><span className="grow"><b>{data.patient.name}</b><small>Sair deste aparelho</small></span><LogOut className="ico sm" /></button>
         </div>
       </nav>
       {viewer && <PhotoViewer spec={viewer} onEnd={() => setViewer(null)} />}
       {tour && <AppTour spec={tour} onEnd={() => setTour(null)} />}
       {news && !tour && <DoneSheet spec={news} onEnd={() => setNews(null)} />}
+      {(sync === 'same' || sync === 'fail' || notice) && <div className={'pp-pill' + (sync === 'fail' ? ' bad' : '')} role="status">{sync === 'fail' ? 'Sem conexão. Seus dados continuam aqui — tente de novo.' : sync === 'same' ? <><Check className="ico sm" /> Tudo em dia, nenhuma novidade</> : <><Check className="ico sm" /> {notice}</>}</div>}
+      {askExit && (
+        <div className="pp-confirm-bg" onClick={() => setAskExit(false)}>
+          <div className="pp-confirm" role="dialog" aria-modal="true" aria-labelledby="pp-exit-t" onClick={(e) => e.stopPropagation()}>
+            <span className="pp-confirm-ico"><LogOut className="ico" /></span>
+            <h3 id="pp-exit-t">Sair deste aparelho?</h3>
+            <p>Para entrar de novo você vai precisar do seu código de acesso. Guarde-o antes de sair:</p>
+            <button className="pp-code" onClick={() => { void navigator.clipboard?.writeText(fmtCode(code)).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 2000); }).catch(() => {}); }} aria-label="Copiar código">
+              <b>{fmtCode(code)}</b><small>{copied ? <><Check className="ico sm" /> Copiado</> : 'Toque para copiar'}</small></button>
+            <div className="pp-confirm-btns"><button className="btn ghost" onClick={() => setAskExit(false)} autoFocus>Continuar aqui</button><button className="btn danger" onClick={() => { setAskExit(false); onExit(); }}>Sair</button></div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -917,6 +936,21 @@ export function PatientPortal({ load = (code: string) => getPatientPortal({ data
   }, []);
 
   const exit = () => { write(null); setData(null); code.current = ''; history.replaceState(null, '', window.location.pathname); setPhase('entry'); };
+  /* "buscar novidades": não tira o paciente do portal se a internet falhar; com novidade, o portal é refeito
+     (avisos dos menus, janela de avaliação nova e formulários voltam a ser calculados com os dados novos) */
+  const [ver, setVer] = useState(0), [notice, setNotice] = useState('');
+  const refresh = async (): Promise<RefreshResult> => {
+    try {
+      const res = await load(code.current);
+      if (res.ok) {
+        const same = JSON.stringify(res.data) === JSON.stringify(data);
+        if (same) return 'same';
+        setData(res.data); setVer((v) => v + 1); setNotice('Novidades carregadas'); window.setTimeout(() => setNotice(''), 2600); return 'new';
+      }
+      if (res.reason === 'invalid') { write(null); setData(null); setError('Seu acesso foi pausado ou trocado. Peça um novo código ao seu nutricionista.'); setPhase('entry'); return 'invalid'; }
+      return 'fail';
+    } catch { return 'fail'; }
+  };
 
   if (phase === 'boot' || phase === 'loading') return <main className="app"><div className="pp-loading"><span className="pp-spin" /><p>Carregando sua evolução…</p></div></main>;
   if (phase === 'down') return (
@@ -924,6 +958,6 @@ export function PatientPortal({ load = (code: string) => getPatientPortal({ data
       <Button variant="original" className="btn dark" style={{ margin: '16px auto 0', display: 'inline-flex' }} onClick={() => void enter(code.current || read())}><RefreshCw size={16} /> Tentar de novo</Button>
       <button className="btn ghost sm" style={{ margin: '10px auto 0', display: 'flex' }} onClick={exit}>Usar outro código</button></div></div></main>
   );
-  if (phase === 'ready' && data) return <PortalApp data={data} code={code.current} onExit={exit} onRefresh={() => void enter(code.current)} submit={(kind, a) => submit(code.current, kind, a)} remove={() => remove(code.current)} />;
+  if (phase === 'ready' && data) return <PortalApp key={ver} data={data} code={code.current} onExit={exit} onRefresh={refresh} notice={notice} submit={(kind, a) => submit(code.current, kind, a)} remove={() => remove(code.current)} />;
   return <Entry onEnter={(c) => void enter(c)} error={error} />;
 }
