@@ -23,6 +23,8 @@ import parseHtml from 'html-react-parser';
 import { Apple, Download } from 'lucide-react';
 // ícone de PDF do site (o mesmo do app do nutricionista)
 import { PdfIcon } from '@/components/pdf-icon';
+import { BrandLoader } from '@/components/brand-loader';
+const PP_WORDS = ['Buscando suas medidas…', 'Montando seus gráficos…', 'Quase pronto…'];
 import { dietAct, dietHtml, dietMini, newDietUi, nowMinutes, variantOf, KIND_COLOR, dtIcon, type DietUi } from '@/lib/diet-view';
 import { mealKind, qtyParts, fmtAmount } from '@/lib/diet-parse';
 import { dietFileName, dietImage, exportDietPdf, shareOrDownload } from '@/lib/diet-export';
@@ -952,7 +954,7 @@ export function PatientPortal({ load = (code: string) => getPatientPortal({ data
     } catch { return 'fail'; }
   };
 
-  if (phase === 'boot' || phase === 'loading') return <main className="app"><div className="pp-loading"><span className="pp-spin" /><p>Carregando sua evolução…</p></div></main>;
+  if (phase === 'boot' || phase === 'loading') return <main className="app"><BrandLoader label="Carregando sua evolução" words={PP_WORDS} /></main>;
   if (phase === 'down') return (
     <main className="app"><div className="auth-wrap"><div className="card empty"><h3>Não foi possível carregar agora</h3><p>Verifique sua internet e tente de novo em instantes.</p>
       <Button variant="original" className="btn dark" style={{ margin: '16px auto 0', display: 'inline-flex' }} onClick={() => void enter(code.current || read())}><RefreshCw size={16} /> Tentar de novo</Button>

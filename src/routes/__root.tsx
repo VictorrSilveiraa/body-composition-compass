@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { appMounted, splashHtml } from '@/lib/boot-splash';
 import {
   Outlet,
   Link,
@@ -15,6 +16,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from '@/integrations/supabase/client';
 
 function NotFoundComponent() {
+  useEffect(() => { appMounted(); }, []); // a tela de carregamento não pode cobrir o aviso
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
@@ -38,6 +40,7 @@ function NotFoundComponent() {
 
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
+  useEffect(() => { appMounted(); }, []); // a tela de carregamento não pode cobrir o erro
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
@@ -116,6 +119,8 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        {/* tela de carregamento da marca: já vem no HTML (aparece antes do código carregar) */}
+        <div id="boot" className="bl" role="status" aria-label="Carregando" suppressHydrationWarning dangerouslySetInnerHTML={{ __html: splashHtml() }} />
         {children}
         <Scripts />
       </body>
@@ -126,6 +131,7 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router=useRouter();
+  useEffect(()=>{appMounted();},[]);
   useEffect(()=>{const {data}=supabase.auth.onAuthStateChange(event=>{if(!['SIGNED_IN','SIGNED_OUT','USER_UPDATED'].includes(event))return;void router.invalidate();if(event!=='SIGNED_OUT')void queryClient.invalidateQueries();});return()=>data.subscription.unsubscribe();},[router,queryClient]);
 
   return (

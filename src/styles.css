@@ -3561,3 +3561,53 @@ button.idc-st:active{scale:.97}
     .idc-pt+.pt-actions .pa:not(.main):hover{background:var(--card);box-shadow:none}
   }
 }}
+/* ===== Tela de carregamento da marca (abertura do site e carregamentos de verdade) =====
+   medidor de 3 anéis nas cores do site + marca com batimento + fita métrica correndo + frases que se alternam */
+.bl{position:fixed;inset:0;z-index:2000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;background:var(--surface);overflow:hidden;
+  transition:opacity .5s cubic-bezier(.2,.8,.2,1),transform .55s cubic-bezier(.2,.8,.2,1);font-family:'Urbanist',system-ui,-apple-system,sans-serif;color:var(--ink)}
+.bl.out{opacity:0;transform:scale(1.05);pointer-events:none}
+.bl.done{display:none}
+.bl.in-app{animation:blIn .35s ease both}
+.bl-hold{min-height:60vh}
+@keyframes blIn{from{opacity:0}}
+/* manchas de cor ao fundo */
+.bl-bg{position:absolute;inset:0;pointer-events:none}
+.bl-bg i{position:absolute;width:55vmax;height:55vmax;border-radius:50%;filter:blur(60px);opacity:.55;animation:blDrift 10s ease-in-out infinite alternate}
+.bl-bg i:nth-child(1){background:var(--blue);left:-22vmax;top:-20vmax}
+.bl-bg i:nth-child(2){background:var(--yellow);right:-24vmax;bottom:-22vmax;animation-delay:-3s}
+.bl-bg i:nth-child(3){background:var(--green);width:34vmax;height:34vmax;right:-8vmax;top:-12vmax;opacity:.4;animation-delay:-6s}
+@keyframes blDrift{to{transform:translate(6vmax,4vmax) scale(1.08)}}
+/* medidor */
+.bl-core{position:relative;width:136px;height:136px;display:grid;place-items:center;animation:blPop .7s cubic-bezier(.2,.8,.2,1.2) both}
+.bl-rings{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.bl-r{fill:none;stroke-width:7;stroke-linecap:round;transform-box:fill-box;transform-origin:center}
+.bl-r.r1{stroke:var(--blue-2);stroke-dasharray:110 230;animation:blSpin 2.6s linear infinite,blBreath 2.6s ease-in-out infinite}
+.bl-r.r2{stroke:var(--green-2);stroke-dasharray:70 207;animation:blSpin 1.9s linear infinite reverse}
+.bl-r.r3{stroke:var(--yellow-2);stroke-dasharray:46 168;animation:blSpin 1.35s linear infinite}
+@keyframes blSpin{to{transform:rotate(360deg)}}
+@keyframes blBreath{50%{stroke-dasharray:190 150}}
+.bl-mark{position:relative;width:58px;height:58px;border-radius:50%;background:var(--peach);display:grid;place-items:center;box-shadow:0 10px 24px -10px rgba(18,18,18,.35);animation:blBeat 1.6s ease-in-out infinite}
+.bl-mark svg{width:30px;height:30px;fill:none;stroke:var(--ink);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:44;stroke-dashoffset:44;animation:blDraw 1.6s ease-in-out infinite}
+@keyframes blBeat{0%,100%{transform:scale(1)}20%{transform:scale(1.08)}35%{transform:scale(.98)}}
+@keyframes blDraw{0%{stroke-dashoffset:44}45%,70%{stroke-dashoffset:0}100%{stroke-dashoffset:-44}}
+@keyframes blPop{from{opacity:0;transform:scale(.6)}}
+/* nome, fita métrica e frases */
+.bl-name{position:relative;font-size:17px;font-weight:600;letter-spacing:.01em;margin-top:6px;animation:blUp .6s .12s cubic-bezier(.2,.8,.2,1) both}
+.bl-tape{position:relative;width:min(230px,62vw);height:30px;border-radius:9px;overflow:hidden;background:var(--yellow);box-shadow:inset 0 0 0 1px rgba(18,18,18,.06),0 8px 18px -12px rgba(18,18,18,.35);animation:blUp .6s .2s cubic-bezier(.2,.8,.2,1) both}
+.bl-ticks{position:absolute;inset:0 -60px 0 0;
+  background:repeating-linear-gradient(90deg,rgba(18,18,18,.55) 0 1.5px,transparent 1.5px 50px) 0 0/100% 62% no-repeat,
+             repeating-linear-gradient(90deg,rgba(18,18,18,.35) 0 1px,transparent 1px 10px) 0 0/100% 34% no-repeat;
+  animation:blTape .9s linear infinite}
+@keyframes blTape{to{transform:translateX(-50px)}}
+.bl-needle{position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--red-ink);border-radius:2px}
+.bl-needle::before{content:"";position:absolute;left:50%;top:-1px;margin-left:-5px;border:5px solid transparent;border-top:6px solid var(--red-ink)}
+.bl-words{position:relative;height:20px;width:100%;max-width:300px;animation:blUp .6s .28s cubic-bezier(.2,.8,.2,1) both}
+.bl-words span{position:absolute;inset:0;text-align:center;font-size:14px;font-weight:500;color:var(--ink-2);opacity:0;animation:blWord calc(var(--n) * 1.7s) calc(var(--i) * 1.7s) infinite}
+@keyframes blWord{0%{opacity:0;transform:translateY(8px)}6%,27%{opacity:1;transform:none}33%,100%{opacity:0;transform:translateY(-8px)}}
+@keyframes blUp{from{opacity:0;transform:translateY(10px)}}
+@media (min-width:1024px){ .bl-core{width:156px;height:156px} .bl-mark{width:66px;height:66px} .bl-name{font-size:19px} }
+@media (prefers-reduced-motion:reduce){
+  .bl-bg i,.bl-r,.bl-mark,.bl-mark svg,.bl-ticks{animation:none!important}
+  .bl-mark svg{stroke-dashoffset:0}
+  .bl-words span{animation:none;opacity:0} .bl-words span:first-child{opacity:1}
+}

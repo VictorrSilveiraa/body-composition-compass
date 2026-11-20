@@ -15,7 +15,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { cloudRepository, loadCloud, saveNutri, type Nutri } from '@/lib/cloud-data';
 import { motivo } from '@/lib/motivo';
 import { mountOriginal } from '@/lib/original-runtime.js';
-import { pageReady, ripple, scan, scrollTopNow, withPageTransition } from '@/lib/motion';const kids = (node: Element) => (node.children.length ? domToReact(node.children as DOMNode[], parserOptions) : undefined);
+import { pageReady, ripple, scan, scrollTopNow, withPageTransition } from '@/lib/motion';
+import { BrandLoader } from '@/components/brand-loader';const kids = (node: Element) => (node.children.length ? domToReact(node.children as DOMNode[], parserOptions) : undefined);
 const parserOptions: HTMLReactParserOptions = {
   replace(node) {
     if (!(node instanceof Element)) return undefined;
@@ -72,17 +73,9 @@ function dropLive() { live?.runtime.destroy(); live = null; lastFrame = null; sh
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
+/** carregando o app: a tela de carregamento da marca (src/components/brand-loader.tsx) */
 export function AppSkeleton() {
-  return (
-    <div className="sk-wrap" aria-busy="true" aria-label="Carregando">
-      <div className="sk-top"><span className="sk sk-c" /><span className="sk-col"><span className="sk sk-l" style={{ width: 54 }} /><span className="sk sk-l" style={{ width: 96 }} /></span><span className="grow" /><span className="sk sk-c" /><span className="sk sk-c" /></div>
-      <span className="sk sk-l sk-h" style={{ width: '82%' }} />
-      <span className="sk sk-l sk-h" style={{ width: '56%', marginBottom: 22 }} />
-      <div className="sk sk-hero" />
-      <div className="sk-grid"><div className="sk sk-card" /><div className="sk sk-card" /></div>
-      <div className="sk sk-row" /><div className="sk sk-row" />
-    </div>
-  );
+  return <BrandLoader label="Carregando seus pacientes" />;
 }
 
 export function AssessmentApp() {
