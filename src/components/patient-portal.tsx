@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PhotoViewer, type ViewerSpec } from '@/components/photo-viewer';
+import { PhotoStudio, type StudioSpec } from '@/components/photo-studio';
 import { AuthShell } from '@/components/auth-screen';
 import { AppTour, type TourSpec, type TourStep } from '@/components/app-tour';
 import { DoneSheet, type DoneSpec, type DoneStat } from '@/components/done-sheet';
@@ -20,7 +21,7 @@ import { PortalForm } from '@/components/portal-form';
 import type { DeleteResult, SubmitResult } from '@/lib/portal-code';
 import { pageReady, ripple, scan, scrollTopNow, withPageTransition } from '@/lib/motion';
 import parseHtml from 'html-react-parser';
-import { Apple, Download } from 'lucide-react';
+import { Apple, Download, Image as ImageIcon } from 'lucide-react';
 // ícone de PDF do site (o mesmo do app do nutricionista)
 import { PdfIcon } from '@/components/pdf-icon';
 import { BrandLoader } from '@/components/brand-loader';
@@ -270,6 +271,14 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
   const [mode, setMode] = useState<'side' | 'wipe' | 'fade'>('side');
   const [sx, setSx] = useState(50), [so, setSo] = useState(50);
   const [viewer, setViewer] = useState<ViewerSpec | null>(null);
+  const [studio, setStudio] = useState<StudioSpec | null>(null);
+  /* estúdio de imagens: as fotos compartilhadas, para montar o antes e depois das redes sociais */
+  const openStudio = (k: string, a?: string, b?: string) => setStudio({
+    who: 'patient', patient: data.patient.name, signature: data.nutri.name ? `Acompanhamento: ${data.nutri.name}` : '',
+    assessments: list.map((x) => { const r = rOf(x); return { id: x.id, date: x.date, weight: num(x.weight) ?? null, bf: num(r['bf']) ?? null, lean: num(r['leanMass']) ?? null, waist: num(x.circ?.['waist']) ?? null }; }),
+    photos: data.photos.filter((ph) => list.some((x) => x.id === ph.assessmentId)).map((ph) => ({ aid: ph.assessmentId, pose: ph.pose, load: async () => { const r = await fetch(ph.url); if (!r.ok) throw new Error('Foto indisponível'); return r.blob(); } })),
+    pose: k, ...(a ? { a } : {}), ...(b ? { b } : {}),
+  });
   const drag = useRef(false);
   const [avShown, setAvShown] = useState(10), [histAll, setHistAll] = useState(false);
   /* plano alimentar: versão escolhida + estado da tela (aba, opção, trocas, compras marcadas) */
@@ -689,10 +698,12 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
       {!A || !B ? <div className="card blue empty"><div className="e-ico"><Camera className="ico" /></div><h3>Sem fotos ainda</h3><p>Suas fotos aparecem aqui quando forem registradas.</p></div>
         : dated.length < 2 ? (<>{chips}<div className="phc-one">
           <figure className="phc-fig" onClick={() => openViewer(k, A.id)}><img src={photoOf(A.id, k)!.url} alt={poseLabel(k)} />{cap(A, 'Única foto')}</figure>
-          <div className="phc-one-txt"><h3>Falta só mais uma</h3><p>Na próxima avaliação com foto na pose <b>{poseLabel(k).toLowerCase()}</b>, você compara o antes e depois lado a lado.</p></div></div></>)
+          <div className="phc-one-txt"><h3>Falta só mais uma</h3><p>Na próxima avaliação com foto na pose <b>{poseLabel(k).toLowerCase()}</b>, você compara o antes e depois lado a lado.</p>
+            <div className="phc-one-acts"><button type="button" className="btn ghost sm" onClick={() => openStudio(k, A.id, A.id)}><ImageIcon className="ico sm" /> Criar imagem</button></div></div></div></>)
         : (<>{chips}
           <div className="ph-layout"><div className="ph-main">
-            <div className="ph-bar"><div className="seg ph-modes">{([['side', 'Lado a lado'], ['wipe', 'Deslizar'], ['fade', 'Sobrepor']] as const).map(([v, l]) => <button key={v} className={mode === v ? 'on' : ''} onClick={() => setMode(v)}>{l}</button>)}</div></div>
+            <div className="ph-bar"><div className="seg ph-modes">{([['side', 'Lado a lado'], ['wipe', 'Deslizar'], ['fade', 'Sobrepor']] as const).map(([v, l]) => <button key={v} className={mode === v ? 'on' : ''} onClick={() => setMode(v)}>{l}</button>)}</div>
+              <button type="button" className="btn dark sm ph-share" onClick={() => openStudio(k, A.id, B.id)}><ImageIcon className="ico sm" /><span>Criar imagem</span></button></div>
             <div className={'phc phc-' + mode} style={{ ['--x' as string]: `${sx}%`, ['--o' as string]: String(so / 100) }}>
               {mode === 'side' ? (<>
                 <figure className="phc-fig" onClick={() => openViewer(k, A.id)}><img src={photoOf(A.id, k)!.url} alt="Antes" />{cap(A, 'Antes')}</figure>
@@ -884,6 +895,7 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
         </div>
       </nav>
       {viewer && <PhotoViewer spec={viewer} onEnd={() => setViewer(null)} />}
+      {studio && <PhotoStudio spec={studio} onEnd={() => setStudio(null)} />}
       {tour && <AppTour spec={tour} onEnd={() => setTour(null)} />}
       {news && !tour && <DoneSheet spec={news} onEnd={() => setNews(null)} />}
       {(sync === 'same' || sync === 'fail' || notice) && <div className={'pp-pill' + (sync === 'fail' ? ' bad' : '')} role="status">{sync === 'fail' ? 'Sem conexão. Seus dados continuam aqui — tente de novo.' : sync === 'same' ? <><Check className="ico sm" /> Tudo em dia, nenhuma novidade</> : <><Check className="ico sm" /> {notice}</>}</div>}

@@ -434,7 +434,7 @@ function viewPhotoCompare(p, list){
     return chips + `<div class="phc-one">
       <figure class="phc-fig" data-act="phView" data-aid="${a.id}" data-pose="${k}">${phImg(phGet(a.id,k), poseLabel(k))}${cap(a,'Única foto')}</figure>
       <div class="phc-one-txt"><h3>Falta só mais uma</h3><p>Com uma segunda consulta fotografada na pose <b>${poseLabel(k).toLowerCase()}</b>, você compara o antes e depois lado a lado, deslizando ou sobrepondo as fotos.</p>
-      ${last.id!==a.id ? `<button class="btn dark sm" data-act="phCam" data-aid="${last.id}" data-pose="${k}">${ic('camera','sm')} Fotografar em ${shortDate(last.date)}</button>` : ''}</div></div>`;
+      <div class="phc-one-acts">${last.id!==a.id ? `<button class="btn dark sm" data-act="phCam" data-aid="${last.id}" data-pose="${k}">${ic('camera','sm')} Fotografar em ${shortDate(last.date)}</button>` : ''}<button class="btn ghost sm" data-act="phShare">${ic('image','sm')} Criar imagem</button></div></div></div>`;
   }
   const A = findA(state.phA), B = findA(state.phB), mA = phGet(A.id,k), mB = phGet(B.id,k), rA = calc(A,p), rB = calc(B,p);
   const mode = state.phMode || 'side', x = state.phX ?? 50, o = state.phO ?? 50;
@@ -445,7 +445,7 @@ function viewPhotoCompare(p, list){
   let h = chips + `<div class="ph-layout"><div class="ph-main">
     <div class="ph-bar">
       <div class="seg ph-modes" role="tablist" aria-label="Modo de comparação">${[['side','Lado a lado'],['wipe','Deslizar'],['fade','Sobrepor']].map(([v,l])=>`<button role="tab" aria-selected="${mode===v}" class="${mode===v?'on':''}" data-act="phMode" data-v="${v}">${l}</button>`).join('')}</div>
-      <button class="btn ghost sm ph-share" data-act="phShare" aria-label="Baixar imagem do antes e depois">${ic('dl','sm')}<span>Baixar imagem</span></button>
+      <button class="btn dark sm ph-share" data-act="phShare" aria-label="Criar imagem para redes sociais">${ic('image','sm')}<span>Criar imagem</span></button>
     </div>
     <div class="phc phc-${mode}" style="--x:${x}%;--o:${o/100}">`;
   if (mode==='side') h += `<figure class="phc-fig" data-act="phView" data-aid="${A.id}" data-pose="${k}">${phImg(mA,'Antes')}${cap(A,'Antes')}</figure>
@@ -1612,20 +1612,15 @@ const ACT = {
   phPose: async b => { state.phPose = b.dataset.v; render(); },
   phMode: async b => { state.phMode = b.dataset.v; render(); },
   phSwap: async () => { [state.phA, state.phB] = [state.phB, state.phA]; render(); },
-  // baixa (ou compartilha, no celular) uma imagem com o antes e depois lado a lado
+  // estúdio de imagens para redes sociais (src/components/photo-studio.tsx): formatos, arranjos, textos e privacidade
   phShare: async () => {
-    const p = prof(), A = findA(state.phA), B = findA(state.phB), k = state.phPose;
-    const mA = A && phGet(A.id,k), mB = B && phGet(B.id,k); if (!mA || !mB) return;
-    const sub = a => { const r = calc(a,p); return `${fmt(num(a.weight))} kg${r.bf!=null?` · ${fmt(r.bf)}% gordura`:''}`; };
-    const blob = await options.composeComparison(PH, [
-      {meta:mA, label:`Antes · ${fmtDate(A.date,{day:'2-digit',month:'short',year:'numeric'})}`, sub:sub(A)},
-      {meta:mB, label:`Depois · ${fmtDate(B.date,{day:'2-digit',month:'short',year:'numeric'})}`, sub:sub(B)}], `${p.name} · ${poseLabel(k)}`);
-    const name = `comparacao-${slugOf(p.name)}-${slugOf(poseLabel(k))}-${A.date}-${B.date}.jpg`;
-    const file = typeof File==='function' ? new File([blob], name, {type:'image/jpeg'}) : null;
-    if (file && navigator.canShare?.({files:[file]}) && matchMedia('(pointer: coarse)').matches){
-      try { await navigator.share({files:[file], title:`${p.name} · antes e depois`}); return; } catch (e) { if (e?.name==='AbortError') return; }
-    }
-    download(name, blob, 'image/jpeg'); toast('Imagem baixada');
+    const p = prof(); if (!p || !PH || !options.studio) return;
+    const list = listOf(p.id), ids = new Set(list.map(a=>a.id));
+    const photos = PH.list().filter(m=>ids.has(m.assessmentId)).map(m=>({ aid:m.assessmentId, pose:m.pose, load: async () => { const b = await PH.blob(m); if (!b) throw new Error('Foto indisponível'); return b; } }));
+    if (!photos.length) return toast('Nenhuma foto para montar a imagem');
+    options.studio({ who:'nutri', patient:p.name, signature:[(nutri.name||'').trim(), crnLabel()].filter(Boolean).join(' · '),
+      assessments: list.map(a=>{ const r = calc(a,p); return { id:a.id, date:a.date, weight:num(a.weight), bf:r.bf ?? null, lean:r.leanMass ?? null, waist:num(a.circ?.waist) }; }),
+      photos, pose: state.phPose, a: state.phA, b: state.phB });
   },
   // celular: engrenagem do detalhe abre um menu com todas as ações da avaliação
   aMenu: async b => {

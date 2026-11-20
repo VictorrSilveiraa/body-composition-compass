@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { AppTour, type TourSpec } from '@/components/app-tour';
 import { PoseCamera, type CameraSpec } from '@/components/pose-camera';
 import { PhotoViewer, type ViewerSpec } from '@/components/photo-viewer';
+import { PhotoStudio, type StudioSpec } from '@/components/photo-studio';
 import { DoneSheet, type DoneSpec } from '@/components/done-sheet';
-import { composeComparison, loadPhotos, photoStore } from '@/lib/photos';
+import { loadPhotos, photoStore } from '@/lib/photos';
 import { getAccess, issueCode, updateAccess } from '@/lib/portal-access';
 import { dietStore, loadDiets } from '@/lib/diets';
 import { loadResponses, responseStore } from '@/lib/respostas';
@@ -58,6 +59,7 @@ const bridge = {
   tour: (_t: TourSpec) => {},
   camera: (_c: CameraSpec) => {},
   viewer: (_v: ViewerSpec) => {},
+  studio: (_s: StudioSpec) => {},
   done: (_d: DoneSpec) => {},
   showDone: () => {},
 };
@@ -88,6 +90,7 @@ export function AssessmentApp() {
   const [tour, setTour] = useState<TourSpec | null>(null);
   const [camera, setCamera] = useState<CameraSpec | null>(null);
   const [viewer, setViewer] = useState<ViewerSpec | null>(null);
+  const [studio, setStudio] = useState<StudioSpec | null>(null);
   const [done, setDone] = useState<{ spec: DoneSpec; n: number } | null>(null);
   const navigate = useNavigate(), queryClient = useQueryClient();
   const path = useRouterState({ select: (s) => s.location.pathname });
@@ -105,6 +108,7 @@ export function AssessmentApp() {
     bridge.tour = setTour;
     bridge.camera = setCamera;
     bridge.viewer = setViewer;
+    bridge.studio = setStudio;
     // abre depois da transição de página (senão a barra de navegação fica por cima durante a animação)
     bridge.done = (d) => {
       doneQueued = { spec: { onError: (e) => bridge.toast(motivo(e, 'Não foi possível concluir. Tente novamente.')), ...d }, n: ++doneSeq };
@@ -141,12 +145,13 @@ export function AssessmentApp() {
           toast: (t: string) => bridge.toast(t),
           navigate: (to: string) => bridge.navigate(to),
           tour: (t: TourSpec) => bridge.tour(t),
-          photos: photoStore(user.id, pics.cloud, pics.metas), composeComparison,
+          photos: photoStore(user.id, pics.cloud, pics.metas),
           portalAccess: { get: getAccess, issue: issueCode, update: updateAccess },
           diets: dietStore(user.id, diets.cloud, diets.list),
           responses: responseStore(answers.available, answers.list),
           camera: (c: CameraSpec) => bridge.camera(c),
           viewer: (v: ViewerSpec) => bridge.viewer(v),
+          studio: (st: StudioSpec) => bridge.studio(st),
           done: (d: DoneSpec) => bridge.done(d),
           logout: async () => { dropLive(); await queryClient.cancelQueries(); queryClient.clear(); await supabase.auth.signOut(); await navigate({ to: '/login', replace: true }); },
         });
@@ -235,6 +240,7 @@ export function AssessmentApp() {
       {tour && <AppTour spec={tour} onEnd={() => setTour(null)} />}
       {camera && <PoseCamera spec={camera} onEnd={() => setCamera(null)} />}
       {viewer && <PhotoViewer spec={viewer} onEnd={() => setViewer(null)} />}
+      {studio && <PhotoStudio spec={studio} onEnd={() => setStudio(null)} />}
       {done && <DoneSheet key={done.n} spec={done.spec} onEnd={() => { if (doneQueued?.n === done.n) doneQueued = null; setDone(null); }} />}
     </>
   );

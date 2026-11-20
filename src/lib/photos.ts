@@ -181,23 +181,3 @@ export function photoStore(userId: string, cloud: boolean, initial: PhotoMeta[])
     },
   };
 }
-
-/* ---------- imagem lado a lado para baixar/compartilhar ---------- */
-export async function composeComparison(store: PhotoStore, items: { meta: PhotoMeta; label: string; sub: string }[], title: string): Promise<Blob> {
-  const bmps = await Promise.all(items.map(async (it) => { const b = await store.blob(it.meta); if (!b) throw new Error('Foto indisponível'); return createImageBitmap(b); }));
-  const W = 900, H = 1200, pad = 36, head = 110, foot = 120;
-  const c = document.createElement('canvas'); c.width = pad + items.length * (W + pad); c.height = head + H + foot;
-  const x = c.getContext('2d')!;
-  x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height);
-  x.fillStyle = '#141414'; x.font = '600 44px Urbanist, system-ui, sans-serif'; x.fillText(title, pad, 70);
-  bmps.forEach((bmp, i) => {
-    const left = pad + i * (W + pad), s = Math.max(W / bmp.width, H / bmp.height), dw = bmp.width * s, dh = bmp.height * s;
-    x.save(); x.beginPath(); x.roundRect(left, head, W, H, 28); x.clip();
-    x.fillStyle = '#eeeeea'; x.fillRect(left, head, W, H);
-    x.drawImage(bmp, left + (W - dw) / 2, head + (H - dh) / 2, dw, dh); x.restore();
-    x.fillStyle = '#141414'; x.font = '600 40px Urbanist, system-ui, sans-serif'; x.fillText(items[i]!.label, left, head + H + 56);
-    x.fillStyle = '#6b6b66'; x.font = '500 30px Urbanist, system-ui, sans-serif'; x.fillText(items[i]!.sub, left, head + H + 98);
-    bmp.close?.();
-  });
-  return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('Falha ao gerar imagem'))), 'image/jpeg', 0.9));
-}
