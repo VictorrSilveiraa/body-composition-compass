@@ -3428,3 +3428,37 @@ button.idc-st:active{scale:.97}
 .idc+.draft-banner{margin:12px 0 0}
 .idc~.rt-banner{margin:12px 0 0}
 .nu-av{background:var(--peach)}
+/* cartão de identidade: cabeçalho (voltar + título) dentro do banner */
+.idc-banner.has-nav{height:186px}
+.idc-nav{position:absolute;z-index:2;top:10px;left:10px;right:66px;display:flex;align-items:center;gap:10px;animation:lgDrop .6s .1s cubic-bezier(.2,.8,.2,1) both}
+.idc-back{flex:none;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;color:var(--ink);background:rgba(255,255,255,.8);-webkit-backdrop-filter:blur(12px) saturate(1.4);backdrop-filter:blur(12px) saturate(1.4);box-shadow:0 8px 20px -10px rgba(18,18,18,.35),inset 0 0 0 1px rgba(255,255,255,.6);transition:scale .2s var(--ease),background .2s}
+.idc-back:active{scale:.92}
+.idc-back .ico{width:20px;height:20px}
+.idc-nav-t{min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.idc-nav-t small{font-size:12px;font-weight:600;color:var(--ink-2);opacity:.8}
+.idc-nav-t b{font-size:17px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.idc-banner.has-nav .idc-art{top:20px}
+@media (hover:hover){ .idc-back:hover{background:#fff} }
+/* números em blocos coloridos (com ícone e seta quando levam a outra tela) */
+.idc-stats.tiles{background:none;padding:0;gap:8px;margin:16px 0 0;border:0}
+.idc-stats.tiles .idc-st{position:relative;align-items:flex-start;text-align:left;gap:1px;padding:12px 12px 14px;border-radius:22px;border:0;background:var(--card);overflow:hidden;animation:rvUp .55s var(--ease) both}
+.idc-stats.tiles .idc-st:nth-child(2){animation-delay:.06s} .idc-stats.tiles .idc-st:nth-child(3){animation-delay:.12s}
+.idc-st.t-blue{background:var(--blue)} .idc-st.t-green{background:var(--green)} .idc-st.t-peach{background:var(--peach)} .idc-st.t-yellow{background:var(--yellow)}
+.idc-st-ico{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.75);display:grid;place-items:center;margin-bottom:8px}
+.idc-st-ico .ico{width:17px;height:17px}
+.idc-stats.tiles .idc-st b{font-size:28px;line-height:1.05}
+.idc-stats.tiles .idc-st small{color:var(--ink-2);font-size:12.5px}
+.idc-st-go{position:absolute;top:14px;right:10px;color:var(--ink);opacity:.45;transition:opacity .2s,translate .25s var(--ease)}
+.idc-st-go .ico{width:15px;height:15px}
+.idc-stats.tiles .idc-st.late b{color:var(--red-ink)}
+@media (hover:hover){ .idc-stats.tiles button.idc-st:hover{filter:brightness(.98)} .idc-stats.tiles button.idc-st:hover .idc-st-go{opacity:.9;translate:2px 0} }
+@container (min-width:520px){
+  .idc-banner.has-nav{height:200px}
+  .idc-nav-t b{font-size:19px}
+  .idc-stats.tiles{margin:20px 0 0;border:0}
+  .idc-stats.tiles .idc-st{padding:16px 16px 18px;border-left:0}
+  .idc-stats.tiles .idc-st b{font-size:32px}
+}
+@container (max-width:360px){ .idc-stats.tiles .idc-st b{font-size:24px} .idc-st-go{display:none} }
+.idc-nav{color:var(--ink)}
+.idc-stats.tiles .idc-st.t-blue{background:var(--blue)} .idc-stats.tiles .idc-st.t-green{background:var(--green)} .idc-stats.tiles .idc-st.t-peach{background:var(--peach)} .idc-stats.tiles .idc-st.t-yellow{background:var(--yellow)}

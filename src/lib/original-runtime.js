@@ -184,18 +184,18 @@ const bannerTone = id => BANNER_TONES[[...String(id)].reduce((s,c)=>s+c.charCode
 const BANNER_ART = '<svg class="idc-art" viewBox="0 0 400 140" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M-10 108c60-26 112 22 178-6s104-58 170-34 70 8 90-4"/><path d="M-10 124c64-22 120 16 186-10s100-48 166-28 66 10 86 0" opacity=".6"/><path d="M-10 92c56-30 108 26 172-2s108-66 174-40 70 6 92-8" opacity=".35"/></g><g fill="currentColor"><circle cx="318" cy="34" r="3"/><circle cx="338" cy="52" r="2"/><circle cx="62" cy="38" r="2.4"/><circle cx="96" cy="22" r="1.6"/></g></svg>';
 function idCard(o){
   const ring = o.ring!=null ? Math.max(0, Math.min(100, o.ring)) : null;
-  const stat = x => { const tag = x.attrs ? 'button' : 'div'; return `<${tag} class="idc-st${x.cls?' '+x.cls:''}" ${x.attrs||''}><b>${x.v}</b><small>${x.l}</small></${tag}>`; };
+  const stat = x => { const tag = x.attrs ? 'button' : 'div'; return `<${tag} class="idc-st${x.cls?' '+x.cls:''}${x.tone?' t-'+x.tone:''}" ${x.attrs||''}>${x.icon?`<span class="idc-st-ico">${x.icon}</span>`:''}<b>${x.v}</b><small>${x.l}</small>${x.attrs?`<span class="idc-st-go">${ic('right','sm')}</span>`:''}</${tag}>`; };
   const link = x => x.href ? `<a class="idc-ln${x.cls?' '+x.cls:''}" href="${x.href}" ${x.ext?'target="_blank" rel="noopener"':''} aria-label="${x.label}" title="${x.label}">${x.icon}<span>${x.short||x.label}</span></a>`
     : `<button class="idc-ln${x.cls?' '+x.cls:''}" ${x.attrs} aria-label="${x.label}" title="${x.label}">${x.icon}${x.badge?`<em class="nav-badge">${x.badge}</em>`:''}<span>${x.short||x.label}</span></button>`;
   return `<section class="idc">
-    <div class="idc-banner t-${o.tone}">${BANNER_ART}<button class="idc-edit" ${o.edit}>${ic('edit','sm')}<span>Editar</span></button></div>
+    <div class="idc-banner t-${o.tone}${o.nav?' has-nav':''}">${BANNER_ART}${o.nav?`<div class="idc-nav"><button class="idc-back" ${o.nav.back} aria-label="Voltar">${ic('back')}</button><div class="idc-nav-t"><small>${o.nav.small}</small><b>${o.nav.title}</b></div></div>`:''}<button class="idc-edit" ${o.edit}>${ic('edit','sm')}<span>Editar</span></button></div>
     <div class="idc-head">
       <div class="idc-av${ring!=null?' has-ring':''}" style="--p:${ring??0}"${ring!=null?` title="${esc(o.ringLabel)}"`:''}>${o.avatar}</div>
       ${ring!=null ? `<div class="idc-prog" aria-label="${esc(o.ringLabel)}"><small>${esc(o.ringShort||'')}</small><span class="idc-bar">${Array.from({length:20},(_,i)=>`<i class="${i < Math.round(ring/5)?'on':''}" style="--i:${i}"></i>`).join('')}</span><b>${ring}%</b></div>` : ''}
     </div>
     <div class="idc-id"><h1>${o.name}</h1><p>${o.sub}</p>${o.chips?`<div class="idc-chips">${o.chips}</div>`:''}</div>
-    <div class="idc-stats">${o.stats.map(stat).join('')}</div>
-    ${o.links.length ? `<div class="idc-links" style="--n:${o.links.length}">${o.links.map(link).join('')}</div>` : ''}
+    <div class="idc-stats${o.tiles?' tiles':''}">${o.stats.map(stat).join('')}</div>
+    ${o.links?.length ? `<div class="idc-links" style="--n:${o.links.length}">${o.links.map(link).join('')}</div>` : ''}
   </section>`;
 }
 // telefone sempre no padrão (11) 98765-4321 — fixo com 8 dígitos: (11) 3456-7890
@@ -1090,20 +1090,14 @@ function viewPatient(id){
 function viewProfile(){
   const s = teamStats(), done = !!((nutri.name||'').trim() && (nutri.crn||'').trim());
   const row = (k, v) => `<div class="kv-row"><span class="k">${k}</span><span class="t ${v?'':'none'}">${v?esc(v):'Não informado'}</span></div>`;
-  return `<header class="top"><button class="icon-btn" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button><div class="title-block"><small>Sua conta</small><b>Perfil profissional</b></div></header>
-  ${(() => {
+  return `  ${(() => {
     const fields = [nutri.name, nutri.crn, nutri.specialty, nutri.phone, nutri.place], pct = Math.round(fields.filter(x=>String(x||'').trim()).length/fields.length*100), n = CS.pendingCount();
-    return idCard({ tone:'yellow', edit:'data-act="go" data-to="nutri" aria-label="Editar perfil profissional"',
+    return idCard({ tone:'yellow', edit:'data-act="go" data-to="nutri" aria-label="Editar perfil profissional"', nav:{back:'data-act="go" data-to="home"', small:'Sua conta', title:'Perfil profissional'}, tiles:true,
       avatar:`<span class="avatar xl nu-av">${esc(initials(nutriName()))}</span>`, ring: pct<100 ? pct : null, ringLabel:`Perfil ${pct}% completo`, ringShort:'perfil',
       name: esc(nutriName()), sub: [esc((nutri.specialty||'').trim()||'Nutricionista'), crnLabel()?esc(crnLabel()):null].filter(Boolean).join(' · '),
       chips: nutri.place ? `<span class="tag">${ic('pin','sm')}${esc(nutri.place)}</span>` : '',
-      stats: [{v:s.active, l:'Pacientes ativos', attrs:'data-act="go" data-to="patients"'}, {v:s.month, l:'Avaliações em 30 dias', attrs:'data-act="go" data-to="list"'}, {v:s.late, l:s.late===1?'Retorno atrasado':'Retornos atrasados', cls:s.late?'late':'', attrs:'data-act="go" data-to="returns"'}],
-      links: [
-        {attrs:'data-act="newProfile"', icon:ic('plus','sm'), label:'Cadastrar paciente', short:'Paciente'},
-        {attrs:'data-act="go" data-to="returns"', icon:ic('bell','sm'), label:'Retornos da semana', short:'Retornos', badge:n||0},
-        {attrs:'data-act="backupOut"', icon:ic('dl','sm'), label:'Exportar backup', short:'Backup'},
-        {attrs:'data-act="tour"', icon:ic('target','sm'), label:'Tour de apresentação', short:'Tour'},
-      ] });
+      stats: [{v:s.active, l:s.active===1?'Paciente ativo':'Pacientes ativos', tone:'blue', icon:ic('users','sm'), attrs:'data-act="go" data-to="patients"'}, {v:s.month, l:'Avaliações em 30 dias', tone:'green', icon:ic('clip','sm'), attrs:'data-act="go" data-to="list"'}, {v:s.late, l:s.late===1?'Retorno atrasado':'Retornos atrasados', tone:s.late?'peach':'yellow', icon:ic('clock','sm'), attrs:'data-act="go" data-to="returns"'}],
+      links: [] });
   })()}
   ${done?'':`<button class="draft-banner" data-act="go" data-to="nutri">${ic('badge')}<span class="grow">Complete seu perfil: nome e CRN entram como avaliador(a) nas novas avaliações e nos PDFs.</span><b>Completar</b></button>`}
   ${CS.returnsBanner()}
