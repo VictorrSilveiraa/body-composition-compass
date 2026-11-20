@@ -191,7 +191,8 @@ export function ripple(e: PointerEvent) {
  * enquanto os blocos novos sobem — nunca aparece tela vazia. Sem suporte, troca direto.
  */
 let vtDone: (() => void) | null = null;
-export function withPageTransition(change: () => void) {
+/** top: a página nova começa no topo (a tela antiga já está congelada, então a rolagem não aparece) */
+export function withPageTransition(change: () => void, o: { top?: boolean } = {}) {
   type VT = { ready: Promise<void>; finished: Promise<void>; updateCallbackDone: Promise<void> };
   const doc = document as Document & { startViewTransition?: (cb: () => Promise<void>) => VT };
   if (!doc.startViewTransition || reducedMotion()) { change(); return; }
@@ -202,6 +203,7 @@ export function withPageTransition(change: () => void) {
       const t = window.setTimeout(() => { vtDone = null; resolve(); }, 700);
       vtDone = () => { clearTimeout(t); vtDone = null; resolve(); };
       changed = true;
+      if (o.top) scrollTopNow();
       change();
     }));
     // transição cancelada (ex.: girou o celular) não é erro: a página já trocou
@@ -220,4 +222,15 @@ export function tick(el: Element) {
   el.removeAttribute('data-tick');
   void (el as HTMLElement).offsetWidth;
   el.setAttribute('data-tick', '');
+}
+
+/**
+ * Volta ao topo NA HORA ao trocar de página. O site usa rolagem suave (html{scroll-behavior:smooth});
+ * sem desligá-la aqui, a página nova aparecia na transição ainda rolada para baixo e subia depois.
+ */
+export function scrollTopNow() {
+  const html = document.documentElement, prev = html.style.scrollBehavior;
+  html.style.scrollBehavior = 'auto';
+  window.scrollTo(0, 0);
+  html.style.scrollBehavior = prev;
 }

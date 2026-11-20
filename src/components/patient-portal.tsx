@@ -18,7 +18,7 @@ import { deletePortalPre, getPatientPortal, submitPortalForm } from '@/lib/porta
 import { ANAMNESE_FORM, FORMS, anamMissing, filledCount, fieldsOf, fmtSent, type Answers, type FormKind } from '@/lib/forms';
 import { PortalForm } from '@/components/portal-form';
 import type { DeleteResult, SubmitResult } from '@/lib/portal-code';
-import { pageReady, ripple, scan, withPageTransition } from '@/lib/motion';
+import { pageReady, ripple, scan, scrollTopNow, withPageTransition } from '@/lib/motion';
 import parseHtml from 'html-react-parser';
 import { Apple, Download } from 'lucide-react';
 // ícone de PDF do site (o mesmo do app do nutricionista)
@@ -246,7 +246,7 @@ function PortalApp({ data, code, onExit, onRefresh, submit, remove }: { data: Po
     dieta: diets[0] && tabSeen.d !== diets[0].id ? 1 : 0,
   };
   useLayoutEffect(() => {
-    if (!first0.current) window.scrollTo(0, 0);
+    if (!first0.current) scrollTopNow();
     first0.current = false;
     scan(host.current, { fresh: true }); pageReady();
   }, [view]);

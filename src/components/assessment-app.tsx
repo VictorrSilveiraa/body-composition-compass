@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cloudRepository, loadCloud, saveNutri, type Nutri } from '@/lib/cloud-data';
 import { motivo } from '@/lib/motivo';
 import { mountOriginal } from '@/lib/original-runtime.js';
-import { pageReady, ripple, scan, withPageTransition } from '@/lib/motion';const kids = (node: Element) => (node.children.length ? domToReact(node.children as DOMNode[], parserOptions) : undefined);
+import { pageReady, ripple, scan, scrollTopNow, withPageTransition } from '@/lib/motion';const kids = (node: Element) => (node.children.length ? domToReact(node.children as DOMNode[], parserOptions) : undefined);
 const parserOptions: HTMLReactParserOptions = {
   replace(node) {
     if (!(node instanceof Element)) return undefined;
@@ -107,7 +107,7 @@ export function AssessmentApp() {
     bridge.render = setFrame;
     bridge.sheet = (s) => { setSheetOut(false); setSheet(s); };
     bridge.toast = (t) => { setToastOut(false); setToast(t); };
-    bridge.navigate = (to) => withPageTransition(() => { void navigate({ to }); });
+    bridge.navigate = (to) => withPageTransition(() => { void navigate({ to }); }, { top: true });
     bridge.tour = setTour;
     bridge.camera = setCamera;
     bridge.viewer = setViewer;
@@ -181,7 +181,7 @@ export function AssessmentApp() {
   useIsoLayoutEffect(() => {
     if (!frame || !host.current) return;
     const fresh = shownKey !== frame.key;
-    if (fresh && shownKey !== null) window.scrollTo(0, 0);
+    if (fresh && shownKey !== null) scrollTopNow();
     shownKey = frame.key;
     scan(host.current, { fresh });
     if (fresh) pageReady();
