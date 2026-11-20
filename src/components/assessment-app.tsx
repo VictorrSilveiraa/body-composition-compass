@@ -82,6 +82,7 @@ export function AssessmentApp() {
   const host = useRef<HTMLDivElement>(null);
   const [frame, setFrame] = useState<Frame | null>(() => (live ? lastFrame : null));
   const [sheet, setSheet] = useState<Sheet | null>(null), [sheetOut, setSheetOut] = useState(false);
+  const sheetGen = useRef(0);
   const [toast, setToast] = useState(''), [toastOut, setToastOut] = useState(false);
   const [error, setError] = useState('');
   const [tour, setTour] = useState<TourSpec | null>(null);
@@ -98,7 +99,7 @@ export function AssessmentApp() {
   // liga este componente ao app (antes da pintura, para nunca mostrar a tela anterior)
   useIsoLayoutEffect(() => {
     bridge.render = setFrame;
-    bridge.sheet = (s) => { setSheetOut(false); setSheet(s); };
+    bridge.sheet = (s) => { sheetGen.current++; setSheetOut(false); setSheet(s); };
     bridge.toast = (t) => { setToastOut(false); setToast(t); };
     bridge.navigate = (to) => withPageTransition(() => { void navigate({ to }); }, { top: true });
     bridge.tour = setTour;
@@ -193,7 +194,12 @@ export function AssessmentApp() {
     return () => { clearTimeout(out); clearTimeout(gone); };
   }, [toast]);
 
-  const closeSheet = () => { setSheetOut(true); setTimeout(() => { setSheet(null); setSheetOut(false); }, 220); };
+  // uma opção pode abrir outra janela (ex.: "Apagar anamnese" pede confirmação): o fechamento atrasado
+  // da primeira não pode apagar a segunda, que já está aberta
+  const closeSheet = () => {
+    const gen = sheetGen.current; setSheetOut(true);
+    setTimeout(() => { if (sheetGen.current === gen) { setSheet(null); setSheetOut(false); } }, 220);
+  };
 
   return (
     <>

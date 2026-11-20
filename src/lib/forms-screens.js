@@ -219,10 +219,22 @@ function preLinkLine(pid){ if (!R?.available()) return ''; const acc = ctx.acces
 
 /* ---------- avisos ---------- */
 const unreadPatients = () => R ? new Set(R.unread().filter(r=>P(r.patientId)).map(r=>r.patientId)).size : 0;
+const hasUnread = pid => unreadOf(pid).length > 0;
+// o número vermelho no menu "Pacientes" conta estes pacientes; o ponto vermelho na etiqueta liga os dois
 function ptTag(p){
   const u = unreadOf(p.id); if (!u.length) return currentPre(p) ? `<span class="tag">${icon('form','sm')}Pré-consulta respondida</span>` : '';
   const kinds = new Set(u.map(r=>r.kind));
-  return `<span class="tag fm-tag">${icon('form','sm')}${kinds.has('pre_consulta') && kinds.has('anamnese') ? 'Respostas novas' : kinds.has('anamnese') ? 'Anamnese para revisar' : 'Pré-consulta nova'}</span>`;
+  return `<span class="tag fm-tag"><i class="fm-dot" aria-hidden="true"></i>${kinds.has('pre_consulta') && kinds.has('anamnese') ? 'Respostas novas' : kinds.has('anamnese') ? 'Anamnese para revisar' : 'Pré-consulta nova'}</span>`;
+}
+/** aviso no topo de Pacientes: explica o número do menu e leva ao filtro */
+function unreadBanner(on){
+  const n = unreadPatients(); if (!n || on) return '';
+  const u = R.unread().filter(r=>P(r.patientId)), pre = new Set(u.filter(r=>r.kind==='pre_consulta').map(r=>r.patientId)).size, an = new Set(u.filter(r=>r.kind==='anamnese').map(r=>r.patientId)).size;
+  const what = [pre ? plural(pre,'pré-consulta','pré-consultas') : '', an ? plural(an,'anamnese','anamneses') : ''].filter(Boolean).join(' e ');
+  return `<button class="rt-banner fm-banner" data-act="pfilter" data-v="new">
+    <span class="rt-banner-ico">${icon('form')}<em class="nav-badge">${n}</em></span>
+    <span class="grow"><b>${n===1 ? '1 paciente respondeu' : `${n} pacientes responderam`}</b><small>${what} pelo portal</small></span>
+    <span class="rt-banner-go">Ver ${icon('right','sm')}</span></button>`;
 }
 const answeredPre = pid => { const p = P(pid); return !!(p && currentPre(p)); };
 
@@ -276,7 +288,7 @@ const acts = {
       {label:'Apagar anamnese', cls:'danger', fn:async()=>{ const ids = anams(p.id).map(r=>r.id); if (ids.length) await R.remove(ids); delete planOf(p).anamnese; state.ak = null; await ctx.save(); go('patient', p.id); toast('Anamnese apagada'); }}, {label:'Cancelar'}]); },
 };
 
-return { fold, isClosed, miniRow, preSection, preForAssessment, preForWizard, anamneseSection, viewAnamnese, preLinkLine, unreadPatients, ptTag, answeredPre, onInput, acts,
+return { fold, isClosed, miniRow, preSection, preForAssessment, preForWizard, anamneseSection, viewAnamnese, preLinkLine, unreadPatients, hasUnread, unreadBanner, ptTag, answeredPre, onInput, acts,
   has: () => !!R?.available(), forgetPatient: pid => R?.forgetPatient(pid),
   refresh: async () => { if (!R) return; try { if (await R.refresh()) render(); } catch (e) { console.warn('[respostas]', motivo(e,'')); } } };
 }

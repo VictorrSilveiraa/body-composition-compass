@@ -909,11 +909,12 @@ function viewPatients(){
     ${kpi('active','Pacientes ativos',0,'blue','users',false)}${kpi('late','Retornos atrasados',0,'peach','clock',false)}${kpi('soon','Retornos em 7 dias',0,'yellow','cal',false)}${kpi('month','Avaliações em 30 dias',0,'green','clip',false)}
   </div>`;
   const s = teamStats();
-  const FILTERS = [['active','Ativos',s.active],['late','Atrasados',s.late],['soon','Próximos 7 dias',s.soon],['none','Sem avaliação',s.none],['arch','Arquivados',s.arch],['all','Todos',s.total]];
+  const nNew = FS.unreadPatients();
+  const FILTERS = [['active','Ativos',s.active],...(nNew||state.pf==='new'?[['new','Respostas novas',nNew]]:[]),['late','Atrasados',s.late],['soon','Próximos 7 dias',s.soon],['none','Sem avaliação',s.none],['arch','Arquivados',s.arch],['all','Todos',s.total]];
   if (!FILTERS.some(f=>f[0]===state.pf)) state.pf = 'active';
   const q = norm(state.pq.trim()), qd = phoneDigits(state.pq);
   const rows = db.profiles.map(p=>({p, st:pStatus(p), list:listOf(p.id)}));
-  let shown = rows.filter(r => state.pf==='all' ? true : state.pf==='active' ? !r.p.archived : state.pf==='arch' ? !!r.p.archived : r.st.k===state.pf);
+  let shown = rows.filter(r => state.pf==='all' ? true : state.pf==='active' ? !r.p.archived : state.pf==='arch' ? !!r.p.archived : state.pf==='new' ? FS.hasUnread(r.p.id) : r.st.k===state.pf);
   if (q) shown = shown.filter(r => norm(r.p.name).includes(q) || norm(r.p.email).includes(q) || norm(goalLabel(r.p.goal)).includes(q) || (qd.length>2 && phoneDigits(r.p.phone).includes(qd)));
   const lastD = r => r.list.at(-1)?.date || '';
   const SORT = {
@@ -923,11 +924,11 @@ function viewPatients(){
   };
   shown.sort(SORT[state.ps] || SORT.recent);
   const emptyMsg = q ? ['Nenhum paciente encontrado', `Nada com “${esc(state.pq.trim())}” em ${FILTERS.find(f=>f[0]===state.pf)[1].toLowerCase()}. Tente outro nome ou veja “Todos”.`]
-    : {late:['Nenhum retorno atrasado','Todos os pacientes ativos estão com a avaliação em dia.'], soon:['Nenhum retorno nos próximos 7 dias','Quando um retorno estiver chegando, ele aparece aqui.'], none:['Todos já foram avaliados','Pacientes cadastrados sem avaliação aparecem aqui.'], arch:['Nenhum paciente arquivado','Arquive quem encerrou o acompanhamento: o histórico fica guardado e a lista principal, limpa.']}[state.pf] || ['Nenhum paciente aqui','Cadastre um paciente para começar.'];
+    : {new:['Nenhuma resposta nova','Quando um paciente responder a pré-consulta ou a anamnese pelo portal, ele aparece aqui.'], late:['Nenhum retorno atrasado','Todos os pacientes ativos estão com a avaliação em dia.'], soon:['Nenhum retorno nos próximos 7 dias','Quando um retorno estiver chegando, ele aparece aqui.'], none:['Todos já foram avaliados','Pacientes cadastrados sem avaliação aparecem aqui.'], arch:['Nenhum paciente arquivado','Arquive quem encerrou o acompanhamento: o histórico fica guardado e a lista principal, limpa.']}[state.pf] || ['Nenhum paciente aqui','Cadastre um paciente para começar.'];
   return `<header class="top"><button class="icon-btn" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button>
     <div class="title-block"><small>${esc(nutriName())}</small><b>Pacientes</b></div><div class="grow"></div>
     <button class="btn dark sm pt-new" data-act="newProfile">${ic('plus','sm')}<span>Novo paciente</span></button></header>
-  ${CS.returnsBanner()}
+  ${CS.returnsBanner()}${FS.unreadBanner(state.pf==='new')}
   <div class="pt-kpis">
     ${kpi('active','Pacientes ativos',s.active,'blue','users')}
     ${kpi('late','Retornos atrasados',s.late,'peach','clock')}
@@ -1368,12 +1369,14 @@ function render(){
   }
   const showNav = !['wizard','onboard','nutri','dietNew','dietEdit','anamnese','backup'].includes(state.route);
   let navHtml='';
-  if(showNav){ const tabs=[['home','home','Início'],['patients','users','Pacientes','',FS.unreadPatients()],['list','cal','Avaliações'],['compare','chart','Evolução'],...(DS.has()?[['diets','leaf','Dieta']]:[]),['profile','user','Perfil','',CS.pendingCount()]]; /* celular: o Perfil leva aos Retornos, então carrega o aviso */ const cur={detail:'list',patient:'patients',energy:'patients',anamnese:'patients',diet:'diets'}[state.route]||state.route;
+  if(showNav){ const tabs=[['home','home','Início'],['patients','users','Pacientes','nav-pt',FS.unreadPatients()],['list','cal','Avaliações'],['compare','chart','Evolução'],...(DS.has()?[['diets','leaf','Dieta']]:[]),['profile','user','Perfil','',CS.pendingCount()]]; /* celular: o Perfil leva aos Retornos, então carrega o aviso */ const cur={detail:'list',patient:'patients',energy:'patients',anamnese:'patients',diet:'diets'}[state.route]||state.route;
   // No celular: só os botões (pílula flutuante). No computador vira barra lateral com marca, paciente atual, atalho e nutricionista.
   const p = prof(), n = p ? listOf(p.id).length : 0;
   // Computador: bloco geral (Início, Pacientes) + bloco do paciente atual (cartão, os menus dele e Nova avaliação); nutricionista no rodapé.
   // Celular: os blocos ficam "transparentes" e sobra só a pílula de botões, na mesma ordem.
-  const navBtn = ([r,i,l,cls='',badge=0]) => `<button class="${cur===r?'on':''} ${cls}" data-act="go" data-to="${r}" aria-label="${l}${badge?` (${badge} para avisar)`:''}">${ic(i)}<span>${l}</span>${badge?`<em class="nav-badge">${badge}</em>`:''}</button>`;
+  // o número diz coisas diferentes em cada menu: em Pacientes, quem respondeu pelo portal; em Retornos/Perfil, quem avisar
+  const why = (r, n) => r==='patients' ? (n===1?'1 paciente com respostas novas do portal':`${n} pacientes com respostas novas do portal`) : (n===1?'1 retorno para avisar':`${n} retornos para avisar`);
+  const navBtn = ([r,i,l,cls='',badge=0]) => `<button class="${cur===r?'on':''} ${cls}" data-act="go" data-to="${r}" aria-label="${l}${badge?` (${why(r,badge)})`:''}"${badge?` title="${why(r,badge)}"`:''}>${ic(i)}<span>${l}</span>${badge?`<em class="nav-badge">${badge}</em>`:''}</button>`;
   // "Retornos" fica só na barra lateral do computador (no celular, o atalho está no Início e em Pacientes)
   const general = [...tabs.filter(t=>t[0]==='home'||t[0]==='patients'), ...(db.profiles.length?[['returns','bell','Retornos','nav-ret',CS.pendingCount()]]:[])], ofPatient = tabs.filter(t=>t[0]!=='home'&&t[0]!=='patients');
   navHtml=`<nav class="nav${tabs.length>5?' six':''}">

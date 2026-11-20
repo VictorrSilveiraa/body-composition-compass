@@ -2805,6 +2805,8 @@ button.kpi:active{scale:.97}
 @media (min-width:1024px){
   .nav .side-links .nav-badge{position:static;min-width:24px;height:24px;padding:0 7px;margin-left:auto;font-size:12px;background:var(--peach);color:var(--ink);box-shadow:none}
   .nav .side-links button.on .nav-badge{background:var(--surface)}
+  /* Pacientes: número de quem respondeu pelo portal, na cor da etiqueta "Respostas novas" (não é retorno) */
+  .nav .side-links button.nav-pt .nav-badge{background:var(--blue-2)}
 }
 .row-badge{font-style:normal;min-width:24px;height:24px;padding:0 8px;border-radius:99px;background:var(--red-ink);color:var(--surface);font-size:12px;font-weight:700;display:inline-grid;place-items:center;flex:none;font-variant-numeric:tabular-nums}
 [data-rv="in"] .row-badge{animation:pop .55s var(--spring) calc(var(--d) + .35s) backwards}
@@ -2930,6 +2932,13 @@ button.kpi:active{scale:.97}
 .fm-new b{display:block;font-weight:600;font-size:14.5px}
 .fm-new small{font-size:12.5px;color:var(--muted)}
 .tag.fm-tag{background:var(--blue-2)}
+/* ponto vermelho = o mesmo do número no menu "Pacientes" */
+.fm-dot{width:7px;height:7px;border-radius:50%;background:var(--red-ink);flex:none;box-shadow:0 0 0 2px oklch(1 0 0 / .6)}
+.fm-banner{box-shadow:0 0 0 1.5px var(--blue-2)}
+.rt-banner~.fm-banner{margin-top:-6px}
+.fm-banner .rt-banner-ico{position:relative;background:var(--blue);color:var(--ink)}
+.fm-banner .rt-banner-ico .nav-badge{top:-4px;right:-6px}
+@media (min-width:900px){ .fm-banner:hover{box-shadow:0 0 0 1.5px var(--ink-2)} }
 .fm-send{margin-top:10px}
 .fm-send .chip-ico{background:var(--blue)}
 /* editor da anamnese */
@@ -3283,11 +3292,11 @@ h2.sec.fold-h{justify-content:flex-start;gap:8px;flex-wrap:nowrap}
 .bk-note .ico{width:14px;height:14px;flex:none;margin-top:2px}
 .bk-pts-h{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted);margin:0 4px 8px}
 .bk-pts-h button{font-weight:600;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
-.bk-pts{display:grid;gap:4px;max-height:min(420px,55vh);overflow:auto;padding:2px;border-radius:var(--r-md)}
+.bk-pts{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;max-height:min(420px,55vh);overflow:auto;padding:2px;border-radius:var(--r-md)}
 .bk-pt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--card);border-radius:var(--r-sm);padding:10px 12px;transition:background .2s}
 .bk-pt.on{background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--ink)}
 .bk-pt .grow{min-width:0;display:flex;flex-direction:column}
-.bk-pt b{font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bk-pt b{font-weight:600;font-size:14.5px;line-height:1.3;overflow-wrap:anywhere}
 .bk-pt small{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
 .bk-ck{width:22px;height:22px;border-radius:7px;box-shadow:inset 0 0 0 1.5px var(--line);display:grid;place-items:center;flex:none;background:var(--surface);transition:background .2s}
 .bk-pt.on .bk-ck{background:var(--ink);color:var(--surface);box-shadow:none}
