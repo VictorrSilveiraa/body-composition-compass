@@ -19,6 +19,7 @@ export function AuthShell({ kicker, title, text, children }: { kicker: string; t
       <div className="lg-card">
         <aside className="lg-art">
           <img src="/login-ilustracao.webp" alt="" aria-hidden="true" width={1086} height={1448} decoding="async" fetchPriority="high" />
+          <div className="lg-brand lg-brand-m" aria-hidden="true"><span className="lg-mark"><Activity size={17} /></span><span>Avaliação Física</span></div>
           <div className="lg-art-copy"><span className="tag">{kicker}</span><h2>{title}</h2><p>{text}</p></div>
         </aside>
         <section className="lg-main">
