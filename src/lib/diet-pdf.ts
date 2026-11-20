@@ -1,4 +1,5 @@
 import type { PdfPage } from './diet-parse';
+import { pageRules } from './pdf-rules';
 
 /*
  * Lê o PDF no próprio navegador (nada é enviado para fora): extrai o texto com posição e
@@ -35,7 +36,7 @@ export async function readPdf(file: File, maxThumbs = 4): Promise<PdfRead> {
   for (let i = 1; i <= n; i++) {
     const page = await doc.getPage(i);
     const vp = page.getViewport({ scale: 1 });
-    await page.getOperatorList(); // carrega as fontes (para saber o que está em negrito)
+    const ol = await page.getOperatorList(); // carrega as fontes (para saber o que está em negrito) e as bordas de tabela
     const tc = await page.getTextContent();
     const font = (f: string) => { try { return String((page.commonObjs.get(f) as { name?: string } | undefined)?.name ?? ''); } catch { return ''; } };
     const items = [];
@@ -44,7 +45,9 @@ export async function readPdf(file: File, maxThumbs = 4): Promise<PdfRead> {
       const tr = t.transform as number[];
       items.push({ s: t.str, x: tr[4]!, y: vp.height - tr[5]!, w: t.width, h: t.height, bold: /bold|black|heavy|semibold/i.test(font(t.fontName)) || undefined, rot: Math.abs(tr[1]!) > 0.01 || undefined });
     }
-    pages.push({ w: vp.width, h: vp.height, items });
+    let rules: NonNullable<PdfPage['rules']> = [];
+    try { rules = pageRules(ol.fnArray, ol.argsArray, pdfjs.OPS as unknown as Record<string, number>, vp.height); } catch { /* sem bordas: o leitor usa só o texto */ }
+    pages.push(rules.length ? { w: vp.width, h: vp.height, items, rules } : { w: vp.width, h: vp.height, items });
     if (i <= maxThumbs) {
       try {
         const s = 260 / vp.width, v2 = page.getViewport({ scale: s });

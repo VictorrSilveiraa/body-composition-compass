@@ -9,8 +9,11 @@
  * Funções puras: testadas sem navegador (src/test/diet-parse.test.ts).
  */
 
+import { parseGrid } from './diet-grid';
+
 export type PdfItem = { s: string; x: number; y: number; w: number; h: number; bold?: boolean | undefined; rot?: boolean | undefined };
-export type PdfPage = { w: number; h: number; items: PdfItem[] };
+/** rules: bordas horizontais de tabela (quando o PDF tem), para separar as células */
+export type PdfPage = { w: number; h: number; items: PdfItem[]; rules?: { x1: number; x2: number; y: number }[] | undefined };
 
 /** alimento (ou opção de troca): nome, detalhe entre parênteses e quantidade como veio do PDF */
 export type DietSub = { name: string; detail?: string; qty: string };
@@ -170,7 +173,7 @@ const RE_PAGENUM = /^(p[aá]g(ina)?\.?\s*)?\d{1,3}\s*(\/|de|of)\s*\d{1,3}$/i;
  * PDFs personalizados (WebDiet com layout próprio e outros programas): a refeição também é reconhecida
  * pelo NOME (café da manhã, almoço, "Refeição 2"…), com o horário em qualquer lugar da linha ou sem horário.
  */
-const MEAL_NAME = /^(?:\d{1,2}\s*[ªaº°o]?\s*refei[cç][aã]o|refei[cç][aã]o\s*\d{0,2}|caf[eé](?:\s+da\s+manh[aã])?|desjejum|cola[cç][aã]o|lanche(?:\s+(?:da|do|de)\s+(?:manh[aã]|tarde|noite|meio[- ]dia))?|almo[cç]o|jantar|janta|ceia|pr[eé][\s-]?treino|p[oó]s[\s-]?treino|intra[\s-]?treino|merenda|brunch|suplementa[cç][aã]o)(?=$|[\s\d(|:,.–—-])/i;
+export const MEAL_NAME = /^(?:\d{1,2}\s*[ªaº°o]?\s*refei[cç][aã]o|refei[cç][aã]o\s*\d{0,2}|caf[eé](?:\s+da\s+manh[aã])?|desjejum|cola[cç][aã]o|lanche(?:\s+(?:da|do|de)\s+(?:manh[aã]|tarde|noite|meio[- ]dia))?|almo[cç]o|jantar|janta|ceia|pr[eé][\s-]?treino|p[oó]s[\s-]?treino|intra[\s-]?treino|merenda|brunch|suplementa[cç][aã]o)(?=$|[\s\d(|:,.–—-])/i;
 const RE_TIME_ANY = /(?:^|[\s(|–—-])(?:[àa]s\s+)?(\d{1,2})\s*(?::|h|hs|horas?)\s*(\d{2})?(?=$|[\s)|–—-])/i;
 const RE_KCAL = /\s*[-–—|(]?\s*\d+(?:[.,]\d+)?\s*kcal\)?/gi;
 const RE_QTY_WORD = /\d+(?:[.,]\d+)?\s*(?:g|gr|ml|kg|unid|unidades?|colher|colheres|fatias?|x[ií]caras?|copos?|conchas?|por[cç])/i;
@@ -290,8 +293,11 @@ export function emptyDiet(): Diet {
 }
 
 export function parseDiet(pages: PdfPage[]): Diet {
-  const lines = buildLines(pages);
   const meta = metaFrom(pages);
+  // plano montado como tabela (Preparação | Alimento | Quantidade | Medida caseira): leitor próprio (diet-grid.ts)
+  const grid = parseGrid(pages);
+  if (grid) return { ...grid, patientName: meta.patientName || grid.patientName, prescribedAt: meta.prescribedAt ?? grid.prescribedAt, prescriber: meta.prescriber || grid.prescriber };
+  const lines = buildLines(pages);
   const d: Diet = { ...emptyDiet(), ...meta, source: 'pdf' };
   type RawMeal = { time: string | null; base: string; label: string; foods: DietFood[]; notes: string[] };
   const raw: RawMeal[] = [];
