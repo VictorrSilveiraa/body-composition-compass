@@ -15,8 +15,6 @@ export function splashHtml(words: string[] = DEFAULT_WORDS) {
     <svg class="bl-rings" viewBox="0 0 120 120"><circle class="bl-r r1" cx="60" cy="60" r="54"/><circle class="bl-r r2" cx="60" cy="60" r="44"/><circle class="bl-r r3" cx="60" cy="60" r="34"/></svg>
     <span class="bl-mark"><svg viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 4 12 2.5-6H21"/></svg></span>
   </div>
-  <div class="bl-name" aria-hidden="true">Avaliação Física</div>
-  <div class="bl-tape" aria-hidden="true"><div class="bl-ticks"></div><span class="bl-needle"></span></div>
   <div class="bl-words" aria-hidden="true" style="--n:${w.length}">${w.map((t, i) => `<span style="--i:${i}">${t}</span>`).join('')}</div>`;
 }
 

@@ -3611,3 +3611,4 @@ button.idc-st:active{scale:.97}
   .bl-mark svg{stroke-dashoffset:0}
   .bl-words span{animation:none;opacity:0} .bl-words span:first-child{opacity:1}
 }
+.bl-core+.bl-words{margin-top:10px}
