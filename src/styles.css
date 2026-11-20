@@ -3462,3 +3462,23 @@ button.idc-st:active{scale:.97}
 @container (max-width:360px){ .idc-stats.tiles .idc-st b{font-size:24px} .idc-st-go{display:none} }
 .idc-nav{color:var(--ink)}
 .idc-stats.tiles .idc-st.t-blue{background:var(--blue)} .idc-stats.tiles .idc-st.t-green{background:var(--green)} .idc-stats.tiles .idc-st.t-peach{background:var(--peach)} .idc-stats.tiles .idc-st.t-yellow{background:var(--yellow)}
+/* perfil profissional: celular x computador */
+@media (max-width:1023px){
+  .nu-top-d{display:none}
+  .idc-links.d-only{display:none}
+  /* sem borda: só a sombra destaca o cartão do fundo */
+  .idc.idc-pro{box-shadow:0 14px 40px -18px rgba(18,18,18,.22),0 2px 8px -2px rgba(18,18,18,.06)}
+  .idc-pro .idc-banner.has-nav{height:150px}
+}
+/* computador: como antes — sem voltar no banner, números com divisórias, atalhos na base */
+@media (min-width:1024px){
+  .idc-pro .idc-nav{display:none}
+  .idc-pro .idc-banner.has-nav{height:150px}
+  .idc-pro .idc-stats.tiles{margin:20px -8px 0;gap:0;border-top:1px solid var(--line);border-radius:0}
+  .idc-pro .idc-stats.tiles .idc-st{align-items:center;text-align:center;gap:2px;padding:16px 6px;border-radius:0;background:none!important;animation:none}
+  .idc-pro .idc-stats.tiles .idc-st+.idc-st{border-left:1px solid var(--line)}
+  .idc-pro .idc-st-ico,.idc-pro .idc-st-go{display:none}
+  .idc-pro .idc-stats.tiles .idc-st b{font-size:24px}
+  .idc-pro .idc-stats.tiles .idc-st small{color:var(--muted)}
+  .idc-pro .idc-stats.tiles .idc-st.late b{color:var(--red-ink)}
+}
