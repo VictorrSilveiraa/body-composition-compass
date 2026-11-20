@@ -8,6 +8,7 @@ import { CAT_COLOR, KIND_COLOR, dayClock, dtIcon } from './diet-view';
  */
 export type DietMeta = { patient: string; nutri: string; crn?: string; consult?: string };
 const qtyText = (qty: string) => { const q = qtyParts(qty), a = fmtAmount(q); return [q.measure, a].filter(Boolean).join(' · ') || qty; };
+const subHtml = (s: DietSub) => `${esc(s.name)}${s.detail ? ` (${esc(s.detail)})` : ''}${s.qty ? ` — ${qtyText(s.qty).split(' · ').map((p) => `<span class="dp-nw">${esc(p)}</span>`).join(' · ')}` : ''}`;
 const subTxt = (s: DietSub) => `${s.name}${s.detail ? ` (${s.detail})` : ''}${s.qty ? ` — ${qtyText(s.qty)}` : ''}`;
 export const dietFileName = (d: Diet, m: DietMeta, ext: string) => `plano-alimentar-${(m.patient || 'paciente').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}${d.prescribedAt ? '-' + d.prescribedAt : ''}.${ext}`;
 
@@ -17,9 +18,9 @@ export function dietPrintHtml(d: Diet, m: DietMeta) {
   const meals = d.meals.map((ml) => {
     const k = mealKind(ml.name, ml.time);
     return `<section class="dp-meal" style="--mc:${KIND_COLOR[k]}">
-      <header><span class="dp-time">${esc(ml.time ?? '')}</span><span class="dp-ico">${dtIcon(k)}</span><h2>${esc(ml.name)}</h2>${ml.variants.length > 1 ? `<span class="dp-tag">${ml.variants.length} opções · escolha uma</span>` : ''}</header>
+      <header>${ml.time ? `<span class="dp-time">${esc(ml.time)}</span>` : ''}<span class="dp-ico">${dtIcon(k)}</span><h2>${esc(ml.name)}</h2>${ml.variants.length > 1 ? `<span class="dp-tag">${ml.variants.length} opções · escolha uma</span>` : ''}</header>
       <div class="dp-vars ${ml.variants.length > 1 ? 'multi' : ''}">${ml.variants.map((v) => `<div class="dp-var">${ml.variants.length > 1 ? `<h3>${esc(v.label)}</h3>` : ''}
-        <table>${v.foods.map((f) => `<tr><td><i style="background:${CAT_COLOR[foodCat(f.name)]}"></i><b>${esc(f.name)}</b>${f.detail ? `<small> ${esc(f.detail)}</small>` : ''}${f.subs.length ? `<div class="dp-subs">↔ ou ${f.subs.map((x) => esc(subTxt(x))).join(' · ou ')}</div>` : ''}</td><td class="q">${esc(qtyText(f.qty))}</td></tr>`).join('')}</table>
+        <table>${v.foods.map((f) => `<tr><td><i style="background:${CAT_COLOR[foodCat(f.name)]}"></i><b>${esc(f.name)}</b>${f.detail ? `<small> ${esc(f.detail)}</small>` : ''}${f.subs.length ? `<div class="dp-subs">↔ ou ${f.subs.map(subHtml).join(' · ou ')}</div>` : ''}</td><td class="q">${esc(qtyText(f.qty))}</td></tr>`).join('')}</table>
         ${v.notes ? `<p class="dp-note"><b>Observação:</b> ${esc(v.notes)}</p>` : ''}</div>`).join('')}</div>
     </section>`;
   }).join('');

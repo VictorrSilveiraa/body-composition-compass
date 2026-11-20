@@ -786,8 +786,13 @@ span[data-live],b[data-live]{display:inline-block}
 }
 .rp{font-family:'Urbanist',system-ui,-apple-system,sans-serif;color:var(--ink);font-size:12.5px;line-height:1.4;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .rp *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.rp-page{display:flex;flex-direction:column;gap:10px}
+/* bloco comum (não flex): a divisão de páginas do navegador respeita "não separar o título do conteúdo" */
+.rp-page{display:block}
+.rp-page>*+*{margin-top:10px}
+.rp-head,.rp-scales,.rp-kpis{break-inside:avoid}
 .rp-page+.rp-page{break-before:page}
+.rp-sec-h,.rp h4,.rp-label{break-after:avoid-page}
+.rp-table thead{display:table-header-group}
 .rp-ico{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none;display:inline-block;vertical-align:-3px}
 .rp-card{background:var(--card);border-radius:18px;padding:12px 14px;break-inside:avoid}
 .rp-blue{background:var(--blue)}.rp-green{background:var(--green)}.rp-yellow{background:var(--yellow)}.rp-white{background:#fff;box-shadow:inset 0 0 0 1px var(--line)}
@@ -860,7 +865,15 @@ span[data-live],b[data-live]{display:inline-block}
 .rp-legend-s .rp-delta{background:var(--card);padding:0 6px}
 .rp-charts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .rp-chart{width:100%;height:auto;display:block;margin-top:6px}
-.rp-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.rp-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+.rp-cols>*{min-width:0}
+.rp-cmpg{gap:12px 14px}
+.rp-cols>.rp-grp+.rp-grp{margin-top:0}
+.rp-chart-h .rp-label{display:block;min-width:0}
+.rp-chart-h .rp-delta{flex:none}
+.rp-grp h4{font-size:11.5px;font-weight:600;margin:4px 2px 6px;color:var(--ink-2)}
+.rp-cmp th,.rp-cmp td{padding-left:8px;padding-right:6px}
+.rp-cmp td:first-child{white-space:normal}
 .rp-measures h4{font-size:11.5px;font-weight:600;margin:4px 2px 6px;color:var(--ink-2)}
 .rp-tight td{padding:5px 10px}
 .rp-pill{background:var(--blue);border-radius:99px;font-size:9px;font-weight:700;padding:1px 6px;margin-left:4px;vertical-align:1px}
@@ -874,7 +887,17 @@ span[data-live],b[data-live]{display:inline-block}
 .rp-glossary b{font-size:12px;font-weight:700}
 .rp-glossary p{font-size:10.5px;color:var(--ink-2);margin-top:3px;line-height:1.35}
 .rp-method{font-size:10px;color:var(--ink-2);margin-top:9px;line-height:1.5}
-.rp-foot{margin-top:16px;display:flex;gap:26px;align-items:flex-end;break-inside:avoid}
+.rp-page>.rp-foot,.rp-foot{margin-top:16px;display:flex;gap:26px;align-items:flex-end;break-inside:avoid}
+/* resumo de 1 página: rodapé numa faixa só */
+.rp-foot-c{margin-top:12px!important;gap:6px 20px;align-items:center}
+.rp-foot-c .rp-signature{width:190px}
+.rp-foot-c .rp-signature span{height:22px}
+.rp-foot-t{flex:1;min-width:0}
+.rp-foot-c .rp-pro{border:0;padding:0 0 2px;order:0}
+/* fichas respondidas pelo paciente: só a linha de geração */
+.rp-foot-s{display:block;border-top:1px solid #e6e6e2;padding-top:6px}
+.rp-one .rp-table td{padding-top:5.5px;padding-bottom:5.5px}
+.rp-one .rp-scale{margin-top:24px}
 .rp-signature{width:220px;flex:none;text-align:center}
 .rp-signature span{display:block;border-bottom:1px solid var(--ink-2);height:34px;margin-bottom:4px}
 .rp-signature small{font-size:10.5px;color:var(--ink-2)}
@@ -890,6 +913,7 @@ span[data-live],b[data-live]{display:inline-block}
 .rp-kpis4{grid-template-columns:repeat(4,1fr)}
 .rp-kpis4 .rp-kpi small.rp-muted{font-size:10.5px}
 .rp-charts2{grid-template-columns:1fr 1fr}
+.rp-charts3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .rp-chart-h{margin-bottom:0;align-items:center}
 .rp-all th span{text-transform:none;letter-spacing:0;font-weight:600}
 .rp-all th,.rp-all td{padding:6px 8px;font-size:11px}
@@ -2200,7 +2224,9 @@ button.kpi:active{scale:.97}
 .dp-box h3{font-size:11.5px;font-weight:700;margin:4px 0 2px}
 .dp-muted{color:#777}
 .dp-rc{display:grid;grid-template-columns:1fr 1.4fr;gap:14px}
-.dp-rc ol{padding-left:16px}
+.dp-rc ol{padding-left:18px;list-style:decimal}
+.dp-rc li{padding-left:2px;margin-bottom:2px}
+.dp-nw{white-space:nowrap}
 .dp-shop{break-inside:avoid;margin:10px 0}
 .dp-shop-g{columns:3;column-gap:16px}
 .dp-shop-g>div{break-inside:avoid;margin-bottom:6px}
@@ -3166,8 +3192,9 @@ button.kpi:active{scale:.97}
 @media (max-width:420px){ .an-pend-go{display:none} .pf-sum .btn{width:100%} }
 @media (prefers-reduced-motion:reduce){ .pf-main{animation:none!important} }
 /* PDF da ficha de saúde / pré-consulta */
-.rp-form{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
-.rp-form-sec{break-inside:avoid}
+.rp-form{columns:2;column-gap:12px}
+.rp-form-sec{break-inside:avoid;margin-bottom:12px}
+.rp-form-t td{vertical-align:top}
 .rp-form-t td:first-child{color:var(--ink-2);width:46%}
 .rp-form-t td:last-child{font-weight:600}
 

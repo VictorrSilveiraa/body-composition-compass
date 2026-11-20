@@ -15,7 +15,15 @@ let CTX = {};
 const POSE_L = [['front','Frente'],['back','Costas'],['right','Lado direito'],['left','Lado esquerdo']];
 const photosOf = id => (CTX.photos && CTX.photos[id]) || {};
 const proLine = () => { const n = CTX.nutri || {}; return [n.name, n.crn].filter(Boolean).join(' · '); };
-const extraFacts = () => [CTX.goal && ['Objetivo', esc(CTX.goal)], CTX.nextReturn && ['Próximo retorno', fmtDate(CTX.nextReturn,{day:'2-digit',month:'short',year:'numeric'})]].filter(Boolean);
+/* "Próximo retorno" só faz sentido no documento da avaliação mais recente e com data que ainda não passou
+   (num relatório de maio, o retorno de dezembro confunde; um retorno já vencido não é "próximo") */
+const extraFacts = (withReturn = true) => [CTX.goal && ['Objetivo', esc(CTX.goal)],
+  withReturn && CTX.nextReturn && CTX.nextReturn >= today() && ['Próximo retorno', fmtDate(CTX.nextReturn,{day:'2-digit',month:'short',year:'numeric'})]].filter(Boolean);
+/* método que de fato calculou o % de gordura (sem dobras, o protocolo salvo não foi usado) */
+const methodName = (a, r) => { const pr = PROTOCOLS[a.protocol||'jp7'];
+  return !r.bfSource || ['JP7','JP3','DW'].includes(r.bfSource) ? pr.name : r.bfSource==='Bioimpedância' ? 'Bioimpedância' : 'Circunferências (Marinha)'; };
+/* metabolismo basal: com o gasto energético configurado vale a fórmula escolhida pelo nutricionista (a mesma em todo o documento) */
+const bmrOf = (a, r) => { const e = CTX.energy ? CTX.energy(a) : null; return e ? e.bmr : r.bmr; };
 /** fotos de uma avaliação (as 4 poses) */
 function photosBlock(a, title='Fotos de acompanhamento'){
   const ph = photosOf(a.id), have = POSE_L.filter(([k])=>ph[k]);
@@ -128,6 +136,7 @@ export function buildReport({a, p, list}, o = {}){
   const ex = a.extra || {};
   const h = num(a.height) ?? num(p.height);
   const t = BF_REF[sex];
+  const isLast = idx === list.length - 1;
 
   /* ---------- cabeçalho e identificação ---------- */
   const header = `<header class="rp-head">
@@ -143,9 +152,9 @@ export function buildReport({a, p, list}, o = {}){
         <span><small>Idade na data</small>${r.age ?? '—'} anos</span>
         <span><small>Altura</small>${h!=null?fmt(h,0)+' cm':'—'}</span>
         <span><small>Peso</small>${fmt(num(a.weight))} kg</span>
-        <span><small>Protocolo</small>${esc(pr.name)}</span>
+        <span><small>Método</small>${esc(methodName(a, r))}</span>
         ${ex.evaluator?`<span><small>Avaliador(a)</small>${esc(ex.evaluator)}</span>`:''}
-        ${extraFacts().map(([l,v])=>`<span><small>${l}</small>${v}</span>`).join('')}
+        ${extraFacts(isLast).map(([l,v])=>`<span><small>${l}</small>${v}</span>`).join('')}
       </div>
     </div>
   </section>`;
@@ -217,7 +226,7 @@ export function buildReport({a, p, list}, o = {}){
     ['Quadril','cm',num(c.hip),num(pc.hip),-1,1],
     ['RCQ','',r.whr,rp?.whr,-1,2],
     ['Soma de todas as dobras','mm',r.sumAll,rp?.sumAll,-1,1],
-    ['Metabolismo basal','kcal',r.bmr,rp?.bmr,0,0],
+    ['Metabolismo basal','kcal',bmrOf(a, r),prev?bmrOf(prev, rp):null,0,0],
   ].filter(x=>x[2]!=null||x[3]!=null);
   const days = prev ? Math.round((new Date(a.date)-new Date(prev.date))/864e5) : 0;
   const compare = prev ? `<section class="rp-block">
@@ -277,12 +286,13 @@ export function buildReport({a, p, list}, o = {}){
         ? `Densidade corporal pela equação de ${esc(pr.name)} (${need.length} dobras); % de gordura pela equação de Siri: %G = (4,95 ÷ densidade − 4,5) × 100.`
         : r.bfSource==='Bioimpedância' ? '% de gordura informado pela balança de bioimpedância.'
         : r.bfSource ? '% de gordura estimado pela fórmula da Marinha dos EUA (circunferências e altura).' : '% de gordura não calculado: faltam medidas do protocolo.'}
-      ${r.leanMass!=null ? 'Metabolismo basal pela equação de Katch-McArdle: 370 + 21,6 × massa magra (kg).' : r.bmr!=null ? 'Metabolismo basal pela equação de Mifflin-St Jeor.' : ''}
+      ${(() => { const e = CTX.energy ? CTX.energy(a) : null; if (e) return `Metabolismo basal pela equação de ${esc(e.label)}; gasto total = basal × fator de atividade.`;
+        return r.leanMass!=null ? 'Metabolismo basal pela equação de Katch-McArdle: 370 + 21,6 × massa magra (kg).' : r.bmr!=null ? 'Metabolismo basal pela equação de Mifflin-St Jeor.' : ''; })()}
       Classificação de % de gordura segundo o American Council on Exercise (ACE); IMC segundo a OMS.</p>
   </section>`;
 
   const foot = o.foot === false ? '' : footer(ex.evaluator);
-  if (o.summary) return `<div class="rp-page">${header}${person}${hero}${comp}${scales}${indicators}${foot}</div>`;
+  if (o.summary) return `<div class="rp-page rp-one">${header}${person}${hero}${comp}${scales}${indicators}${footer(ex.evaluator, {compact:true})}</div>`;
   return `<div class="rp-page">${header}${person}${hero}${comp}${scales}${indicators}</div>
     <div class="rp-page">${compare}${goalsBlock(list.slice(0, idx+1), p, a.date)}${o.evo === false ? '' : evo}${measures}${notes}${photosBlock(a)}${dietBlock(a)}${o.guide === false ? '' : guide}${foot}</div>`;
 }
@@ -294,11 +304,17 @@ const longDate = iso => fmtDate(iso,{day:'numeric',month:'long',year:'numeric'})
 const shortDate = iso => fmtDate(iso,{day:'2-digit',month:'2-digit',year:'numeric'});
 const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 864e5);
 
-function footer(evaluator){
-  return `<footer class="rp-foot">
+/* rodapé: assinatura + profissional. compact = numa faixa só (resumo de 1 página);
+   note = texto final (fichas respondidas pelo paciente não levam assinatura) */
+function footer(evaluator, o = {}){
+  const pro = CTX.nutri?.name ? `<p class="rp-pro"><b>Nutricionista responsável:</b> ${esc(proLine())}${CTX.nutri.phone ? ' · ' + esc(CTX.nutri.phone) : ''}${CTX.nutri.place ? ' · ' + esc(CTX.nutri.place) : ''}</p>` : '';
+  const note = o.note || 'Valores estimados por equações de referência; este documento é informativo e não substitui avaliação profissional.';
+  if (o.compact) return `<footer class="rp-foot rp-foot-c"><div class="rp-signature"><span></span><small>${evaluator ? esc(evaluator) : proLine() ? esc(proLine()) : 'Avaliador(a)'}</small></div><div class="rp-foot-t">${pro}<p>Relatório gerado em ${longDate(today())}. ${note}</p></div></footer>`;
+  if (o.sign === false) return `<footer class="rp-foot rp-foot-s"><p>Gerado em ${longDate(today())}. ${note}</p></footer>`;
+  return `<footer class="rp-foot${o.compact ? ' rp-foot-c' : ''}">
     <div class="rp-signature"><span></span><small>${evaluator ? esc(evaluator) : proLine() ? esc(proLine()) : 'Avaliador(a)'}</small></div>
-    ${CTX.nutri?.name ? `<p class="rp-pro"><b>Nutricionista responsável:</b> ${esc(proLine())}${CTX.nutri.phone ? ' · ' + esc(CTX.nutri.phone) : ''}${CTX.nutri.place ? ' · ' + esc(CTX.nutri.place) : ''}</p>` : ''}
-    <p>Relatório gerado em ${longDate(today())}. Valores estimados por equações de referência; este documento é informativo e não substitui avaliação profissional.</p>
+    ${pro}
+    <p>Relatório gerado em ${longDate(today())}. ${note}</p>
   </footer>`;
 }
 function head(subtitle, rSmall, rBig, rSub){
@@ -322,7 +338,7 @@ function glossary(){
       <div><b>Metabolismo basal</b><p>Calorias gastas em repouso total. Base para planejar a dieta.</p></div>
       <div><b>Dobras cutâneas</b><p>Espessura da gordura sob a pele. A soma das dobras é ótima para acompanhar a evolução.</p></div>
     </div>
-    <p class="rp-method"><b>Metodologia.</b> % de gordura por dobras cutâneas (Pollock 7 ou 3 dobras, Durnin & Womersley) e equação de Siri; na falta de dobras, bioimpedância ou fórmula da Marinha dos EUA. Metabolismo basal por Katch-McArdle (com massa magra) ou Mifflin-St Jeor. Classificações: ACE (% de gordura) e OMS (IMC). pp = pontos percentuais.</p>
+    <p class="rp-method"><b>Metodologia.</b> % de gordura por dobras cutâneas (Pollock 7 ou 3 dobras, Durnin & Womersley) e equação de Siri; na falta de dobras, bioimpedância ou fórmula da Marinha dos EUA. Metabolismo basal pela equação escolhida pelo nutricionista (Mifflin-St Jeor, Harris-Benedict, Katch-McArdle, Cunningham ou FAO/OMS) ou, sem ela, Katch-McArdle (com massa magra) ou Mifflin-St Jeor. Classificações: ACE (% de gordura) e OMS (IMC). pp = pontos percentuais.</p>
   </section>`;
 }
 const legendLine = `<p class="rp-legend-s"><span class="rp-delta good">verde</span> evolução favorável · <span class="rp-delta bad">laranja</span> pede atenção · <span class="rp-delta neu">azul</span> variação neutra · pp = pontos percentuais</p>`;
@@ -373,7 +389,7 @@ export function buildEvolution({p, list}, o = {}){
 
   const cols = EVO.filter(m => R.some(x => val(m,x)!=null)).slice(0, 8);
   const table = `<section class="rp-block"><div class="rp-sec-h"><h3>${ic('note')} Todas as avaliações</h3><span class="rp-muted">da mais antiga para a mais recente</span></div>
-    <table class="rp-table rp-all"><thead><tr><th>Data</th>${cols.map(m=>`<th>${m.l}${m.u?` <span>(${m.u})</span>`:''}</th>`).join('')}</tr></thead>
+    <table class="rp-table rp-all"><thead><tr><th>Data</th>${cols.map(m=>`<th>${m.l}${m.u && m.u!=='%' ? ` <span>(${m.u})</span>` : ''}</th>`).join('')}</tr></thead>
     <tbody>${R.map((x,i)=>`<tr><td class="rp-v">${shortDate(x.a.date)}</td>${cols.map(m=>{ const v = val(m,x), pv = i ? val(m,R[i-1]) : null; return `<td><b>${fmt(v, m.d ?? 1)}</b>${i && v!=null && pv!=null ? `<em class="${tone(v-pv, m.dir)}">${sign(v-pv, m.d ?? 1)}</em>` : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table></section>`;
 
   // circunferências e dobras: primeira × última
@@ -382,11 +398,11 @@ export function buildEvolution({p, list}, o = {}){
   const folds = rowsFL(FOLDS.map(f=>[f.l, a=>foldVal(a,f.k), -1]));
   const th = `<thead><tr><th></th><th>${shortDate(first.a.date)}</th><th>${shortDate(last.a.date)}</th><th>Variação</th></tr></thead>`;
   const fl = (circ || folds) ? `<section><div class="rp-sec-h"><h3>${ic('ruler')} Medidas: primeira × última avaliação</h3></div>
-    <div class="rp-cols">${circ?`<div class="rp-grp"><h4>Circunferências (cm)</h4><table class="rp-table rp-tight">${th}<tbody>${circ}</tbody></table></div>`:'<div></div>'}
+    <div class="rp-cols rp-fl">${circ?`<div class="rp-grp"><h4>Circunferências (cm)</h4><table class="rp-table rp-tight">${th}<tbody>${circ}</tbody></table></div>`:'<div></div>'}
     ${folds?`<div class="rp-grp"><h4>Dobras cutâneas (mm)</h4><table class="rp-table rp-tight">${th}<tbody>${folds}</tbody></table></div>`:''}</div>${legendLine}</section>` : '';
 
-  return `<div class="rp-page">${hd}${person}${headline}${kpis}<section><div class="rp-sec-h"><h3>${ic('chart')} Gráficos de evolução</h3><span class="rp-muted">valor inicial → atual</span></div><div class="rp-charts rp-charts2">${charts}</div></section></div>
-    <div class="rp-page">${goalsBlock(list, p)}${table}${fl}${photosPairs(first.a, last.a, 'Antes e depois: primeira × última avaliação')}${o.guide === false ? '' : glossary()}${o.foot === false ? '' : footer()}</div>`;
+  return `<div class="rp-page">${hd}${person}${headline}${kpis}<section><div class="rp-sec-h"><h3>${ic('chart')} Gráficos de evolução</h3><span class="rp-muted">valor inicial → atual</span></div><div class="rp-charts rp-charts3">${charts}</div></section>
+    ${goalsBlock(list, p)}${table}${fl}${photosPairs(first.a, last.a, 'Antes e depois: primeira × última avaliação')}${o.guide === false ? '' : glossary()}${o.foot === false ? '' : footer()}</div>`;
 }
 
 /** Comparativo entre duas avaliações (A = antes, B = depois). */
@@ -410,12 +426,10 @@ export function buildCompare({p, A, B}){
       return `<tr><td>${m.l}</td><td class="rp-muted">${fmt(va,d)}</td><td class="rp-v">${fmt(vb,d)}</td><td>${delta(vb, va, m.dir, d, m.k==='bf'?'pp':m.u)}</td><td class="rp-muted">${pct!=null?sign(pct,1)+'%':''}</td></tr>`; }).join('');
     return rows ? `<div class="rp-grp"><h4>${g.g}</h4><table class="rp-table rp-tight rp-cmp"><thead><tr><th></th><th>A</th><th>B</th><th>Variação</th><th>%</th></tr></thead><tbody>${rows}</tbody></table></div>` : '';
   }).filter(Boolean);
-  const half = Math.ceil(groups.length / 2);
   const tables = `<section><div class="rp-sec-h"><h3>${ic('swap')} Todas as medidas</h3><span class="rp-muted">A = ${shortDate(A.date)} · B = ${shortDate(B.date)}</span></div>
-    <div class="rp-cols"><div>${groups.slice(0, half).join('')}</div><div>${groups.slice(half).join('')}</div></div>${legendLine}</section>`;
+    <div class="rp-cols rp-cmpg">${groups.join('')}</div>${legendLine}</section>`;
 
-  const pics = photosPairs(A, B);
-  return `<div class="rp-page">${hd}${person}${kpis}${comp}${tables}${pics ? '' : footer(B.extra?.evaluator)}</div>${pics ? `<div class="rp-page">${pics}${footer(B.extra?.evaluator)}</div>` : ''}`;
+  return `<div class="rp-page">${hd}${person}${kpis}${comp}${tables}${photosPairs(A, B)}${footer(B.extra?.evaluator)}</div>`;
 }
 
 /** Capa + índice do histórico completo. */
@@ -428,7 +442,7 @@ function buildCover({p, list}){
     <section class="rp-card rp-blue rp-cover-hero"><small>Relatório completo de avaliações físicas</small><h1>${esc(p.name)}</h1>
       <div class="rp-facts"><span><small>Sexo</small>${sex==='F'?'Feminino':'Masculino'}</span><span><small>Idade atual</small>${last.r.age ?? '—'} anos</span>${num(p.height)!=null?`<span><small>Altura</small>${fmt(num(p.height),0)} cm</span>`:''}<span><small>Avaliações</small>${list.length}</span><span><small>Período</small>${fmtDate(first.a.date)} → ${fmtDate(last.a.date)}</span>${extraFacts().map(([l,v])=>`<span><small>${l}</small>${v}</span>`).join('')}${proLine()?`<span><small>Nutricionista</small>${esc(proLine())}</span>`:''}</div></section>
     <section class="rp-block"><div class="rp-sec-h"><h3>${ic('note')} Conteúdo</h3></div>
-      <ol class="rp-toc">${list.length>1?'<li><b>Evolução</b><span>gráficos, tabela de todas as avaliações e primeira × última</span></li>':''}${R.map((x,i)=>`<li><b>Avaliação ${i+1} — ${longDate(x.a.date)}</b><span>${fmt(num(x.a.weight))} kg · ${x.r.bf!=null?fmt(x.r.bf)+'% de gordura':'sem % de gordura'} · ${esc(PROTOCOLS[x.a.protocol||'jp7'].name)}</span></li>`).join('')}<li><b>Entenda os indicadores</b><span>glossário e metodologia</span></li></ol></section>
+      <ol class="rp-toc">${list.length>1?'<li><b>Evolução</b><span>gráficos, tabela de todas as avaliações e primeira × última</span></li>':''}${R.map((x,i)=>`<li><b>Avaliação ${i+1} — ${longDate(x.a.date)}</b><span>${fmt(num(x.a.weight))} kg · ${x.r.bf!=null?fmt(x.r.bf)+'% de gordura':'sem % de gordura'} · ${esc(methodName(x.a, x.r))}</span></li>`).join('')}<li><b>Entenda os indicadores</b><span>glossário e metodologia</span></li></ol></section>
   </div>`;
 }
 
@@ -445,7 +459,7 @@ function buildForm({def, answers = {}, p, sentAt, status}){
     ${personCard(p, [['Respondidas', `${n} de ${all.length}`], p.birth && ['Nascimento', fmtDate(p.birth,{day:'2-digit',month:'2-digit',year:'numeric'})], CTX.nutri?.name && ['Nutricionista', esc(CTX.nutri.name)]])}
     ${alerts.length ? `<section class="rp-card rp-yellow"><b>Pontos de atenção:</b> ${alerts.map(esc).join(' · ')}</section>` : ''}
     <div class="rp-form">${secs}</div>
-    ${footer().replace(/Valores estimados[^<]*/, 'Respostas informadas pelo paciente.')}
+    ${footer(null, { sign:false, note:'Respostas informadas pelo paciente.' })}
   </div>`;
 }
 
