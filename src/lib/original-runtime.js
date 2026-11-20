@@ -1008,7 +1008,7 @@ function viewPatient(id){
   const since = r0 ? `<span class="small muted">desde ${fmtDate(first.date,{day:'2-digit',month:'short'})}</span>` : '';
   const metric = (label, val, unit, d0, dir, du, icn, cls='') => `<div class="card ${cls}"><div class="card-head"><span class="label">${label}</span><span class="chip-ico right">${ic(icn,'sm')}</span></div>
     <div class="mid">${val!=null?fmt(val):'—'}<small>${val!=null?unit:''}</small></div>${r0&&val!=null&&d0!=null?`<div class="sub">${deltaChip(val,d0,dir,du)} ${since}</div>`:''}</div>`;
-  let h = `<header class="top"><button class="icon-btn" data-act="go" data-to="patients" aria-label="Pacientes">${ic('back')}</button>
+  let h = `<header class="top pt-top-d"><button class="icon-btn" data-act="go" data-to="patients" aria-label="Pacientes">${ic('back')}</button>
     <div class="title-block"><small>Pacientes</small><b>Ficha do paciente</b></div></header>
   <div class="pt-layout"><div class="pt-main">
   ${(() => {
@@ -1023,7 +1023,7 @@ function viewPatient(id){
       acc?.active && {attrs:`data-act="paCopy" data-id="${p.id}" data-what="link"`, icon:ic('link','sm'), label:'Copiar link do portal do paciente', short:'Portal'},
       !p.phone && !p.email && {attrs:`data-act="go" data-to="onboard" data-id="${p.id}"`, icon:ic('plus','sm'), label:'Adicionar telefone ou e-mail', short:'Contato'},
     ].filter(Boolean);
-    return idCard({ tone: bannerTone(p.id), edit:`data-act="go" data-to="onboard" data-id="${p.id}" aria-label="Editar dados de ${esc(firstName(p.name))}"`,
+    return idCard({ tone: bannerTone(p.id), cls:'idc-pt', nav:{back:'data-act="go" data-to="patients"', small:'Pacientes', title:'Ficha do paciente'}, edit:`data-act="go" data-to="onboard" data-id="${p.id}" aria-label="Editar dados de ${esc(firstName(p.name))}"`,
       avatar: pAvatar(p,'xl'), ring: gAvg, ringLabel: gAvg!=null ? `Progresso médio das metas: ${gAvg}%` : '', ringShort:'metas',
       name: esc(p.name), sub: esc(pMeta(p)),
       chips: p.goal && goalLabel(p.goal) ? `<span class="tag">${ic('target','sm')}${esc(goalLabel(p.goal))}</span>` : '',
