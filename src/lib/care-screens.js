@@ -296,7 +296,7 @@ function retRow(r){
     : `<button type="button" class="rt-btn" data-act="rtSend" data-id="${r.p.id}" title="Sem telefone: copia a mensagem">${ic('clip','sm')}<span>Copiar</span></button>`;
   return `<div class="rt-row ${late?'late':'soon'}${sent?' sent':''}" data-key="rt-${r.p.id}">
     <button type="button" class="rt-who" data-act="go" data-to="patient" data-id="${r.p.id}">${pAvatar(r.p)}<span class="rt-name"><b>${esc(r.p.name)}</b><small>${sub}</small></span></button>
-    <span class="rt-when">${ic('clock','sm')}${when}${ctx.answeredPre?.(r.p.id) ? ' · respondeu a pré-consulta' : ''}</span>
+    <span class="rt-tags"><span class="rt-when">${ic('clock','sm')}${when}</span>${ctx.answeredPre?.(r.p.id) ? `<span class="rt-pre" title="Respondeu a pré-consulta">${ic('check','sm')}Pré-consulta</span>` : ''}</span>
     ${btn}
     ${!phone && !sent ? `<button type="button" class="rt-add" data-act="go" data-to="onboard" data-id="${r.p.id}">${ic('plus','sm')}Adicionar telefone</button>` : ''}
   </div>`;

@@ -175,6 +175,11 @@ svg{display:block}
 .ico.sm{width:18px;height:18px}
 
 .app{max-width:560px;margin:0 auto;min-height:100dvh;padding:16px 16px calc(120px + env(safe-area-inset-bottom))}
+/* nada (animação de entrada, texto longo) abre rolagem para o lado: no iPhone a tela "solta" lateralmente.
+   clip não cria área de rolagem, então os cabeçalhos fixos (sticky) continuam funcionando */
+html,body{overflow-x:clip}
+.nowrap{white-space:nowrap}
+.app{overflow-x:clip}
 /* troca de tela: só opacidade no contêiner (transform aqui quebraria a barra fixa do assistente) */
 .view{animation:viewIn .3s cubic-bezier(.22,1,.36,1) backwards}
 @keyframes viewIn{from{opacity:0}}
@@ -976,7 +981,8 @@ button.kpi:active{scale:.97}
 .pt-new{flex:none!important;height:46px;padding:0 16px 0 14px;gap:6px}
 
 /* cartão do paciente */
-.pt-grid{display:grid;gap:10px}
+.pt-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.pt-grid>*{min-width:0}
 .pt-card{display:flex;flex-direction:column;gap:12px;width:100%;text-align:left;background:var(--card);border-radius:var(--r-lg);padding:14px;transition:scale .22s var(--ease),background-color .3s,box-shadow .3s}
 .pt-card:active{scale:.985}
 .pt-card.on{box-shadow:inset 0 0 0 2px var(--blue-2)}
@@ -1022,6 +1028,10 @@ button.kpi:active{scale:.97}
 .pa.main{background:var(--yellow)}
 .pt-sum .card .sub{flex-wrap:wrap}
 .kv-row .t{font-weight:600;font-size:15px;text-align:right;grid-column:2 / -1}
+/* linha com texto (endereço, e-mail…): o rótulo fica com a largura dele (até ~metade) e o valor quebra linha à direita */
+.kv-row.kv-t{grid-template-columns:fit-content(46%) minmax(0,1fr);align-items:start}
+.kv-row.kv-t .k{min-width:min-content;color:var(--ink-2)}
+.kv-row.kv-t .t{min-width:0;overflow-wrap:anywhere;line-height:1.3}
 .kv-row .t small{display:block;font-size:12px;font-weight:500;color:var(--muted)}
 .kv-row .t.late,.kv-row .t.late small{color:var(--red-ink)}
 .kv-row .t.none{color:var(--muted);font-weight:500}
@@ -1145,6 +1155,9 @@ button.kpi:active{scale:.97}
 .sheet .btns .btn.opt:nth-child(2)>.ico{background:var(--blue-2)}
 .sheet .btns .btn.opt:hover{background:var(--line)}
 .sheet .btns .btn.opt:hover>.ico{scale:1.06}
+/* opção com descrição que não é .opt (ex.: "Apagar anamnese"): mesmo alinhamento das outras opções da lista */
+.sheet .btns .btn:not(.opt):has(>.sb-txt){height:auto;min-height:76px;justify-content:flex-start;gap:14px;padding:12px 18px 12px 12px;border-radius:24px;text-align:left}
+.sheet .btns .btn:not(.opt):has(>.sb-txt)>.ico{width:48px;height:48px;padding:13px;border-radius:16px;background:oklch(1 0 0 / .55);flex:none}
 .sb-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
 .sb-txt b{font-size:16px;font-weight:600}
 .sb-txt small{font-size:13px;font-weight:400;color:var(--ink-2);line-height:1.3}
@@ -1808,8 +1821,8 @@ button.kpi:active{scale:.97}
    PLANO ALIMENTAR (dt-*)  — tela compartilhada nutricionista/portal
    ========================================================= */
 .dt{--tl:58px}
-.dt-layout{display:grid;gap:14px}
-.dt-side,.dt-main{display:grid;gap:12px;align-content:start;min-width:0}
+.dt-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.dt-side,.dt-main{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-content:start;min-width:0}
 /* herói com relógio do dia */
 .dt-hero{background:var(--green);display:grid;grid-template-columns:1fr;gap:6px;padding:22px 20px 18px;isolation:isolate}
 .dt-hero .tag{background:var(--surface);color:var(--green-ink)}
@@ -2105,7 +2118,7 @@ button.kpi:active{scale:.97}
 @media (max-width:359px){ .nav.six button{width:43px;height:43px} }
 .pt-actions:has(> .pa:nth-child(5)){grid-template-columns:repeat(5,1fr)}
 @media (max-width:420px){ .pt-actions:has(> .pa:nth-child(5)) .pa span{font-size:11.5px} }
-@media (max-width:420px){ .dt-tabs button span{display:none} .dt-tabs button.on span{display:inline} .dt-stats .stat b{font-size:21px} }
+@media (max-width:420px){ .dt-tabs button span{display:none} .dt-tabs button.on span{display:inline} .dt-tabs button{flex:1 1 0} .dt-tabs button.on{flex:0 0 auto;padding:10px 12px} .dt-stats .stat b{font-size:21px} }
 /* a tela do plano se adapta ao espaço que tem (página inteira ou prévia dentro da edição) */
 .dt{container:dt / inline-size}
 @container dt (min-width:600px){
@@ -2643,7 +2656,8 @@ button.kpi:active{scale:.97}
 .en-note{margin-top:12px;line-height:1.4}
 
 /* ---------- gasto energético: calculadora ---------- */
-.en-layout{display:grid;gap:12px}
+.en-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.en-layout>*{min-width:0}
 .en-ctl{min-width:0}
 .en-ctl>h2.sec:first-of-type{margin-top:22px}
 .en-live{display:none}
@@ -2750,6 +2764,9 @@ button.kpi:active{scale:.97}
 .rt-when{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;padding:6px 11px 6px 8px;border-radius:99px;background:var(--blue);white-space:nowrap}
 .rt-when .ico{width:15px;height:15px}
 .rt-row.late .rt-when{background:var(--peach)}
+.rt-tags{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px;min-width:0}
+.rt-pre{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;padding:6px 11px 6px 8px;border-radius:99px;background:var(--green);color:var(--green-ink);white-space:nowrap}
+.rt-pre .ico{width:14px;height:14px}
 .rt-btn{display:inline-flex;align-items:center;gap:7px;height:44px;padding:0 17px 0 14px;border-radius:99px;background:var(--surface);font-weight:600;font-size:14px;white-space:nowrap;transition:background-color .3s,color .3s,scale .2s var(--ease)}
 .rt-btn:active{scale:.95}
 .rt-btn .ico{width:18px;height:18px}
@@ -2757,7 +2774,7 @@ button.kpi:active{scale:.97}
 .rt-btn.sent{background:var(--green);color:var(--green-ink)}
 .rt-btn.sent .ico{animation:pop .5s var(--spring)}
 .rt-row.sent{background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--line)}
-.rt-row.sent .rt-who,.rt-row.sent .rt-when{opacity:.6}
+.rt-row.sent .rt-who,.rt-row.sent .rt-tags{opacity:.6}
 .rt-add{grid-column:1 / -1;justify-self:start;display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;color:var(--blue-ink);padding:2px 6px;margin:-6px 0 0 50px}
 .rt-add .ico{width:15px;height:15px}
 .rt-note{display:flex;align-items:center;gap:6px;margin:14px 6px 0;line-height:1.35}
@@ -2832,8 +2849,10 @@ button.kpi:active{scale:.97}
   .rt-hero-ring{display:none}
   .rt-next{width:100%;justify-content:center}
   .rt-row{grid-template-columns:minmax(0,1fr) auto;row-gap:8px}
-  .rt-when{grid-column:1;grid-row:2;justify-self:start;margin-left:56px}
-  .rt-btn{grid-column:2;grid-row:1 / span 2;align-self:center;padding:0 14px 0 12px}
+  /* etiqueta na linha de baixo, na largura toda: o botão fica ao lado do nome e nunca a cobre */
+  .rt-tags{grid-column:1 / -1;grid-row:2;justify-content:flex-start;margin-left:56px}
+  .rt-name small{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .rt-btn{grid-column:2;grid-row:1;align-self:center;padding:0 14px 0 12px}
   .rt-add{margin-left:52px}
 }
 @media (max-width:1023px){
@@ -2886,6 +2905,7 @@ button.kpi:active{scale:.97}
 .fm-pre-h small{font-size:13px;color:var(--ink-2)}
 .fm-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
 .fm-k{background:var(--surface);border-radius:var(--r-sm);padding:10px 12px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.fm-k.wide{grid-column:1 / -1}
 .fm-k small{font-size:12px;color:var(--muted);line-height:1.2}
 .fm-k b{font-size:16px;font-weight:600}
 .fm-k .fa-dots{margin:3px 0 1px}
@@ -3240,18 +3260,19 @@ h2.sec.fold-h{justify-content:flex-start;gap:8px;flex-wrap:nowrap}
 .bk-intro p{font-size:14px;color:var(--ink-2);line-height:1.45}
 .bk-intro b{color:var(--ink)}
 .bk-file{flex-wrap:wrap;background:var(--blue)}
-.bk-file .grow{min-width:0;flex:1;display:flex;flex-direction:column}
+.bk-file .grow{min-width:0;flex:1 1 190px;display:flex;flex-direction:column}
 .bk-file b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bk-file small{font-size:13px;color:var(--ink-2)}
-.bk-file .btn{flex:none;background:oklch(1 0 0 / .7)}
+.bk-file .btn{flex:none;margin-left:auto;background:oklch(1 0 0 / .7)}
 .bk-warn{display:flex;gap:10px;align-items:flex-start;background:var(--yellow);margin-top:10px}
 .bk-warn>.ico{flex:none;margin-top:2px}
 .bk-warn b{font-weight:600;font-size:14px}
 .bk-warn ul{margin:4px 0 0 16px;font-size:13px;color:var(--ink-2);line-height:1.4}
 .bk-warn.in{display:block;border-radius:var(--r-md);padding:12px 14px;font-size:13.5px;color:var(--ink-2);text-align:left}
 .bk-warn.in p+p{margin-top:6px}
-.bk-grid{display:grid;gap:0 18px}
-.bk-parts{display:grid;gap:6px}
+.bk-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:0 18px}
+.bk-grid>*{min-width:0}
+.bk-parts{display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
 .toggle.bk-part{width:100%;text-align:left;display:flex;align-items:center;gap:10px}
 .toggle.bk-part .grow{min-width:0}
 .toggle.bk-part.off{opacity:.55}

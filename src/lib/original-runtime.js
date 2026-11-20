@@ -892,7 +892,7 @@ function ptCard({p, st, list}){
   const stIco = st.k==='ok' ? ic('check','sm') : (st.k==='late'||st.k==='soon') ? ic('clock','sm') : st.k==='arch' ? ic('archive','sm') : '';
   return `<div class="pt-cell" data-key="pt-${p.id}"><button class="pt-card ${on?'on':''}" data-act="go" data-to="patient" data-id="${p.id}">
     <span class="pt-top">${pAvatar(p)}<span class="pt-name"><b>${esc(p.name)}</b><small>${esc(pMeta(p))}</small></span>${ic('right','sm')}</span>
-    <span class="pt-tags"><span class="tag ${st.cls}">${stIco}${st.l}</span>${p.goal?`<span class="tag">${esc(goalLabel(p.goal))}</span>`:''}${CS.goalTag(p)}${FS.ptTag(p)}${on?`<span class="tag dark">Atual</span>`:''}</span>
+    <span class="pt-tags"><span class="tag ${st.cls}">${stIco}${st.l}</span>${goalLabel(p.goal)?`<span class="tag">${esc(goalLabel(p.goal))}</span>`:''}${CS.goalTag(p)}${FS.ptTag(p)}${on?`<span class="tag dark">Atual</span>`:''}</span>
     <span class="pt-nums">${last
       ? `<span><small>Peso</small><b>${fmt(num(last.weight))}<small>kg</small></b></span><span><small>Gordura</small><b>${r.bf!=null?fmt(r.bf)+'<small>%</small>':'—'}</b></span><span><small>${plural(list.length,'avaliação','avaliações')}</small><b class="d">${ago(last.date)}</b></span>`
       : `<span class="pt-none">Nenhuma avaliação registrada ainda</span>`}</span>
@@ -1064,7 +1064,7 @@ function viewPatient(id){
   h += `</div><aside class="pt-aside">
     <section class="pt-sec pt-s-agenda"><h2 class="sec">Agenda</h2>
     <div class="kv">
-      <div class="kv-row"><span class="k">Próximo retorno</span><span class="t ${st.k}">${st.next?`${fmtDate(st.next)} <small>${st.short||st.l}</small>`:p.archived?'Arquivado':'Após a 1ª avaliação'}</span></div>
+      <div class="kv-row kv-t"><span class="k">Próximo retorno</span><span class="t ${st.k}">${st.next?`${fmtDate(st.next)} <small>${st.short||st.l}</small>`:p.archived?'Arquivado':'Após a 1ª avaliação'}</span></div>
       <div class="kv-row"><span class="k">Última avaliação</span><span class="t">${last?`${fmtDate(last.date)} <small>${ago(last.date)}</small>`:'—'}</span></div>
       <div class="kv-row"><span class="k">Primeira avaliação</span><span class="t">${first?fmtDate(first.date):'—'}</span></div>
       <div class="kv-row"><span class="k">Cadastro</span><span class="t">${p.createdAt?fmtDate(isoOf(new Date(p.createdAt))):'—'}</span></div>
@@ -1089,7 +1089,7 @@ function viewPatient(id){
 /* ---------- PERFIL DO NUTRICIONISTA ---------- */
 function viewProfile(){
   const s = teamStats(), done = !!((nutri.name||'').trim() && (nutri.crn||'').trim());
-  const row = (k, v) => `<div class="kv-row"><span class="k">${k}</span><span class="t ${v?'':'none'}">${v?esc(v):'Não informado'}</span></div>`;
+  const row = (k, v) => `<div class="kv-row kv-t"><span class="k">${k}</span><span class="t ${v?'':'none'}">${v?esc(v):'Não informado'}</span></div>`;
   /* celular: voltar dentro do banner, números coloridos, sem atalhos, cartão sem borda; computador: cabeçalho da página, números com divisórias e atalhos */
   return `<header class="top nu-top-d"><button class="icon-btn" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button><div class="title-block"><small>Sua conta</small><b>Perfil profissional</b></div><div class="grow"></div>
     <button class="icon-btn" data-act="go" data-to="nutri" aria-label="Editar perfil" title="Editar perfil">${ic('edit')}</button></header>
@@ -1097,7 +1097,7 @@ function viewProfile(){
     const fields = [nutri.name, nutri.crn, nutri.specialty, nutri.phone, nutri.place], pct = Math.round(fields.filter(x=>String(x||'').trim()).length/fields.length*100), n = CS.pendingCount();
     return idCard({ tone:'yellow', edit:'data-act="go" data-to="nutri" aria-label="Editar perfil profissional"', nav:{back:'data-act="go" data-to="home"', small:'', title:''}, tiles:true, cls:'idc-pro', linksCls:'d-only',
       avatar:`<span class="avatar xl nu-av">${esc(initials(nutriName()))}</span>`, ring: pct<100 ? pct : null, ringLabel:`Perfil ${pct}% completo`, ringShort:'perfil',
-      name: esc(nutriName()), sub: [esc((nutri.specialty||'').trim()||'Nutricionista'), crnLabel()?esc(crnLabel()):null].filter(Boolean).join(' · '),
+      name: esc(nutriName()), sub: [esc((nutri.specialty||'').trim()||'Nutricionista'), crnLabel()?`<span class="nowrap">${esc(crnLabel())}</span>`:null].filter(Boolean).join(' · '),
       chips: nutri.place ? `<span class="tag">${ic('pin','sm')}${esc(nutri.place)}</span>` : '',
       stats: [{v:s.active, l:s.active===1?'Paciente ativo':'Pacientes ativos', tone:'blue', icon:ic('users','sm'), attrs:'data-act="go" data-to="patients"'}, {v:s.month, l:'Avaliações em 30 dias', tone:'green', icon:ic('clip','sm'), attrs:'data-act="go" data-to="list"'}, {v:s.late, l:s.late===1?'Retorno atrasado':'Retornos atrasados', tone:s.late?'peach':'yellow', cls:s.late?'late':'', icon:ic('clock','sm'), attrs:'data-act="go" data-to="returns"'}],
       links: [] });
@@ -1479,7 +1479,7 @@ function donePatient(p){
     options.portalAccess && { label:'Criar acesso ao portal', sub:`${firstName(p.name)} acompanha tudo pelo celular`, icon: ic('lock'), fn: () => ACT.paCreate({dataset:{id:p.id}}) },
   ].filter(Boolean);
   done({ tone:'yellow', icon: ic('user'), kicker:'Paciente cadastrado', title: `${p.name.trim()} está na sua lista`,
-    text: (p.goal ? `Objetivo: ${goalLabel(p.goal)}. ` : '') + `Retorno a cada ${returnEvery(p)} dias.`,
+    text: (goalLabel(p.goal) ? `Objetivo: ${goalLabel(p.goal)}. ` : '') + `Retorno a cada ${returnEvery(p)} dias.`,
     actions, dismiss:'Depois' }, 'Paciente cadastrado ✓');
 }
 function download(name, content, type){

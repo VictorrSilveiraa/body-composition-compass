@@ -97,7 +97,8 @@ function preCard(p, r, o={}){
     if (f.k==='adesao' && older?.data.adesao!=null){ const df = Number(d.adesao) - Number(older.data.adesao); sub = df ? `<em class="${df>0?'up':'down'}">${df>0?'▲':'▼'} ${Math.abs(df)} desde a anterior</em>` : '<em>igual à anterior</em>'; }
     if (f.k==='peso' && ref && numOf(ref.weight)){ const df = Number(d.peso) - numOf(ref.weight); sub = `<em>${fmt(numOf(ref.weight))} kg na avaliação${Math.abs(df)>=0.1?` (${df>0?'+':'−'}${fmt(Math.abs(df))})`:''}</em>`; }
     if (f.k==='treino_x' && d.treino_d) sub = `<em>${esc(String(d.treino_d))}</em>`;
-    tiles.push(`<div class="fm-k${f.t==='scale'&&Number(d[f.k])<=2?' warn':''}"><small>${esc(SHORT[f.k] || f.l)}</small>${f.t==='scale'?dots(d[f.k]):''}<b>${esc(f.t==='scale'?answerText(f,d).replace(/^(\d)\/5 · /,'$1/5 · '):t)}</b>${sub}</div>`); }
+    const wide = f.k==='treino_x' && String(d.treino_d||'').length>22; // descrição longa dos treinos: bloco na largura toda
+    tiles.push(`<div class="fm-k${f.t==='scale'&&Number(d[f.k])<=2?' warn':''}${wide?' wide':''}"><small>${esc(SHORT[f.k] || f.l)}</small>${f.t==='scale'?dots(d[f.k]):''}<b>${esc(f.t==='scale'?answerText(f,d).replace(/^(\d)\/5 · /,'$1/5 · '):t)}</b>${sub}</div>`); }
   return `<div class="card fm-pre${o.compact?' compact':''}">
     <div class="fm-pre-h"><span class="chip-ico">${icon('form','sm')}</span><span class="grow"><b>${o.title||'Respostas do paciente'}</b><small>Enviada pelo portal ${agoTxt(r.createdAt)} · ${dLong(r.createdAt)}</small></span>${!r.read?'<span class="tag dark">Nova</span>':''}</div>
     ${alerts.length?`<div class="fm-alerts" aria-label="Pontos de atenção">${alerts.map(a=>`<span>${icon('alert','sm')}${esc(a)}</span>`).join('')}</div>`:''}
