@@ -100,7 +100,10 @@ export const signLine = (n?: NutriProfile | null) => [displayName(n), crnLabel(n
 /* ---------- especialidades (lista) e o texto antigo "specialty" ---------- */
 export function specialtiesOf(n?: NutriProfile | null): string[] {
   if (Array.isArray(n?.specialties)) return n!.specialties!.map(t).filter(Boolean);
-  return t(n?.specialty).split(/\s*[·,;/]\s*/).map(t).filter(Boolean);
+  // texto antigo ("Nutrição Esportiva") vira a opção da lista ("Esportiva") quando ela existe
+  const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const known = (s: string) => { const k = fold(s.replace(/^nutri[cç][aã]o\s+/i, '')); return SPECIALTIES.find((x) => fold(x) === k) ?? s; };
+  return [...new Set(t(n?.specialty).split(/\s*[·,;/]\s*/).map(t).filter(Boolean).map(known))];
 }
 export const specialtyText = (list: string[]) => list.length ? 'Nutrição ' + (list.length === 1 ? list[0]!.toLowerCase() : list.slice(0, -1).map((s) => s.toLowerCase()).join(', ') + ' e ' + list.at(-1)!.toLowerCase()) : '';
 

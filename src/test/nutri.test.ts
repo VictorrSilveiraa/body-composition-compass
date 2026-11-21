@@ -72,6 +72,8 @@ describe('salvar', () => {
   });
   it('perfil antigo (só texto) vira lista de especialidades', () => {
     expect(specialtiesOf({ specialty: 'Esportiva · Clínica' })).toEqual(['Esportiva', 'Clínica']);
+    expect(specialtiesOf({ specialty: 'Nutrição Esportiva' })).toEqual(['Esportiva']);
+    expect(specialtiesOf({ specialty: 'Nutrição esportiva e emagrecimento' })).toEqual(['Nutrição esportiva e emagrecimento']);
   });
 });
 
