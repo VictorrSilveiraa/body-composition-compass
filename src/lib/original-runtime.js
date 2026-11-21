@@ -1,4 +1,4 @@
-import {num,fmt,today,toDate,fmtDate,ageAt,foldVal,calc,bmiClass,bfClass,whrRisk,PROTOCOLS,FOLDS,CIRC_TRUNK,CIRC_LIMBS,STEPS,METRICS,GROUPS,MET,esc,getPath,setPath,clone,initials,firstName} from "./calculos.js";
+import {num,fmt,today,toDate,fmtDate,ageAt,foldVal,calc,bmiClass,bfClass,whrRisk,bmiInfo,bfInfo,whrInfo,whtrInfo,calfInfo,audienceNote,GROUP_LABEL,protoOf,protoFits,protoAgeTxt,protoSuggest,matGuess,MAT_L,PROTOCOLS,FOLDS,CIRC_TRUNK,CIRC_LIMBS,STEPS,METRICS,GROUPS,MET,esc,getPath,setPath,clone,initials,firstName} from "./calculos.js";
 import {motivo} from "./motivo";
 import {tick} from "./motion";
 import {POSES,POSE_KEYS,poseLabel,poseSvg} from "./poses.js";
@@ -8,6 +8,7 @@ import {careScreens} from "./care-screens.js";
 import {formScreens} from "./forms-screens.js";
 import {backupScreens} from "./backup-screens.js";
 import {waSvg} from "./wa-icon";
+import {checkAssessment,openAlerts} from "./conferir";
 const FOLD_NAME=Object.fromEntries(FOLDS.map(f=>[f.k,f.l]));
 export function mountOriginal(options){
 
@@ -18,6 +19,8 @@ const uid = () => crypto.randomUUID(); const DRAFT_KEY = 'avf.draft.'+options.us
 
 /* ---------- ícones ---------- */
 const I = {
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5v.5"/>',
+  alert:'<path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4"/><path d="M12 17v.5"/>',
   link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   back:'<path d="M15 18l-6-6 6-6"/>',
   right:'<path d="M9 18l6-6-6-6"/>',
@@ -620,7 +623,7 @@ function viewHome(){
         <div class="card-head"><span class="chip-ico">${ic(r.bf!=null?'flame':'scale')}</span><span class="label">${r.bf!=null?'Gordura corporal':'Peso atual'}</span></div>
         <div>
           <div class="big xl">${r.bf!=null?fmt(r.bf):fmt(num(last.weight))}<small>${r.bf!=null?'%':'kg'}</small></div>
-          <div class="sub">${r.bf!=null ? `${esc(bfClass(r.bf,p.sex))} ${rp?deltaChip(r.bf,rp.bf,-1,'pp'):''}` : esc(bmiClass(r.bmi))}</div>
+          <div class="sub">${r.bf!=null ? `${esc(bfClass(r.bf,r))} ${rp?deltaChip(r.bf,rp.bf,-1,'pp'):''}` : esc(bmiClass(r.bmi,r))}</div>
         </div>
         <div class="sub small">${ic('cal','sm')} ${fmtDate(last.date,{day:'numeric',month:'long',year:'numeric'})}</div>
       </div>
@@ -727,8 +730,8 @@ function viewDetail(id){
     const R=num(c[x.k+'_r']), L=num(c[x.k+'_l']); if (R==null&&L==null) return '';
     return `<div class="kv-row" style="grid-template-columns:1fr 70px 70px"><span class="k">${x.l}</span><span class="v">${fmt(R)}<small>D</small></span><span class="v">${fmt(L)}<small>E</small></span></div>`;
   }).join('');
-  const need = PROTOCOLS[a.protocol||'jp7'].folds(p.sex);
-  const folds = FOLDS.map(f=>{ const v = foldVal(a,f.k); if (v==null) return ''; return `<div class="kv-row"><span class="k">${f.l} ${need.includes(f.k)?'<span class="tag blue" style="padding:2px 7px;font-size:10px">'+PROTOCOLS[a.protocol||'jp7'].short+'</span>':''}</span><span>${pv?deltaChip(v,foldVal(pv,f.k),-1,''):''}</span><span class="v">${fmt(v)}<small>mm</small></span></div>`; }).join('');
+  const need = protoOf(a.protocol).folds(p.sex);
+  const folds = FOLDS.map(f=>{ const v = foldVal(a,f.k); if (v==null) return ''; return `<div class="kv-row"><span class="k">${f.l} ${need.includes(f.k)?'<span class="tag blue" style="padding:2px 7px;font-size:10px">'+protoOf(a.protocol).short+'</span>':''}</span><span>${pv?deltaChip(v,foldVal(pv,f.k),-1,''):''}</span><span class="v">${fmt(v)}<small>mm</small></span></div>`; }).join('');
   const ex = a.extra || {};
   const bio = [['% Gordura',num(ex.bf),'%'],['Massa muscular',num(ex.muscle),'kg'],['Gordura visceral',num(ex.visceral),''],['Água corporal',num(ex.water),'%']].map(([l,v,u])=>row(l,v,u)).join('');
   return `<header class="top no-print-sm"><button class="icon-btn no-print" data-act="back">${ic('back')}</button>
@@ -747,7 +750,7 @@ function viewDetail(id){
       <div class="left">
         <div class="card-head"><span class="chip-ico">${ic('flame')}</span><span class="label">Gordura corporal<br><span class="small">${esc(r.bfSource||'sem dados suficientes')}</span></span></div>
         <div><div class="big xl">${fmt(r.bf)}<small>%</small></div>
-        <div class="sub">${esc(bfClass(r.bf,p.sex))} ${rp?deltaChip(r.bf,rp.bf,-1,'pp'):''}</div></div>
+        <div class="sub">${esc(bfClass(r.bf,r))} ${rp?deltaChip(r.bf,rp.bf,-1,'pp'):''}</div></div>
       </div>
       <div class="ring-wrap">${ring(r.bf,40)}<div class="center"><div class="inner"><b>${r.age??'—'}</b><span>anos</span></div></div></div>
     </div>
@@ -758,7 +761,7 @@ function viewDetail(id){
     <div class="card yellow"><div class="card-head"><span class="label">Massa gorda</span><span class="chip-ico right">${ic('drop','sm')}</span></div>
       <div class="mid">${fmt(r.fatMass)}<small>kg</small></div><div class="sub">${rp?deltaChip(r.fatMass,rp.fatMass,-1,'kg'):''}</div></div>
     <div class="card"><div class="card-head"><span class="label">IMC</span><span class="chip-ico right">${ic('target','sm')}</span></div>
-      <div class="mid">${fmt(r.bmi)}</div><div class="sub small">${esc(bmiClass(r.bmi))}</div></div>
+      <div class="mid">${fmt(r.bmi)}</div><div class="sub small">${bmiSub(r)}</div></div>
   </div>
 
   ${phSection(a)}
@@ -771,9 +774,11 @@ function viewDetail(id){
     <h2 class="sec">Índices</h2>
     <div class="kv">
       ${row('Relação cintura/quadril', r.whr, '', 2, rp?.whr, -1)}
-      ${r.whr!=null?`<div class="kv-row"><span class="k muted small">Classificação RCQ</span><span></span><span class="v small">${whrRisk(r.whr,p.sex)}</span></div>`:''}
+      ${clsRow('Classificação RCQ', whrInfo(r.whr,r))}
       ${row('Relação cintura/altura', r.whtr, '', 2, rp?.whtr, -1)}
-      ${row('Soma das dobras ('+(PROTOCOLS[a.protocol||'jp7'].short)+')', r.sumProto, 'mm', 1, rp?.sumProto, -1)}
+      ${clsRow('Classificação cintura/altura', whtrInfo(r.whtr,r))}
+      ${r.calf!=null && calfInfo(r.calf,r) ? row('Panturrilha (maior lado)', r.calf, 'cm', 1) + clsRow('Panturrilha · idosos', calfInfo(r.calf,r)) : ''}
+      ${row('Soma das dobras ('+(protoOf(a.protocol).short)+')', r.sumProto, 'mm', 1, rp?.sumProto, -1)}
       ${row('Soma de todas as dobras', r.sumAll, 'mm', 1, rp?.sumAll, -1)}
       ${row('Densidade corporal', r.density, 'g/ml', 4)}
       ${r.navy!=null && r.bfSource!=='Marinha (circ.)' ? row('% Gordura (Marinha, circ.)', r.navy, '%') : ''}
@@ -785,7 +790,7 @@ function viewDetail(id){
     ${limbs?`<h2 class="sec">Circunferências — membros</h2><div class="kv">${limbs}</div>`:''}
   </div>
   <div>
-    ${folds?`<h2 class="sec">Dobras cutâneas <span class="tag">${PROTOCOLS[a.protocol||'jp7'].name}</span></h2><div class="kv">${folds}</div>`:''}
+    ${folds?`<h2 class="sec">Dobras cutâneas <span class="tag">${protoOf(a.protocol).name}</span></h2>${protoWarn(a.protocol, r)}<div class="kv">${folds}</div>`:''}
     ${bio?`<h2 class="sec">Bioimpedância</h2><div class="kv">${bio}</div>`:''}
     ${ex.evaluator?`<h2 class="sec">Avaliador(a)</h2><div class="notes">${esc(ex.evaluator)}</div>`:''}
     ${ex.notes?`<h2 class="sec">Observações</h2><div class="notes">${esc(ex.notes)}</div>`:''}
@@ -1157,7 +1162,7 @@ function viewNutri(){
 /* ---------- WIZARD ---------- */
 function newDraft(){
   const p = prof(), last = listOf(p.id).at(-1);
-  return {id:null, tid:uid(), profileId:p.id, date:today(), weight:'', height: p.height || last?.height || '', protocol: last?.protocol || 'jp7', multi:false, circ:{}, folds:{}, extra: nutriSign() ? {evaluator:nutriSign()} : {}};
+  return {id:null, tid:uid(), profileId:p.id, date:today(), weight:'', height: p.height || last?.height || '', protocol: last?.protocol || protoSuggest(ageAt(p.birth, today())), multi:false, circ:{}, folds:{}, extra: nutriSign() ? {evaluator:nutriSign()} : {}};
 }
 function wizPrev(){
   if (!draft) return null;
@@ -1169,7 +1174,7 @@ function field(key, label, unit, hint, o={}){
   const pv = wizPrev(); const pvv = pv ? num(getPath(pv, key)) : null;
   return `<label class="field ${o.req?'req':''}"><div class="f-top"><span class="f-label">${label}${o.tag||''}</span>${pvv!=null?`<span class="f-prev">anterior ${fmt(pvv)}</span>`:''}</div>
     ${hint?`<span class="f-hint">${hint}</span>`:''}
-    <div class="f-input"><input inputmode="decimal" enterkeyhint="next" data-k="${key}" value="${esc(v)}" placeholder="0,0" autocomplete="off"><em>${unit}</em></div></label>`;
+    <div class="f-input"><input inputmode="decimal" enterkeyhint="next" data-k="${key}" value="${esc(v)}" placeholder="0,0" autocomplete="off"><em>${unit}</em></div>${chk(key)}</label>`;
 }
 function pairField(c){
   const pv = wizPrev();
@@ -1179,18 +1184,37 @@ function pairField(c){
     <div class="pair">
       <div><label>Direito</label><div class="f-input"><input inputmode="decimal" enterkeyhint="next" data-k="circ.${c.k}_r" value="${esc(draft.circ?.[c.k+'_r']??'')}" placeholder="0,0" autocomplete="off"><em>cm</em></div></div>
       <div><label>Esquerdo</label><div class="f-input"><input inputmode="decimal" enterkeyhint="next" data-k="circ.${c.k}_l" value="${esc(draft.circ?.[c.k+'_l']??'')}" placeholder="0,0" autocomplete="off"><em>cm</em></div></div>
-    </div></div>`;
+    </div>${chk('circ.'+c.k)}</div>`;
 }
 function foldField(f, req){
   const pv = wizPrev(); const pvv = pv ? foldVal(pv, f.k) : null;
   const arr = Array.isArray(draft.folds?.[f.k]) ? draft.folds[f.k] : [draft.folds?.[f.k]];
-  const tag = req ? ` <span class="tag blue" style="padding:2px 8px;font-size:11px;vertical-align:2px">${PROTOCOLS[draft.protocol].short}</span>` : '';
+  const tag = req ? ` <span class="tag blue" style="padding:2px 8px;font-size:11px;vertical-align:2px">${protoOf(draft.protocol).short}</span>` : '';
   const inp = i => `<div class="f-input"><input inputmode="decimal" enterkeyhint="next" data-k="folds.${f.k}.${i}" value="${esc(arr[i]??'')}" placeholder="${draft.multi?(i+1)+'ª':'0,0'}" autocomplete="off"><em>mm</em></div>`;
   return `<div class="field ${req?'req':''}"><div class="f-top"><span class="f-label">${f.l}${tag}</span>${pvv!=null?`<span class="f-prev">anterior ${fmt(pvv)}</span>`:''}</div>
     <span class="f-hint">${f.h}</span>
     ${draft.multi ? `<div class="triple">${inp(0)}${inp(1)}${inp(2)}</div><div class="avg-line"><span>Média</span><b data-live="avg-${f.k}">${fmt(foldVal(draft,f.k))} mm</b></div>` : inp(0)}
+    ${chk('folds.'+f.k)}
   </div>`;
 }
+/* ---------- "Confere?": valores fora do esperado (src/lib/conferir.ts) ---------- */
+function wizAlerts(){
+  if (!draft) return [];
+  const p = prof(), r = calc(draft, p);
+  const all = checkAssessment(draft, { prev: wizPrev(), age: r.age, birth: p.birth,
+    otherDates: listOf(p.id).filter(a=>a.id!==state.editingId).map(a=>a.date), bfFolds: r.bfMethod==='proto' ? r.bf : null });
+  return openAlerts(all, draft._ok);
+}
+let chkCache = null;
+function chk(at){
+  const list = (chkCache || wizAlerts()).filter(a=>a.at===at);
+  if (!list.length) return '';
+  return `<div class="chk-list">${list.map(a=>`<div class="chk ${a.sev}" role="status"><span class="chk-ico">${ic('alert','sm')}</span>
+    <span class="chk-t"><b>Confere?</b> ${esc(a.msg)}</span>
+    <button type="button" class="chk-ok" data-act="chkOk" data-id="${esc(a.id)}" data-sig="${esc(a.sig)}">Está certo</button></div>`).join('')}</div>`;
+}
+const chkSig = list => list.map(a=>a.id+'='+a.sig).join(';');
+let chkShown = '';
 function stepFilled(k){
   const d = draft, p = prof();
   const cnt = arr => arr.filter(v=>num(v)!=null).length;
@@ -1199,13 +1223,51 @@ function stepFilled(k){
     case 'body': return [cnt([d.weight,d.height]),2];
     case 'trunk': return [cnt(CIRC_TRUNK.map(c=>d.circ?.[c.k])), CIRC_TRUNK.length];
     case 'limbs': return [cnt(CIRC_LIMBS.flatMap(c=>[d.circ?.[c.k+'_r'],d.circ?.[c.k+'_l']])), CIRC_LIMBS.length*2];
-    case 'folds': { const need = PROTOCOLS[d.protocol].folds(p.sex); return [need.filter(f=>foldVal(d,f)!=null).length, need.length]; }
+    case 'folds': { const need = protoOf(d.protocol).folds(p.sex); return [need.filter(f=>foldVal(d,f)!=null).length, need.length]; }
     case 'photos': { const aid = state.editingId || draft.tid; return [aid ? phOf(aid).length : 0, 4]; }
     case 'extra': return [cnt([d.extra?.bf,d.extra?.muscle,d.extra?.visceral,d.extra?.water]) + (d.extra?.notes?1:0), 5];
     default: return [0,0];
   }
 }
+/* público do paciente: diz quais referências valem (criança/adolescente/idoso) */
+function audienceCard(p, r){
+  const t = audienceNote(r, false); if (!t) return '';
+  return `<div class="aud-card aud-${r.group}">${ic('info','sm')}<span><b>${esc(GROUP_LABEL[r.group])} · ${r.age} ${r.age===1?'ano':'anos'}</b>${esc(t)}</span></div>`;
+}
+/* protocolos: primeiro os validados para a idade; os outros ficam abaixo, com a faixa de idade em destaque */
+function protoCard(k, p, r){
+  const pr = PROTOCOLS[k], ok = protoFits(k, r.age, p.sex);
+  const tags = [pr.br && '<span class="tag green">Brasileiros</span>', pr.kids && '<span class="tag blue">Infantojuvenil</span>'].filter(Boolean).join(' ');
+  return `<button class="proto ${draft.protocol===k?'on':''} ${ok?'':'out-age'}" data-act="proto" data-v="${k}" aria-pressed="${draft.protocol===k}">
+    <span class="radio"></span><span><b>${pr.name}${tags?` <span class="proto-tags">${tags}</span>`:''}</b><span>${pr.desc}<br>${pr.folds(p.sex).map(f=>FOLD_NAME[f]).join(', ')}</span>
+    <span class="proto-age">${ok?ic('check','sm'):ic('alert','sm')} ${ok?'Validado':'Validado só'} para ${protoAgeTxt(k, p.sex)}</span></span></button>`;
+}
+function protoPicker(p, r){
+  const keys = Object.keys(PROTOCOLS), fit = keys.filter(k=>protoFits(k, r.age, p.sex)), out = keys.filter(k=>!fit.includes(k));
+  const pv = wizPrev(), sw = pv && pv.protocol && pv.protocol!==draft.protocol;
+  const hint = sw ? `<p class="proto-warn">${ic('swap','sm')}<span>A avaliação anterior usou <b>${esc(protoOf(pv.protocol).name)}</b>. Trocar de protocolo muda a base de comparação do % de gordura.</span></p>` : '';
+  return `${hint}<div class="proto-grid">${fit.map(k=>protoCard(k,p,r)).join('')}</div>
+    ${out.length ? `<h3 class="proto-sub">${fit.length ? `Fora da faixa de idade de ${esc(firstName(p.name))}` : 'Nenhum protocolo foi validado para esta idade'}</h3><div class="proto-grid">${out.map(k=>protoCard(k,p,r)).join('')}</div>` : ''}
+    ${matPicker(p, r)}`;
+}
+/* Slaughter tríceps + subescapular em meninos: a constante depende da maturação sexual (e da etnia, na equação original) */
+function matPicker(p, r){
+  if (draft.protocol!=='sl_ts' || p.sex!=='M') return '';
+  const set = num(draft.extra?.mat), cur = set || matGuess(r.age, p.sex), afro = num(draft.extra?.afro)===1;
+  return `<div class="fields two mat-fields">
+    <div class="field"><div class="f-top"><span class="f-label">Maturação sexual</span>${set?'':'<span class="f-prev">sugerida pela idade</span>'}</div>
+      <span class="f-hint">Pré-púbere = Tanner 1 · Púbere = 2 e 3 · Pós-púbere = 4 e 5. Só pesa quando a soma das 2 dobras é até 35 mm.</span>
+      <div class="seg full">${MAT_L.map((l,i)=>`<button type="button" class="${cur===i+1?'on':''}" data-act="mat" data-v="${i+1}">${l}</button>`).join('')}</div></div>
+    <div class="field"><div class="f-top"><span class="f-label">Constante da equação</span></div>
+      <span class="f-hint">A equação original tem uma constante para meninos negros e outra para os demais.</span>
+      <div class="seg full"><button type="button" class="${afro?'':'on'}" data-act="afro" data-v="0">Padrão</button><button type="button" class="${afro?'on':''}" data-act="afro" data-v="1">Negro</button></div></div>
+  </div>`;
+}
 function viewWizard(){
+  chkCache = wizAlerts(); chkShown = chkSig(chkCache);
+  try { return viewWizardIn(); } finally { chkCache = null; }
+}
+function viewWizardIn(){
   const p = prof(), s = STEPS[state.step], r = calc(draft, p);
   let body = '';
   const intro = `<div class="step-intro"><span class="s-ico" style="background:var(--${s.c})">${ic(s.i)}</span><div><h2>${s.t}</h2><p>${s.d}</p></div></div>`;
@@ -1218,22 +1280,21 @@ function viewWizard(){
         ${state.editingId ? '' : FS.preForWizard(p)}
         <div class="fields two">
           <label class="field"><div class="f-top"><span class="f-label">Data da avaliação</span></div>
-            <div class="f-input text"><input type="date" data-k="date" value="${esc(draft.date)}" max="${today()}"></div></label>
+            <div class="f-input text"><input type="date" data-k="date" value="${esc(draft.date)}" max="${today()}"></div>${chk('date')}</label>
           <label class="field"><div class="f-top"><span class="f-label">Avaliador(a)</span><span class="f-prev">opcional</span></div>
             <div class="f-input text"><input data-k="extra.evaluator" value="${esc(draft.extra?.evaluator??'')}" placeholder="Nome do nutricionista"></div></label>
         </div>
+        ${audienceCard(p, r)}
         <h2 class="sec">Protocolo de dobras</h2>
-        <div class="proto-grid">${Object.entries(PROTOCOLS).map(([k,pr])=>`<button class="proto ${draft.protocol===k?'on':''}" data-act="proto" data-v="${k}">
-          <span class="radio"></span><span><b>${pr.name}</b><span>${pr.desc}<br>${pr.folds(p.sex).map(f=>FOLD_NAME[f]).join(', ')}</span></span></button>`).join('')}</div>`;
+        ${protoPicker(p, r)}`;
       break;
     case 'body':
       body = `<div class="fields two">${field('weight','Peso','kg','Com roupas leves, sem calçados.')}${field('height','Altura','cm','Em pé, descalço, olhando para frente.')}</div>
         <div class="card yellow" style="margin-top:12px">
-          <div class="card-head"><span class="chip-ico">${ic('target','sm')}</span><span class="label">Índice de Massa Corporal</span></div>
+          <div class="card-head"><span class="chip-ico">${ic('target','sm')}</span><span class="label">${bmiTitle(r)}</span></div>
           <div class="big"><span data-live="bmi">${fmt(r.bmi)}</span><small>kg/m²</small></div>
-          <div class="sub" data-live="bmiClass">${esc(bmiClass(r.bmi))}</div>
-          <div class="bmi-scale"><i data-live="bmiPos" style="left:${bmiPos(r.bmi)}%"></i></div>
-          <div class="bmi-legend"><span>15</span><span>18,5</span><span>25</span><span>30</span><span>35</span><span>40</span></div>
+          <div class="sub" data-live="bmiClass">${esc(bmiLive(r))}</div>
+          ${bmiScale(r)}
         </div>`;
       break;
     case 'trunk':
@@ -1244,11 +1305,11 @@ function viewWizard(){
       body = `<div class="fields two">${CIRC_LIMBS.map(pairField).join('')}</div>`;
       break;
     case 'folds': {
-      const need = PROTOCOLS[draft.protocol].folds(p.sex);
+      const need = protoOf(draft.protocol).folds(p.sex);
       body = `<div class="card yellow live">
-          <div class="lv"><small>Protocolo</small><b style="font-size:18px">${PROTOCOLS[draft.protocol].short} <span class="small" data-live="protoHave">${r.protoHave}/${r.protoNeed}</span></b></div>
+          <div class="lv"><small>Protocolo</small><b style="font-size:18px">${protoOf(draft.protocol).short} <span class="small" data-live="protoHave">${r.protoHave}/${r.protoNeed}</span></b></div>
           <div class="lv"><small>Soma</small><b><span data-live="sumProto">${fmt(r.sumProto)}</span><small>mm</small></b></div>
-          <div class="lv"><small>% Gordura</small><b><span data-live="bfProto">${r.bfSource===PROTOCOLS[draft.protocol].short?fmt(r.bf):'—'}</span><small>%</small></b></div></div>
+          <div class="lv"><small>% Gordura</small><b><span data-live="bfProto">${r.bfMethod==='proto'?fmt(r.bf):'—'}</span><small>%</small></b></div></div>
         <button class="toggle" data-act="multi"><span><b style="font-weight:600">Medir 3 vezes cada dobra</b><br><span class="small muted">Usa a média das leituras — mais precisão</span></span><span class="switch ${draft.multi?'on':''}"></span></button>
         <div class="fields two">${FOLDS.filter(f=>need.includes(f.k)).map(f=>foldField(f,true)).join('')}</div>
         <h2 class="sec">Outras dobras <span class="tag">opcional</span></h2>
@@ -1279,13 +1340,17 @@ function viewWizard(){
       body = `<div class="dash detail-dash">
           <div class="card blue span2 span2-d hero" style="min-height:170px"><div class="left">
             <div class="card-head"><span class="chip-ico">${ic('flame')}</span><span class="label">Gordura corporal<br><span class="small">${esc(r.bfSource||'sem dados suficientes')}</span></span></div>
-            <div><div class="big">${fmt(r.bf)}<small>%</small></div><div class="sub">${esc(bfClass(r.bf,p.sex))} ${rp?deltaChip(r.bf,rp.bf,-1,'pp'):''}</div></div></div>
+            <div><div class="big">${fmt(r.bf)}<small>%</small></div><div class="sub">${esc(bfClass(r.bf,r))} ${rp?deltaChip(r.bf,rp.bf,-1,'pp'):''}</div></div></div>
             <div class="ring-wrap">${ring(r.bf,40)}<div class="center"><div class="inner"><b>${fmt(num(draft.weight))}</b><span>kg</span></div></div></div></div>
           <div class="card green"><div class="card-head"><span class="label">Massa magra</span></div><div class="mid">${fmt(r.leanMass)}<small>kg</small></div><div class="sub">${rp?deltaChip(r.leanMass,rp.leanMass,1,'kg'):''}</div></div>
           <div class="card yellow"><div class="card-head"><span class="label">Massa gorda</span></div><div class="mid">${fmt(r.fatMass)}<small>kg</small></div><div class="sub">${rp?deltaChip(r.fatMass,rp.fatMass,-1,'kg'):''}</div></div>
-          <div class="card"><div class="card-head"><span class="label">IMC</span></div><div class="mid">${fmt(r.bmi)}</div><div class="sub small">${esc(bmiClass(r.bmi))}</div></div>
-          <div class="card"><div class="card-head"><span class="label">RCQ</span></div><div class="mid">${fmt(r.whr,2)}</div><div class="sub small">${esc(whrRisk(r.whr,p.sex))}</div></div>
+          <div class="card"><div class="card-head"><span class="label">IMC</span></div><div class="mid">${fmt(r.bmi)}</div><div class="sub small">${bmiSub(r)}</div></div>
+          <div class="card"><div class="card-head"><span class="label">RCQ</span></div><div class="mid">${fmt(r.whr,2)}</div><div class="sub small">${esc(whrRisk(r.whr,r))}</div></div>
         </div>
+        ${chkCache.length ? `<h2 class="sec">Confira antes de salvar <span class="tag yellow">${chkCache.length}</span></h2>
+        <div class="chk-review">${chkCache.map(a=>`<div class="chk ${a.sev}"><span class="chk-ico">${ic('alert','sm')}</span>
+          <span class="chk-t"><b>${esc(a.label)}</b> ${esc(a.msg)}</span>
+          <span class="chk-acts"><button type="button" data-act="chkGo" data-step="${a.step}" data-at="${esc(a.at)}">Corrigir</button><button type="button" class="chk-ok" data-act="chkOk" data-id="${esc(a.id)}" data-sig="${esc(a.sig)}">Está certo</button></span></div>`).join('')}</div>` : ''}
         <h2 class="sec">O que foi preenchido</h2>
         <div class="check-list">${STEPS.slice(1,7).map((st,i)=>{ const [f,t] = stepFilled(st.k); const ok = (st.k==='extra'||st.k==='photos') ? f>0 : f===t; return `<div class="check-row"><span class="ok ${ok?'yes':''}">${ok?ic('check','sm'):ic(st.i,'sm')}</span><span class="grow"><b>${st.l}</b><span class="small muted">${f} de ${t} ${st.k==='folds'?'dobras do protocolo':st.k==='photos'?'fotos (opcional)':'campos'}</span></span><button data-act="step" data-i="${i+1}">Editar</button></div>`; }).join('')}</div>
         ${!num(draft.weight)?`<p class="small" style="color:var(--red-ink);margin-top:12px">Informe pelo menos o peso para salvar.</p>`:''}`;
@@ -1297,7 +1362,7 @@ function viewWizard(){
       <div class="title-block"><small>Passo ${state.step+1} de ${STEPS.length}${state.editingId?' · editando':''}</small><b>${state.editingId?'Editar avaliação':'Nova avaliação'}</b></div>
       <div class="grow"></div><span class="tag yellow">${fmtDate(draft.date,{day:'2-digit',month:'short'})}</span></header>
     <aside class="wiz-side">
-    <div class="steps">${STEPS.map((st,i)=>{ const [f,t] = stepFilled(st.k); const done = f>0 && (i<state.step || f===t) && i!==state.step; return `<button class="step-chip ${i===state.step?'on':''} ${done?'done':''}" data-act="step" data-i="${i}"><span class="n">${done&&i!==state.step?ic('check','sm'):i+1}</span>${st.l}</button>`; }).join('')}</div>
+    <div class="steps">${STEPS.map((st,i)=>{ const [f,t] = stepFilled(st.k); const done = f>0 && (i<state.step || f===t) && i!==state.step; const nw = chkCache.filter(a=>a.step===st.k).length; return `<button class="step-chip ${i===state.step?'on':''} ${done?'done':''} ${nw?'has-chk':''}" data-act="step" data-i="${i}"${nw?` title="${nw} ${nw===1?'valor para conferir':'valores para conferir'}"`:''}><span class="n">${done&&i!==state.step?ic('check','sm'):i+1}</span>${st.l}${nw?`<i class="chk-dot" aria-label="${nw} ${nw===1?'valor para conferir':'valores para conferir'}"></i>`:''}</button>`; }).join('')}</div>
     <div class="progress"><span style="width:${pct}%"></span></div>
     <div class="wiz-bar"><div class="in">
       ${state.step>0?`<button class="btn ghost" data-act="prevStep">${ic('back')} <span>Voltar</span></button>`:''}
@@ -1310,17 +1375,36 @@ function viewWizard(){
     <section class="step-view" data-key="step-${state.step}" data-dir="${state.stepDir||'fwd'}">${intro}${body}</section>
   </div>`;
 }
-function bmiPos(b){ if (b==null) return 0; return Math.max(0, Math.min(100, (b-15)/(40-15)*100)); }
+/* IMC: classificação do público (adulto, idoso ou IMC para idade com escore-z) */
+function bmiSub(r){ const i = bmiInfo(r.bmi, r); if (!i) return ''; return esc(i.cls) + (i.z!=null ? ` <span class="muted">· z ${i.z>0?'+':''}${fmt(i.z,1)}</span>` : ''); }
+function clsRow(l, i){ return i ? `<div class="kv-row"><span class="k muted small">${l}</span><span></span><span class="v small tone-${i.tone}">${esc(i.cls)}</span></div>` + (i.note ? `<p class="small muted kv-note">${esc(i.note)}</p>` : '') : ''; }
+function protoWarn(k, r){ return protoFits(k, r.age, r.sex) ? '' : `<p class="proto-warn">${ic('info','sm')}<span>${esc(protoOf(k).name)} foi validado para ${protoAgeTxt(k, r.sex)}. Com ${r.age} anos o resultado é uma estimativa menos precisa.</span></p>`; }
+/* escala do IMC do público: adulto 15–40, idoso (Lipschitz) e criança/adolescente com as faixas em kg/m² para a idade */
+const TONE_BG = {neu:['var(--blue-2)'], good:['oklch(0.877 0.093 129)'], warn:['oklch(0.908 0.143 102)','oklch(0.93 0.1 95)'], bad:['oklch(0.838 0.083 49)','oklch(0.785 0.099 20)','oklch(0.74 0.1 15)']};
+function bmiRange(r){ const i = bmiInfo(r.bmi ?? 22, r); return i?.scale || {min:15,max:40,bands:[]}; }
+function bmiPos(b, r){ if (b==null) return 0; const s = r ? bmiRange(r) : {min:15,max:40}; return Math.max(0, Math.min(100, (b-s.min)/(s.max-s.min)*100)); }
+function bmiTitle(r){ const g = r.group; return g==='child'||g==='teen' ? 'IMC para idade · OMS 2007' : g==='elder' ? 'IMC · referência para idosos' : 'Índice de Massa Corporal'; }
+function bmiLive(r){ const i = bmiInfo(r.bmi, r); if (!i) return ''; return i.cls + (i.z!=null ? ` · escore-z ${i.z>0?'+':''}${fmt(i.z,1)} (percentil ${fmt(i.pct, i.pct<1||i.pct>99?1:0)})` : ''); }
+function bmiScale(r){
+  const s = bmiRange(r); if (!s.bands.length) return '';
+  const pos = v => Math.max(0, Math.min(100, (v-s.min)/(s.max-s.min)*100));
+  let from = s.min, run = 0, lt = ''; const stops = [], ticks = [];
+  for (const b of s.bands){ if (from >= s.max) break; run = b.tone===lt ? run+1 : 0; lt = b.tone; const pal = TONE_BG[b.tone], c = pal[Math.min(run, pal.length-1)];
+    const to = Math.min(b.to, s.max); stops.push(`${c} ${pos(from).toFixed(1)}% ${pos(to).toFixed(1)}%`); if (b.to < s.max) ticks.push(b.to); from = b.to; }
+  const step = (s.max - s.min) / 25;
+  return `<div class="bmi-scale" style="background:linear-gradient(90deg,${stops.join(',')})"><i data-live="bmiPos" style="left:${bmiPos(r.bmi, r)}%"></i></div>
+    <div class="bmi-legend bmi-ticks">${ticks.map(t=>`<span style="left:${pos(t).toFixed(1)}%">${fmt(t, Math.abs(t-Math.round(t))<step/10?0:1)}</span>`).join('')}</div>`;
+}
 
 function updateLive(){
   const p = prof(), r = calc(draft, p);
   const set = (k, v) => document.querySelectorAll(`[data-live="${k}"]`).forEach(el => { v = String(v); if (el.textContent === v) return; el.textContent = v; tick(el); });
   set('age', r.age ?? '—');
-  set('bmi', fmt(r.bmi)); set('bmiClass', bmiClass(r.bmi));
-  const bp = document.querySelector('[data-live="bmiPos"]'); if (bp) bp.style.left = bmiPos(r.bmi)+'%';
+  set('bmi', fmt(r.bmi)); set('bmiClass', bmiLive(r));
+  const bp = document.querySelector('[data-live="bmiPos"]'); if (bp) bp.style.left = bmiPos(r.bmi, r)+'%';
   set('whr', fmt(r.whr,2)); set('whtr', fmt(r.whtr,2)); set('navy', fmt(r.navy));
   set('protoHave', `${r.protoHave}/${r.protoNeed}`); set('sumProto', fmt(r.sumProto));
-  set('bfProto', r.bfSource===PROTOCOLS[draft.protocol].short ? fmt(r.bf) : '—');
+  set('bfProto', r.bfMethod==='proto' ? fmt(r.bf) : '—');
   FOLDS.forEach(f => set('avg-'+f.k, fmt(foldVal(draft,f.k))+' mm'));
   // chips de passo
   document.querySelectorAll('.step-chip').forEach((el,i)=>{
@@ -1647,15 +1731,36 @@ const ACT = {
   nextStep: async () => { state.stepDir = 'fwd'; state.step = Math.min(STEPS.length-1, state.step+1); saveDraft(); render(); window.scrollTo({top:0,behavior:'smooth'}); },
   prevStep: async () => { state.stepDir = 'back'; state.step = Math.max(0, state.step-1); saveDraft(); render(); window.scrollTo({top:0,behavior:'smooth'}); },
   proto: async b => { draft.protocol = b.dataset.v; saveDraft(); render(); },
+  mat: async b => { draft.extra ||= {}; draft.extra.mat = +b.dataset.v; saveDraft(); render(); },
+  afro: async b => { draft.extra ||= {}; draft.extra.afro = +b.dataset.v; saveDraft(); render(); },
   multi: async () => { draft.multi = !draft.multi; saveDraft(); render(); },
   wizExit: async () => sheet('Sair da avaliação?', 'O que você já preencheu fica salvo como rascunho para continuar depois.', [
     {label:'Sair e manter rascunho', cls:'dark', fn:async ()=>{ saveDraft(); go('home'); }},
     {label:'Descartar alterações', cls:'danger', fn:async ()=>{ if (draft && !state.editingId && draft.tid) PH?.removeAssessment(draft.tid); draft=null; state.editingId=null; saveDraft(); go('home'); toast('Rascunho descartado'); }},
     {label:'Continuar preenchendo'}]),
-  saveA: async () => {
+  chkOk: async b => { draft._ok ||= {}; draft._ok[b.dataset.id] = b.dataset.sig; saveDraft(); render(); },
+  chkGo: async b => {
+    const i = STEPS.findIndex(s=>s.k===b.dataset.step); if (i<0) return;
+    state.stepDir = i<state.step ? 'back' : 'fwd'; state.step = i; saveDraft(); render();
+    const at = b.dataset.at;
+    setTimeout(()=>{ const el = app.querySelector(`[data-k="${at}"]`) || app.querySelector(`[data-k^="${at}_"]`) || app.querySelector(`[data-k^="${at}."]`);
+      if (el){ el.scrollIntoView({block:'center',behavior:'smooth'}); el.focus({preventScroll:true}); el.select?.(); } }, 260);
+  },
+  saveA: async (b, e, force) => {
     if (!num(draft.weight) || num(draft.weight)<=0){ toast('Informe o peso'); return; }
     if(draft.date>today()) return toast("A data não pode ser futura");
-    const {_step, _editing, _savedAt, tid, ...data} = draft;
+    // valores fora do esperado ainda não conferidos: pergunta antes de salvar
+    const open = force ? [] : wizAlerts();
+    if (open.length){
+      const names = [...new Set(open.map(a=>a.label))];
+      return sheet(open.length===1 ? 'Um valor está fora do esperado' : `${open.length} valores estão fora do esperado`,
+        `${names.slice(0,4).join(', ')}${names.length>4?` e mais ${names.length-4}`:''}. Pode ser erro de digitação — confira antes de salvar.`, [
+        {label:'Revisar', cls:'dark', fn:async ()=>{ app.querySelector('.chk-review')?.scrollIntoView({block:'center',behavior:'smooth'}); }},
+        {label:'Está tudo certo, salvar', fn:async ()=>{ draft._ok ||= {}; open.forEach(a=>{ draft._ok[a.id] = a.sig; }); saveDraft();
+          try { await ACT.saveA(b, e, true); } catch (e2) { console.error('[ação saveA]', e2); toast(motivo(e2,'Não foi possível salvar. Tente novamente.')); } }},
+        {label:'Cancelar'}]);
+    }
+    const {_step, _editing, _savedAt, _ok, tid, ...data} = draft;
     const isNew = !state.editingId;
     if (state.editingId){
       const i = db.assessments.findIndex(a=>a.id===state.editingId);
@@ -1783,7 +1888,7 @@ const ACT = {
   csv: async b => {
     const p = db.profiles.find(x=>x.id===b?.dataset?.id) || prof(), list = listOf(p.id);
     if (!list.length) return toast('Nenhuma avaliação para exportar');
-    const cols = [{l:'Data',get:a=>a.date},{l:'Protocolo',get:a=>PROTOCOLS[a.protocol||'jp7'].short},{l:'Altura (cm)',get:a=>num(a.height)}, ...METRICS.map(m=>({l:m.l+(m.u?` (${m.u})`:''), get:(a,r)=>m.get(a,r), d:m.d??2}))];
+    const cols = [{l:'Data',get:a=>a.date},{l:'Protocolo',get:a=>protoOf(a.protocol).short},{l:'Altura (cm)',get:a=>num(a.height)}, ...METRICS.map(m=>({l:m.l+(m.u?` (${m.u})`:''), get:(a,r)=>m.get(a,r), d:m.d??2}))];
     const cell = v => v==null ? '' : typeof v==='number' ? v.toFixed(2).replace('.',',') : `"${String(v).replace(/"/g,'""')}"`;
     const rows = [cols.map(c=>cell(c.l)).join(';'), ...list.map(a=>{ const r = calc(a,p); return cols.map(c=>cell(c.get(a,r))).join(';'); })];
     download(`avaliacoes-${firstName(p.name).toLowerCase()}-${today()}.csv`, '﻿'+rows.join('\n'), 'text/csv;charset=utf-8'); toast('Planilha exportada');
@@ -1825,6 +1930,8 @@ const change = e => {
   if (c==='cmpA' || c==='cmpB'){ state[c] = e.target.value; render(); }
   if (c==='phA' || c==='phB'){ state[c] = e.target.value; render(); }
   if (e.target.dataset?.k==='date' && state.route==='wizard') render();
+  // ao terminar de digitar um campo (sair dele), mostra ou tira o "Confere?" daquele valor
+  else if (e.target.dataset?.k && draft && state.route==='wizard' && chkSig(wizAlerts())!==chkShown) render();
 };
 // Enter avança para o próximo campo
 // comparativo de fotos: arrastar sobre a foto move o divisor (Deslizar) ou a transparência (Sobrepor)

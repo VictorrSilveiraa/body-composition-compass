@@ -113,9 +113,11 @@ async function loadPortal(code: string): Promise<PortalResult> {
       const a = row as Record<string, unknown>;
       const up = String(a['updated_at'] ?? a['created_at'] ?? ''); if (up && (!updatedAt || up > updatedAt)) updatedAt = up;
       const bio = numObj(a['bioimpedancia']);
+      // protocolo novo gravado antes de o banco aceitá-lo fica junto das dobras (ver cloud-data.ts)
+      const raw = { ...((a['dobras'] ?? {}) as Record<string, unknown>) }, tag = raw['_protocolo']; delete raw['_protocolo'];
       return {
-        id: String(a['id']), date: String(a['data']), weight: n(a['peso_kg']) ?? 0, height: n(a['altura_cm']), protocol: String(a['protocolo'] ?? 'jp7'), multi: !!a['medir_3x'],
-        circ: numObj(a['circunferencias']), folds: foldsOf(a['dobras']),
+        id: String(a['id']), date: String(a['data']), weight: n(a['peso_kg']) ?? 0, height: n(a['altura_cm']), protocol: typeof tag === 'string' ? tag : String(a['protocolo'] ?? 'jp7'), multi: !!a['medir_3x'],
+        circ: numObj(a['circunferencias']), folds: foldsOf(raw),
         extra: { ...bio, evaluator: String(a['avaliador'] ?? '') || undefined, notes: shareNotes ? String(a['observacoes'] ?? '') || undefined : undefined },
       };
     });

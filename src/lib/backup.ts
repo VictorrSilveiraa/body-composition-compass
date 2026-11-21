@@ -2,7 +2,7 @@ import type { LegacyAssessment, LegacyDB, LegacyPerson, Nutri } from './cloud-da
 import type { DietRecord } from './diets';
 import type { Answers, FormKind } from './forms';
 import type { Pose } from './poses';
-import { num } from './calculos.js';
+import { num, PROTO_KEYS } from './calculos.js';
 
 /*
  * BACKUP COMPLETO (arquivo .json)
@@ -86,7 +86,7 @@ export function readBackup(raw: unknown): ReadResult {
   const assessments: LegacyAssessment[] = []; let badA = 0;
   for (const a of d['assessments'] as LegacyAssessment[]) {
     if (!a || !pid.has(a.profileId) || !DATE.test(String(a.date ?? '')) || !(Number(num(a.weight)) > 0)) { badA++; continue; }
-    assessments.push({ ...a, protocol: ['jp7', 'jp3', 'dw'].includes(a.protocol) ? a.protocol : 'jp7', multi: !!a.multi, circ: a.circ ?? {}, folds: a.folds ?? {}, extra: a.extra ?? {} });
+    assessments.push({ ...a, protocol: (PROTO_KEYS as string[]).includes(a.protocol) ? a.protocol : 'jp7', multi: !!a.multi, circ: a.circ ?? {}, folds: a.folds ?? {}, extra: a.extra ?? {} });
   }
   if (badA) warnings.push(`${badA} ${badA === 1 ? 'avaliação incompleta foi ignorada' : 'avaliações incompletas foram ignoradas'} (sem paciente, data ou peso).`);
   const aid = new Set(assessments.map((a) => a.id));

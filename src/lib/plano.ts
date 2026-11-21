@@ -95,7 +95,7 @@ export function goalStatus(g: Goal, series: { date: string; v: number }[], now =
    GASTO ENERGÉTICO
    ========================================================= */
 export const FORMULAS: { k: FormulaKey; l: string; d: string; lean?: boolean }[] = [
-  { k: 'auto', l: 'Automática', d: 'Katch-McArdle quando há massa magra; senão Mifflin-St Jeor' },
+  { k: 'auto', l: 'Automática', d: 'Katch-McArdle quando há massa magra; senão Mifflin-St Jeor. Menores de 18 anos: FAO/OMS' },
   { k: 'mifflin', l: 'Mifflin-St Jeor', d: 'Peso, altura, idade e sexo · a mais usada em adultos' },
   { k: 'harris', l: 'Harris-Benedict', d: 'Versão revisada (Roza & Shizgal, 1984)' },
   { k: 'katch', l: 'Katch-McArdle', d: 'Pela massa magra · boa quando o % de gordura é confiável', lean: true },
@@ -148,7 +148,9 @@ export type Energy = {
 export function energyOf(cfgIn: Partial<EnergyCfg> | null | undefined, x: EnergyIn): Energy | null {
   const cfg = energyCfg(cfgIn);
   const all = FORMULAS.filter((f) => f.k !== 'auto').map((f) => ({ k: f.k as Exclude<FormulaKey, 'auto'>, l: f.l, v: bmrBy(f.k as Exclude<FormulaKey, 'auto'>, x) }));
-  const want: Exclude<FormulaKey, 'auto'> = cfg.formula === 'auto' ? (x.lean ? 'katch' : 'mifflin') : cfg.formula;
+  const minor = x.age != null && x.age < 18;
+  // crianças e adolescentes: Mifflin, Harris, Katch e Cunningham foram feitas com adultos
+  const want: Exclude<FormulaKey, 'auto'> = cfg.formula === 'auto' ? (minor ? 'fao' : x.lean ? 'katch' : 'mifflin') : cfg.formula;
   let k = want, bmr = bmrBy(k, x), fallback = false;
   if (bmr == null && want !== 'mifflin') { k = 'mifflin'; bmr = bmrBy(k, x); fallback = cfg.formula !== 'auto'; }
   if (bmr == null) { const any = all.find((f) => f.v != null); if (!any) return null; k = any.k; bmr = any.v!; fallback = true; }
@@ -156,12 +158,14 @@ export function energyOf(cfgIn: Partial<EnergyCfg> | null | undefined, x: Energy
   const tdee = bmr * cfg.activity, target = Math.max(0, tdee + cfg.adjust);
   const warn: string[] = [];
   if (fallback) warn.push(`Sem massa magra nesta avaliação: o basal usa ${FORMULAS.find((f) => f.k === k)!.l}.`);
+  if (minor && k !== 'fao') warn.push(`${FORMULAS.find((f) => f.k === k)!.l} foi feita com adultos. Para menores de 18 anos prefira FAO/OMS.`);
+  if (minor) warn.push('Em crianças e adolescentes, some a energia do crescimento e confira com as DRIs (EER).');
   const pg = cfg.protein * w, fg = cfg.fat * w;
   let cg = (target - pg * 4 - fg * 9) / 4;
   if (cg < 0) { warn.push('Proteína e gordura já passam da meta calórica: reduza uma delas.'); cg = 0; }
   if (target < bmr - 1) warn.push('A meta calórica fica abaixo do metabolismo basal.');
   const floor = x.sex === 'F' ? 1200 : 1500;
-  if (target < floor) warn.push(`Abaixo do mínimo usual para ${x.sex === 'F' ? 'mulheres' : 'homens'} adultos (${floor.toLocaleString('pt-BR')} kcal).`);
+  if (!minor && target < floor) warn.push(`Abaixo do mínimo usual para ${x.sex === 'F' ? 'mulheres' : 'homens'} adultos (${floor.toLocaleString('pt-BR')} kcal).`);
   const tot = Math.max(1, pg * 4 + fg * 9 + cg * 4);
   const mk = (g: number, k9: number): Macro => ({ g, kcal: g * k9, pct: (g * k9) / tot, gkg: w ? g / w : 0 });
   return { formula: k, label: FORMULAS.find((f) => f.k === k)!.l, fallback, bmr, activity: cfg.activity, tdee, adjust: cfg.adjust, target, macros: { p: mk(pg, 4), f: mk(fg, 9), c: mk(cg, 4) }, warn, all };

@@ -2,7 +2,7 @@
  * Relatório A4 da avaliação (vira PDF pelo "Salvar como PDF" do navegador).
  * Montado só na hora de imprimir, fora da tela do app, com a mesma estética do site.
  */
-import {num,fmt,fmtDate,calc,bmiClass,bfClass,whrRisk,PROTOCOLS,FOLDS,CIRC_TRUNK,CIRC_LIMBS,foldVal,esc,initials,today,GROUPS} from './calculos.js';
+import {num,fmt,fmtDate,calc,bmiClass,bfClass,whrRisk,bmiInfo,bfInfo,whrInfo,whtrInfo,calfInfo,audienceNote,protoOf,protoFits,protoAgeTxt,PROTOCOLS,FOLDS,CIRC_TRUNK,CIRC_LIMBS,foldVal,esc,initials,today,GROUPS} from './calculos.js';
 import {goalsStatus,GOAL_KINDS,activityLabel,adjustLabel} from './plano';
 import {answerText,preAlerts} from './forms';
 
@@ -20,8 +20,8 @@ const proLine = () => { const n = CTX.nutri || {}; return [n.name, n.crn].filter
 const extraFacts = (withReturn = true) => [CTX.goal && ['Objetivo', esc(CTX.goal)],
   withReturn && CTX.nextReturn && CTX.nextReturn >= today() && ['Próximo retorno', fmtDate(CTX.nextReturn,{day:'2-digit',month:'short',year:'numeric'})]].filter(Boolean);
 /* método que de fato calculou o % de gordura (sem dobras, o protocolo salvo não foi usado) */
-const methodName = (a, r) => { const pr = PROTOCOLS[a.protocol||'jp7'];
-  return !r.bfSource || ['JP7','JP3','DW'].includes(r.bfSource) ? pr.name : r.bfSource==='Bioimpedância' ? 'Bioimpedância' : 'Circunferências (Marinha)'; };
+const methodName = (a, r) => { const pr = protoOf(a.protocol);
+  return !r.bfSource || r.bfMethod==='proto' ? pr.name : r.bfSource==='Bioimpedância' ? 'Bioimpedância' : 'Circunferências (Marinha)'; };
 /* metabolismo basal: com o gasto energético configurado vale a fórmula escolhida pelo nutricionista (a mesma em todo o documento) */
 const bmrOf = (a, r) => { const e = CTX.energy ? CTX.energy(a) : null; return e ? e.bmr : r.bmr; };
 /** fotos de uma avaliação (as 4 poses) */
@@ -121,7 +121,18 @@ function miniChart(pts, color, d=1, unit=''){
   </svg>`;
 }
 
-const BF_REF = { F:[13,20,24,31], M:[5,13,17,24] };
+/* régua a partir da referência do público (publico.ts): cor pela leitura; faixas seguidas com a mesma leitura escurecem */
+const TONE_C = { neu:['oklch(0.858 0.055 214)'], good:['oklch(0.877 0.093 129)','oklch(0.919 0.065 128)'], warn:['oklch(0.908 0.143 102)','oklch(0.93 0.1 95)'], bad:['oklch(0.838 0.083 49)','oklch(0.785 0.099 20)','oklch(0.74 0.1 15)'] };
+function infoScale(value, info){
+  if (!info?.scale || value==null) return '';
+  const {min, max, bands} = info.scale; let run = 0, lastTone = '';
+  const out = []; let from = min;
+  for (const b of bands){ if (from >= max) break; run = b.tone===lastTone ? run+1 : 0; lastTone = b.tone; const pal = TONE_C[b.tone]; out.push([isFinite(b.to) ? Math.round(b.to*10)/10 : 999, pal[Math.min(run, pal.length-1)], b.short]); from = b.to; }
+  return scale(value, min, max, out);
+}
+/* fonte da classificação, para a metodologia */
+const refLine = r => { const b = bmiInfo(r.bmi, r), f = bfInfo(r.bf, r);
+  return `Classificação de % de gordura segundo ${f?.ref.split(' · ')[0] ?? (r.age!=null && r.age<18 ? 'Lohman (1987)' : 'o American Council on Exercise (ACE)')}; IMC segundo ${b ? (b.ref.startsWith('OMS 2007') ? 'a OMS 2007 (IMC para idade, escore-z, pontos de corte do SISVAN)' : b.ref.startsWith('Lipschitz') ? 'Lipschitz (1994), indicado para idosos' : 'a OMS') : 'a OMS'}.`; };
 
 /** Páginas de UMA avaliação. o.summary = só a 1ª página (resumo); o.guide/o.foot = incluir glossário/rodapé. */
 export function buildReport({a, p, list}, o = {}){
@@ -130,12 +141,12 @@ export function buildReport({a, p, list}, o = {}){
   const idx = list.findIndex(x=>x.id===a.id);
   const prev = idx > 0 ? list[idx-1] : null;
   const rp = prev ? calc(prev, p) : null;
-  const pr = PROTOCOLS[a.protocol||'jp7'];
+  const pr = protoOf(a.protocol);
   const need = pr.folds(sex);
   const c = a.circ || {}, pc = prev?.circ || {};
   const ex = a.extra || {};
   const h = num(a.height) ?? num(p.height);
-  const t = BF_REF[sex];
+  const iBmi = bmiInfo(r.bmi, r), iBf = bfInfo(r.bf, r), iWhr = whrInfo(r.whr, r), iWhtr = whtrInfo(r.whtr, r), iCalf = calfInfo(r.calf, r);
   const isLast = idx === list.length - 1;
 
   /* ---------- cabeçalho e identificação ---------- */
@@ -165,8 +176,8 @@ export function buildReport({a, p, list}, o = {}){
       <div class="rp-hero-l">
         <div class="rp-label">${ic('flame')} Gordura corporal</div>
         <div class="rp-big">${fmt(r.bf)}<small>%</small></div>
-        <div class="rp-tags">${r.bf!=null?`<span class="rp-tag">${esc(bfClass(r.bf,sex))}</span>`:''}${rp?delta(r.bf,rp.bf,-1,1,'pp'):''}</div>
-        <small class="rp-src">${r.bfSource ? 'Método: '+esc(r.bfSource==='JP7'||r.bfSource==='JP3'||r.bfSource==='DW'?pr.name:r.bfSource) : 'Sem dados suficientes para calcular'}</small>
+        <div class="rp-tags">${r.bf!=null?`<span class="rp-tag">${esc(bfClass(r.bf,r))}</span>`:''}${rp?delta(r.bf,rp.bf,-1,1,'pp'):''}</div>
+        <small class="rp-src">${r.bfSource ? 'Método: '+esc(r.bfMethod==='proto'?pr.name:r.bfSource) : 'Sem dados suficientes para calcular'}</small>
       </div>
       <div class="rp-ring">${ring(r.bf, 40, 'oklch(0.838 0.083 49)')}<div class="rp-ring-c"><b>${r.leanMass!=null?fmt(r.leanMass):fmt(r.bmi)}</b><span>${r.leanMass!=null?'kg magra':'IMC'}</span></div></div>
     </div>
@@ -187,14 +198,13 @@ export function buildReport({a, p, list}, o = {}){
 
   /* ---------- indicadores com referência ---------- */
   const st = (txt, cls) => `<span class="rp-status ${cls}">${esc(txt)}</span>`;
-  const bmiCls = b => b==null?'':b<18.5?'neu':b<25?'good':b<30?'warn':'bad';
-  const bfCls = v => v==null?'':v<=t[0]?'neu':v<=t[2]?'good':v<=t[3]?'warn':'bad';
-  const whrCls = v => { const s = whrRisk(v,sex); return s==='Risco baixo'?'good':s==='Risco moderado'?'warn':'bad'; };
+  const zTxt = iBmi?.z!=null ? ` · escore-z ${iBmi.z>0?'+':''}${fmt(iBmi.z,1)}` : '';
   const rows = [
-    r.bf!=null && ['% de gordura', fmt(r.bf)+' %', sex==='F'?'Boa forma: 21–24 % · Média: 25–31 %':'Boa forma: 14–17 % · Média: 18–24 %', st(bfClass(r.bf,sex), bfCls(r.bf))],
-    r.bmi!=null && ['IMC', fmt(r.bmi)+' kg/m²', 'Normal: 18,5 a 24,9', st(bmiClass(r.bmi), bmiCls(r.bmi))],
-    r.whr!=null && ['Relação cintura/quadril (RCQ)', fmt(r.whr,2), sex==='F'?'Risco baixo: abaixo de 0,80':'Risco baixo: abaixo de 0,95', st(whrRisk(r.whr,sex), whrCls(r.whr))],
-    r.whtr!=null && ['Relação cintura/altura (RCE)', fmt(r.whtr,2), 'Ideal: abaixo de 0,50', st(r.whtr<0.5?'Adequada':r.whtr<0.6?'Atenção':'Risco elevado', r.whtr<0.5?'good':r.whtr<0.6?'warn':'bad')],
+    iBf && ['% de gordura', fmt(r.bf)+' %', esc(iBf.normal), st(iBf.cls, iBf.tone)],
+    iBmi && ['IMC'+(iBmi.z!=null?' para idade':''), fmt(r.bmi)+' kg/m²'+zTxt, esc(iBmi.normal), st(iBmi.cls, iBmi.tone)],
+    iWhr && !(r.age!=null && r.age<18) && ['Relação cintura/quadril (RCQ)', fmt(r.whr,2), esc(iWhr.normal), st(iWhr.cls, iWhr.tone)],
+    iWhtr && ['Relação cintura/altura (RCE)', fmt(r.whtr,2), esc(iWhtr.normal), st(iWhtr.cls, iWhtr.tone)],
+    iCalf && ['Panturrilha (idosos)', fmt(r.calf)+' cm', esc(iCalf.normal), st(iCalf.cls, iCalf.tone)],
     ...(() => { const e = CTX.energy ? CTX.energy(a) : null;
       // com o gasto energético configurado: basal da fórmula escolhida, gasto total e meta calórica
       if (e) return [['Metabolismo basal (TMB)', kcalTxt(e.bmr), `Repouso total · ${esc(e.label)}`, st('Estimativa','neu')],
@@ -210,8 +220,8 @@ export function buildReport({a, p, list}, o = {}){
   </section>` : '';
 
   const scales = `<section class="rp-scales">
-    ${r.bf!=null?`<div class="rp-card"><div class="rp-label">${ic('flame')} Onde está seu % de gordura</div>${scale(r.bf, sex==='F'?8:2, sex==='F'?42:36, [[t[0],'oklch(0.858 0.055 214)','Essencial'],[t[1],'oklch(0.877 0.093 129)','Atlético'],[t[2],'oklch(0.919 0.065 128)','Boa forma'],[t[3],'oklch(0.908 0.143 102)','Média'],[99,'oklch(0.838 0.083 49)','Acima']])}</div>`:''}
-    ${r.bmi!=null?`<div class="rp-card"><div class="rp-label">${ic('target')} Onde está seu IMC</div>${scale(r.bmi, 15, 40, [[18.5,'oklch(0.858 0.055 214)','Baixo'],[25,'oklch(0.877 0.093 129)','Normal'],[30,'oklch(0.908 0.143 102)','Sobrepeso'],[35,'oklch(0.838 0.083 49)','Obes. I'],[99,'oklch(0.785 0.099 20)','Obes. II+']])}</div>`:''}
+    ${iBf?.scale?`<div class="rp-card"><div class="rp-label">${ic('flame')} Onde está seu % de gordura</div>${infoScale(r.bf, iBf)}</div>`:''}
+    ${iBmi?.scale?`<div class="rp-card"><div class="rp-label">${ic('target')} Onde está seu IMC${iBmi.z!=null?' <span class="rp-muted">(para a idade)</span>':''}</div>${infoScale(r.bmi, iBmi)}</div>`:''}
   </section>`;
 
   /* ---------- comparação e evolução ---------- */
@@ -282,13 +292,15 @@ export function buildReport({a, p, list}, o = {}){
       <div><b>Dobras cutâneas</b><p>Espessura da gordura sob a pele, medida com adipômetro. A soma é ótima para acompanhar sua evolução.</p></div>
     </div>
     <p class="rp-method"><b>Metodologia.</b> ${
-      r.bfSource && ['JP7','JP3','DW'].includes(r.bfSource)
-        ? `Densidade corporal pela equação de ${esc(pr.name)} (${need.length} dobras); % de gordura pela equação de Siri: %G = (4,95 ÷ densidade − 4,5) × 100.`
+      r.bfMethod==='proto'
+        ? (pr.dens ? `Densidade corporal pela equação de ${esc(pr.name)} (${need.length} dobras); % de gordura pela equação de Siri: %G = (4,95 ÷ densidade − 4,5) × 100.`
+          : `% de gordura pela equação de ${esc(pr.name)} (${need.length} dobras), que dá o percentual direto.`)
+          + (protoFits(a.protocol, r.age, sex) ? '' : ` Atenção: o protocolo foi validado para ${protoAgeTxt(a.protocol, sex)}.`)
         : r.bfSource==='Bioimpedância' ? '% de gordura informado pela balança de bioimpedância.'
         : r.bfSource ? '% de gordura estimado pela fórmula da Marinha dos EUA (circunferências e altura).' : '% de gordura não calculado: faltam medidas do protocolo.'}
       ${(() => { const e = CTX.energy ? CTX.energy(a) : null; if (e) return `Metabolismo basal pela equação de ${esc(e.label)}; gasto total = basal × fator de atividade.`;
-        return r.leanMass!=null ? 'Metabolismo basal pela equação de Katch-McArdle: 370 + 21,6 × massa magra (kg).' : r.bmr!=null ? 'Metabolismo basal pela equação de Mifflin-St Jeor.' : ''; })()}
-      Classificação de % de gordura segundo o American Council on Exercise (ACE); IMC segundo a OMS.</p>
+        return r.bmrBy==='fao' ? 'Metabolismo basal pela equação da FAO/OMS (1985), indicada para crianças e adolescentes.' : r.bmrBy==='katch' ? 'Metabolismo basal pela equação de Katch-McArdle: 370 + 21,6 × massa magra (kg).' : r.bmr!=null ? 'Metabolismo basal pela equação de Mifflin-St Jeor.' : ''; })()}
+      ${refLine(r)} ${esc(audienceNote(r))}</p>
   </section>`;
 
   const foot = o.foot === false ? '' : footer(ex.evaluator);

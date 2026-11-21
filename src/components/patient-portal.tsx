@@ -12,7 +12,7 @@ import { AppTour, type TourSpec, type TourStep } from '@/components/app-tour';
 import { DoneSheet, type DoneSpec, type DoneStat } from '@/components/done-sheet';
 import { WA_PATH, waSvg } from '@/lib/wa-icon';
 const WaIcon = () => <svg className="ico sm wa-ico" viewBox="0 0 24 24" aria-hidden="true"><path d={WA_PATH} /></svg>;
-import { calc, bmiClass, bfClass, whrRisk, fmt, fmtDate, toDate, today, ageAt, foldVal, CIRC_TRUNK, CIRC_LIMBS, FOLDS, PROTOCOLS, METRICS, GROUPS, firstName, initials } from '@/lib/calculos.js';
+import { calc, bmiClass, bfClass, whrRisk, bmiInfo, bfInfo, whrInfo, fmt, fmtDate, toDate, today, ageAt, foldVal, CIRC_TRUNK, CIRC_LIMBS, FOLDS, PROTOCOLS, METRICS, GROUPS, firstName, initials } from '@/lib/calculos.js';
 import { poseLabel, POSES } from '@/lib/poses.js';
 import { fmtCode, isCode, normCode, type PortalData, type PortalPhoto } from '@/lib/portal-code';
 import { deletePortalPre, getPatientPortal, submitPortalForm } from '@/lib/portal.functions';
@@ -501,7 +501,7 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
           <div className="left">
             <div className="card-head"><span className="chip-ico"><Flame className="ico" /></span><span className="label">{num(rL['bf']) != null ? 'Gordura corporal' : 'Peso atual'}</span></div>
             <div><div className="big xl">{num(rL['bf']) != null ? fmt(num(rL['bf'])) : fmt(num(last.weight))}<small>{num(rL['bf']) != null ? '%' : 'kg'}</small></div>
-              <div className="sub">{num(rL['bf']) != null ? <>{bfClass(num(rL['bf']), sex)} {prev && <Delta cur={rL['bf']} prev={rP['bf']} dir={-1} unit="pp" />}</> : bmiClass(num(rL['bmi']))}</div></div>
+              <div className="sub">{num(rL['bf']) != null ? <>{bfClass(num(rL['bf']), rL)} {prev && <Delta cur={rL['bf']} prev={rP['bf']} dir={-1} unit="pp" />}</> : bmiClass(num(rL['bmi']), rL)}</div></div>
             <div className="sub small"><CalendarClock className="ico sm" /> {dLong(last.date)}</div>
           </div>
           <div className="ring-wrap"><Ring val={num(rL['bf']) ?? num(rL['bmi'])} /><div className="center"><div className="inner"><b>{num(rL['leanMass']) != null ? fmt(num(rL['leanMass'])) : fmt(num(rL['bmi']))}</b><span>{num(rL['leanMass']) != null ? 'kg magra' : 'IMC'}</span></div></div></div>
@@ -654,19 +654,19 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
       <div className="dash detail-dash">
         <div className="card blue span2 span2-d hero">
           <div className="left"><div className="card-head"><span className="chip-ico"><Flame className="ico" /></span><span className="label">Gordura corporal<br /><span className="small">{String(rL['bfSource'] ?? 'sem dados suficientes')}</span></span></div>
-            <div><div className="big xl">{fmt(num(rL['bf']))}<small>%</small></div><div className="sub">{bfClass(num(rL['bf']), sex)} {ref && <Delta cur={rL['bf']} prev={rR['bf']} dir={-1} unit="pp" />}</div></div></div>
+            <div><div className="big xl">{fmt(num(rL['bf']))}<small>%</small></div><div className="sub">{bfClass(num(rL['bf']), rL)} {ref && <Delta cur={rL['bf']} prev={rR['bf']} dir={-1} unit="pp" />}</div></div></div>
           <div className="ring-wrap"><Ring val={num(rL['bf'])} /><div className="center"><div className="inner"><b>{fmt(num(last.weight))}</b><span>kg</span></div></div></div>
         </div>
         <div className="card green"><div className="card-head"><span className="label">Massa magra</span><span className="chip-ico right"><Zap className="ico sm" /></span></div><div className="mid">{fmt(num(rL['leanMass']))}<small>kg</small></div><div className="sub">{ref && <Delta cur={rL['leanMass']} prev={rR['leanMass']} dir={1} unit="kg" />}</div></div>
         <div className="card yellow"><div className="card-head"><span className="label">Massa gorda</span><span className="chip-ico right"><Droplet className="ico sm" /></span></div><div className="mid">{fmt(num(rL['fatMass']))}<small>kg</small></div><div className="sub">{ref && <Delta cur={rL['fatMass']} prev={rR['fatMass']} dir={-1} unit="kg" />}</div></div>
         <div className="card"><div className="card-head"><span className="label">Peso</span><span className="chip-ico right"><Scale className="ico sm" /></span></div><div className="mid">{fmt(num(last.weight))}<small>kg</small></div><div className="sub">{ref && <Delta cur={last.weight} prev={ref.weight} dir={0} unit="kg" />}</div></div>
-        <div className="card"><div className="card-head"><span className="label">IMC</span><span className="chip-ico right"><Target className="ico sm" /></span></div><div className="mid">{fmt(num(rL['bmi']))}</div><div className="sub small">{bmiClass(num(rL['bmi']))}</div></div>
+        <div className="card"><div className="card-head"><span className="label">IMC</span><span className="chip-ico right"><Target className="ico sm" /></span></div><div className="mid">{fmt(num(rL['bmi']))}</div><div className="sub small">{bmiClass(num(rL['bmi']), rL)}</div></div>
       </div>
       <div className="two-col">
         <div>
           <h2 className="sec">Índices</h2>
           <div className="kv">
-            {row('Relação cintura/quadril', num(rL['whr']), '', 2, num(rR['whr']), -1, whrRisk(num(rL['whr']), sex))}
+            {row('Relação cintura/quadril', num(rL['whr']), '', 2, num(rR['whr']), -1, whrRisk(num(rL['whr']), rL))}
             {row('Relação cintura/altura', num(rL['whtr']), '', 2, num(rR['whtr']), -1)}
             {row('Soma das dobras', num(rL['sumAll']), 'mm', 1, num(rR['sumAll']), -1)}
             {row('Metabolismo basal', num(rL['bmr']), 'kcal', 0, num(rR['bmr']), 0)}
@@ -767,13 +767,13 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
       <div className="dash detail-dash">
         <div className="card blue span2 span2-d hero">
           <div className="left"><div className="card-head"><span className="chip-ico"><Flame className="ico" /></span><span className="label">Gordura corporal<br /><span className="small">{String(r['bfSource'] ?? 'sem dados suficientes')}</span></span></div>
-            <div><div className="big xl">{fmt(num(r['bf']))}<small>%</small></div><div className="sub">{bfClass(num(r['bf']), sex)} {rp && <Delta cur={r['bf']} prev={rp['bf']} dir={-1} unit="pp" />}</div></div></div>
+            <div><div className="big xl">{fmt(num(r['bf']))}<small>%</small></div><div className="sub">{bfClass(num(r['bf']), r)} {rp && <Delta cur={r['bf']} prev={rp['bf']} dir={-1} unit="pp" />}</div></div></div>
           <div className="ring-wrap"><Ring val={num(r['bf'])} /><div className="center"><div className="inner"><b>{String(r['age'] ?? '—')}</b><span>anos</span></div></div></div>
         </div>
         <div className="card"><div className="card-head"><span className="label">Peso</span><span className="chip-ico right"><Scale className="ico sm" /></span></div><div className="mid">{fmt(num(a.weight))}<small>kg</small></div><div className="sub">{pv ? <Delta cur={a.weight} prev={pv.weight} dir={0} unit="kg" /> : <span className="small">Altura {fmt(num(a.height), 0)} cm</span>}</div></div>
         <div className="card green"><div className="card-head"><span className="label">Massa magra</span><span className="chip-ico right"><Zap className="ico sm" /></span></div><div className="mid">{fmt(num(r['leanMass']))}<small>kg</small></div><div className="sub">{rp && <Delta cur={r['leanMass']} prev={rp['leanMass']} dir={1} unit="kg" />}</div></div>
         <div className="card yellow"><div className="card-head"><span className="label">Massa gorda</span><span className="chip-ico right"><Droplet className="ico sm" /></span></div><div className="mid">{fmt(num(r['fatMass']))}<small>kg</small></div><div className="sub">{rp && <Delta cur={r['fatMass']} prev={rp['fatMass']} dir={-1} unit="kg" />}</div></div>
-        <div className="card"><div className="card-head"><span className="label">IMC</span><span className="chip-ico right"><Target className="ico sm" /></span></div><div className="mid">{fmt(num(r['bmi']))}</div><div className="sub small">{bmiClass(num(r['bmi']))}</div></div>
+        <div className="card"><div className="card-head"><span className="label">IMC</span><span className="chip-ico right"><Target className="ico sm" /></span></div><div className="mid">{fmt(num(r['bmi']))}</div><div className="sub small">{bmiClass(num(r['bmi']), r)}</div></div>
       </div>
       {phs.length > 0 && <section className="ph-sec"><h2 className="sec">Fotos <span className="sec-note">{phs.length} de 4</span></h2>
         <div className="ph-slots">{phs.map((P) => <button key={P.k} className="ph-slot has" onClick={() => openAssessmentPhotos(a.id, P.k)} aria-label={`Ver foto: ${P.l}`}><img src={photoOf(a.id, P.k)!.url} alt={P.l} /><span className="ph-lbl">{P.l}</span></button>)}</div></section>}
@@ -782,7 +782,7 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
           <h2 className="sec">Índices</h2>
           <div className="kv">
             {row('Relação cintura/quadril', num(r['whr']), '', 2, rp ? num(rp['whr']) : null, -1)}
-            {num(r['whr']) != null && <div className="kv-row"><span className="k muted small">Classificação RCQ</span><span /><span className="v small">{whrRisk(num(r['whr']), sex)}</span></div>}
+            {num(r['whr']) != null && <div className="kv-row"><span className="k muted small">Classificação RCQ</span><span /><span className="v small">{whrRisk(num(r['whr']), r)}</span></div>}
             {row('Relação cintura/altura', num(r['whtr']), '', 2, rp ? num(rp['whtr']) : null, -1)}
             {row('Soma de todas as dobras', num(r['sumAll']), 'mm', 1, rp ? num(rp['sumAll']) : null, -1)}
             {row('Metabolismo basal', num(r['bmr']), 'kcal', 0)}
@@ -807,21 +807,27 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
 
   const Guide = () => {
     const bfNow = num(rL['bf']), bmiNow = num(rL['bmi']), whrNow = num(rL['whr']), age = ageAt(data.patient.birth);
-    const bfR = sex === 'F' ? [['Gordura essencial', 'até 13%'], ['Atlético', '14–20%'], ['Boa forma', '21–24%'], ['Média', '25–31%'], ['Acima do ideal', '32% ou mais']] : [['Gordura essencial', 'até 5%'], ['Atlético', '6–13%'], ['Boa forma', '14–17%'], ['Média', '18–24%'], ['Acima do ideal', '25% ou mais']];
-    const bmiR = [['Abaixo do peso', 'menor que 18,5'], ['Peso normal', '18,5 a 24,9'], ['Sobrepeso', '25 a 29,9'], ['Obesidade grau I', '30 a 34,9'], ['Obesidade grau II', '35 a 39,9'], ['Obesidade grau III', '40 ou mais']];
-    const whrR = sex === 'F' ? [['Risco baixo', 'menor que 0,80'], ['Risco moderado', '0,80 a 0,84'], ['Risco alto', '0,85 ou mais']] : [['Risco baixo', 'menor que 0,95'], ['Risco moderado', '0,95 a 0,99'], ['Risco alto', '1,00 ou mais']];
+    // faixas da idade do paciente na última avaliação (criança/adolescente: OMS 2007 e Lohman; idoso: Lipschitz)
+    const ctx = rL;
+    const iBf = bfInfo(bfNow ?? 20, ctx), iBmi = bmiInfo(bmiNow ?? 22, ctx), iWhr = whrInfo(whrNow ?? 0.8, ctx);
+    const bfR: string[][] = iBf?.ranges ?? [], bmiR: string[][] = iBmi?.ranges ?? [], whrR: string[][] = iWhr?.ranges ?? [];
+    const zB = bmiNow != null ? bmiInfo(bmiNow, ctx)?.z : undefined;
+    const kid = iBmi?.z != null, minor = age != null && age < 18, elder = (iBmi?.ref ?? '').startsWith('Lipschitz');
     return (<>
       <Head title="Entenda seus números" sub="Guia" back={() => go('medidas')} />
-      <p className="pp-gintro">Um guia rápido para ler sua avaliação. As faixas de referência são para {sex === 'F' ? 'mulheres' : 'homens'}{age ? ` (você tem ${age} anos)` : ''}; seu nutricionista interpreta tudo junto com seus objetivos.</p>
+      <p className="pp-gintro">Um guia rápido para ler sua avaliação. As faixas de referência são para {minor ? (sex === 'F' ? 'meninas' : 'meninos') : sex === 'F' ? 'mulheres' : 'homens'}{age ? ` ${minor ? 'com' : '(você tem'} ${age} anos${minor ? '' : ')'}` : ''}{elder ? ', com a referência de IMC própria para idosos' : ''}; seu nutricionista interpreta tudo junto com seus objetivos.</p>
       <div className="pp-guide">
-        <Item t="% de gordura" icon={<Flame className="ico sm" />} val={bfNow != null ? `${fmt(bfNow)}% · ${bfClass(bfNow, sex)}` : undefined} open>
-          <p>Quanto do seu peso é gordura. É o principal indicador do resultado, porque o peso sozinho não mostra se você perdeu gordura ou músculo.</p><Ranges rows={bfR} now={bfClass(bfNow, sex)} /></Item>
+        <Item t="% de gordura" icon={<Flame className="ico sm" />} val={bfNow != null ? `${fmt(bfNow)}% · ${bfClass(bfNow, ctx)}` : undefined} open>
+          <p>Quanto do seu peso é gordura. É o principal indicador do resultado, porque o peso sozinho não mostra se você perdeu gordura ou músculo.</p><Ranges rows={bfR} now={bfClass(bfNow, ctx)} /></Item>
         <Item t="Massa magra e massa gorda" icon={<Zap className="ico sm" />} val={num(rL['leanMass']) != null ? `${fmt(num(rL['leanMass']))} kg magra` : undefined}>
           <p><b>Massa magra</b> é tudo que não é gordura: músculos, ossos, órgãos e água. O ideal é manter ou aumentar enquanto a <b>massa gorda</b> diminui.</p></Item>
-        <Item t="IMC" icon={<Target className="ico sm" />} val={bmiNow != null ? `${fmt(bmiNow)} · ${bmiClass(bmiNow)}` : undefined}>
-          <p>Peso dividido pela altura ao quadrado. É uma referência geral: não separa músculo de gordura, por isso é lido junto com o % de gordura.</p><Ranges rows={bmiR} now={bmiClass(bmiNow)} /></Item>
-        <Item t="Relação cintura/quadril" icon={<Ruler className="ico sm" />} val={whrNow != null ? `${fmt(whrNow, 2)} · ${whrRisk(whrNow, sex)}` : undefined}>
-          <p>Mostra onde a gordura se concentra. Gordura na região da barriga está ligada a maior risco para a saúde do coração.</p><Ranges rows={whrR} now={whrRisk(whrNow, sex)} /></Item>
+        <Item t={kid ? 'IMC para a idade' : 'IMC'} icon={<Target className="ico sm" />} val={bmiNow != null ? `${fmt(bmiNow)} · ${bmiClass(bmiNow, ctx)}` : undefined}>
+          <p>Peso dividido pela altura ao quadrado. É uma referência geral: não separa músculo de gordura, por isso é lido junto com o % de gordura.</p>
+          {kid && <p>Em crianças e adolescentes o IMC muda com a idade, então ele é comparado com a curva da OMS para a sua idade e sexo{zB != null ? ` (seu escore-z é ${zB > 0 ? '+' : ''}${fmt(zB, 1)})` : ''}.</p>}
+          {elder && <p>Depois dos 60 anos a faixa adequada é um pouco mais alta (22 a 27), porque um pouco de reserva protege a saúde.</p>}
+          <Ranges rows={bmiR} now={bmiClass(bmiNow, ctx)} /></Item>
+        {!minor && <Item t="Relação cintura/quadril" icon={<Ruler className="ico sm" />} val={whrNow != null ? `${fmt(whrNow, 2)} · ${whrRisk(whrNow, ctx)}` : undefined}>
+          <p>Mostra onde a gordura se concentra. Gordura na região da barriga está ligada a maior risco para a saúde do coração.</p><Ranges rows={whrR} now={whrRisk(whrNow, ctx)} /></Item>}
         <Item t="Metabolismo basal" icon={<Heart className="ico sm" />} val={num(rL['bmr']) != null ? `${fmt(num(rL['bmr']), 0)} kcal` : undefined}>
           <p>Energia que seu corpo gasta por dia em repouso, só para se manter funcionando. Mais massa magra costuma aumentar esse gasto.</p></Item>
         <Item t="Circunferências e dobras" icon={<Activity className="ico sm" />}>

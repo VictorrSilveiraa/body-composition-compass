@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { num } from './calculos.js';
+import { num, PROTO_KEYS } from './calculos.js';
 import type { Json } from '@/integrations/supabase/types';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CarePlan } from './plano';
@@ -34,6 +34,18 @@ export async function saveNutri(nutri:Nutri){const {error}=await supabase.auth.u
 export type LegacyAssessment = {id:string;profileId:string;date:string;weight:string|number; height:string|number|null;protocol:string;multi:boolean;circ:Record<string,unknown>;folds:Record<string,unknown>;extra:Record<string,unknown>;createdAt?:number};
 export type LegacyDB={profiles:LegacyPerson[];assessments:LegacyAssessment[];activeId:string|null};
 export type Draft = LegacyAssessment & {_step?:number;_editing?:string|null;_savedAt?:number};
+/* números guardados na coluna bioimpedancia (jsonb): bioimpedância + maturação e constante do protocolo de Slaughter */
+const EXTRA_NUM=['bf','muscle','visceral','water','mat','afro'];
+/* protocolos novos (Petroski, Guedes, Faulkner, Slaughter) enquanto o banco não os aceita — ver PROMPT_LOVABLE_PROTOCOLOS.md */
+const LEGACY=['jp7','jp3','dw'];
+export const PROTO_TAG='_protocolo';
+const isProtoCheck=(e:{code?:string;message?:string})=>e.code==='23514'&&/protocolo/i.test(e.message??'');
+/** lê as dobras do banco devolvendo o protocolo real (que pode estar guardado junto das dobras) */
+export function decodeFolds(protocolo:unknown,dobras:unknown):{protocol:string;folds:Record<string,unknown>}{
+  const f={...((dobras??{}) as Record<string,unknown>)};const tag=f[PROTO_TAG];delete f[PROTO_TAG];
+  const p=typeof tag==='string'?tag:String(protocolo??'jp7');
+  return {protocol:(PROTO_KEYS as string[]).includes(p)?p:'jp7',folds:f};
+}
 const numericObject=(o:Record<string,unknown>)=>Object.fromEntries(Object.entries(o).flatMap(([k,v])=>{const n=num(v);return n===null?[]:[[k,n]];}));
 export async function loadCloud(userId:string) {
   const people:LegacyPerson[]=[]; const assessments:LegacyAssessment[]=[];
@@ -56,7 +68,7 @@ export async function loadCloud(userId:string) {
     for(const p of people.filter(x=>localPlan[x.id])){const {error}=await loose.from('pacientes').update({plano:p.plan??null}).eq('id',p.id);if(error)throw error;}
     try{localStorage.removeItem(planKey(userId));}catch{/* ok */}
   }
-  for(let from=0;;from+=1000){const {data,error}=await supabase.from('avaliacoes').select('*').order('data').range(from,from+999);if(error)throw error;assessments.push(...(data??[]).map(a=>({id:a.id,profileId:a.paciente_id,date:a.data,weight:a.peso_kg,height:a.altura_cm,protocol:a.protocolo,multi:a.medir_3x,circ:a.circunferencias as Record<string,unknown>,folds:a.dobras as Record<string,unknown>,extra:{...(a.bioimpedancia as Record<string,unknown>),evaluator:a.avaliador,notes:a.observacoes},createdAt:Date.parse(a.created_at)})));if((data?.length??0)<1000)break;}
+  for(let from=0;;from+=1000){const {data,error}=await supabase.from('avaliacoes').select('*').order('data').range(from,from+999);if(error)throw error;assessments.push(...(data??[]).map(a=>({id:a.id,profileId:a.paciente_id,date:a.data,weight:a.peso_kg,height:a.altura_cm,...decodeFolds(a.protocolo,a.dobras),multi:a.medir_3x,circ:a.circunferencias as Record<string,unknown>,extra:{...(a.bioimpedancia as Record<string,unknown>),evaluator:a.avaliador,notes:a.observacoes},createdAt:Date.parse(a.created_at)})));if((data?.length??0)<1000)break;}
   const {data,error}=await supabase.from('rascunhos').select('*').maybeSingle(); if(error)throw error;
   let activeId=people[0]?.id??null;
   try{const stored=localStorage.getItem('avf.active.'+userId);if(people.some(p=>p.id===stored))activeId=stored;}catch{}
@@ -73,7 +85,11 @@ export function cloudRepository(userId:string,initial:LegacyDB,fichaCloud=false,
       for(const p of copy.profiles){if(JSON.stringify(snapshot.profiles.find(x=>x.id===p.id))===JSON.stringify(p))continue;const base={id:p.id,owner_id:userId,nome:p.name,sexo:p.sex,nascimento:p.birth,altura_cm:num(p.height)};const row={...base,...(fichaCloud?fichaRow(fichaOf(p)):{}),...(planCloud?{plano:p.plan??null}:{})};const {error}=fichaCloud||planCloud?await loose.from('pacientes').upsert(row):await supabase.from('pacientes').upsert(base);if(error)throw error;}
       for(const a of copy.assessments){if(JSON.stringify(snapshot.assessments.find(x=>x.id===a.id))===JSON.stringify(a))continue;
         const folds=Object.fromEntries(Object.entries(a.folds??{}).map(([k,v])=>[k,(Array.isArray(v)?v:[v]).slice(0,3).map(num)]));
-        const {error}=await supabase.from('avaliacoes').upsert({id:a.id,owner_id:userId,paciente_id:a.profileId,data:a.date,peso_kg:num(a.weight)??0,altura_cm:num(a.height),protocolo:a.protocol,medir_3x:a.multi,circunferencias:numericObject(a.circ??{}),dobras:folds as Json,bioimpedancia:numericObject(Object.fromEntries(['bf','muscle','visceral','water'].map(k=>[k,a.extra?.[k]]))),avaliador:String(a.extra?.['evaluator']??''),observacoes:String(a.extra?.['notes']??'')});if(error)throw error;
+        const row={id:a.id,owner_id:userId,paciente_id:a.profileId,data:a.date,peso_kg:num(a.weight)??0,altura_cm:num(a.height),protocolo:a.protocol,medir_3x:a.multi,circunferencias:numericObject(a.circ??{}),dobras:folds as Json,bioimpedancia:numericObject(Object.fromEntries(EXTRA_NUM.map(k=>[k,a.extra?.[k]]))),avaliador:String(a.extra?.['evaluator']??''),observacoes:String(a.extra?.['notes']??'')};
+        let {error}=await supabase.from('avaliacoes').upsert(row);
+        // o banco ainda só aceita os 3 protocolos antigos: grava como jp7 e guarda o protocolo real junto das dobras
+        if(error&&isProtoCheck(error)&&!LEGACY.includes(row.protocolo))({error}=await supabase.from('avaliacoes').upsert({...row,protocolo:'jp7',dobras:{...folds,[PROTO_TAG]:a.protocol} as Json}));
+        if(error)throw error;
       }
       for(const a of snapshot.assessments.filter(x=>!copy.assessments.some(y=>y.id===x.id))){const {error}=await supabase.from('avaliacoes').delete().eq('id',a.id);if(error)throw error;}
       for(const p of snapshot.profiles.filter(x=>!copy.profiles.some(y=>y.id===x.id))){const {error}=await supabase.from('pacientes').delete().eq('id',p.id);if(error)throw error;}
@@ -87,7 +103,7 @@ export function previewImport(value:unknown):LegacyDB{
   if(!value||typeof value!=='object')throw new Error('Backup inválido');
   const d=value as LegacyDB;if(!Array.isArray(d.profiles)||!Array.isArray(d.assessments))throw new Error('Backup inválido');
   if(d.profiles.some(p=>!p.id||!p.name||!['F','M'].includes(p.sex)||!/^\d{4}-\d{2}-\d{2}$/.test(p.birth)))throw new Error('Pessoa inválida');
-  if(d.assessments.some(a=>!d.profiles.some(p=>p.id===a.profileId)||!a.date||!(Number(num(a.weight))>0)||!['jp7','jp3','dw'].includes(a.protocol??'jp7')))throw new Error('Avaliação inválida');
+  if(d.assessments.some(a=>!d.profiles.some(p=>p.id===a.profileId)||!a.date||!(Number(num(a.weight))>0)||!PROTO_KEYS.includes(a.protocol??'jp7')))throw new Error('Avaliação inválida');
   return d;
 }
 export function mergeBackup(current:LegacyDB, imported:LegacyDB):LegacyDB{
