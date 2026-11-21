@@ -1,0 +1,2 @@
+ALTER TABLE public.avaliacoes DROP CONSTRAINT IF EXISTS avaliacoes_protocolo_check;
+ALTER TABLE public.avaliacoes ADD CONSTRAINT avaliacoes_protocolo_check CHECK (protocolo IN ('jp7','jp3','dw','petroski','guedes','faulkner','sl_tc','sl_ts'));
