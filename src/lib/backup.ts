@@ -3,6 +3,7 @@ import type { DietRecord } from './diets';
 import type { Answers, FormKind } from './forms';
 import type { Pose } from './poses';
 import { num, PROTO_KEYS } from './calculos.js';
+import { NUTRI_BACKUP_KEYS } from './nutri';
 
 /*
  * BACKUP COMPLETO (arquivo .json)
@@ -20,7 +21,7 @@ export const PARTS: { k: PartKey; l: string; d: string }[] = [
   { k: 'diets', l: 'Planos alimentares', d: 'Refeições, opções e trocas de cada plano' },
   { k: 'photos', l: 'Fotos das avaliações', d: 'Frente, costas e laterais · deixa o arquivo maior' },
   { k: 'responses', l: 'Respostas do portal', d: 'Pré-consultas e fichas de saúde enviadas pelos pacientes' },
-  { k: 'nutri', l: 'Seu perfil profissional', d: 'Nome, CRN, contato, retorno padrão e mensagens de retorno' },
+  { k: 'nutri', l: 'Seu perfil profissional', d: 'Dados, contatos, marca, PDFs, preferências e mensagens de retorno (foto, logo e assinatura ficam na conta)' },
 ];
 export type BPhoto = { profileId: string; assessmentId: string; pose: Pose; w: number; h: number; type: string; data: string };
 export type BResponse = { patientId: string; kind: FormKind; data: Answers; read: boolean; createdAt: string };
@@ -34,7 +35,7 @@ export type BackupFile = {
 type Plan = NonNullable<LegacyPerson['plan']> & { anamnese?: { data?: Answers; at?: string; by?: string } | null };
 const planOf = (p: LegacyPerson) => (p.plan ?? null) as Plan | null;
 const hasPlanData = (p: LegacyPerson) => { const x = planOf(p); return !!x && !!(x.goals?.length || x.energy || x.history?.length || x.anamnese); };
-const NUTRI_KEYS = ['name', 'crn', 'specialty', 'phone', 'place', 'returnDays', 'returnMsg'] as const;
+const NUTRI_KEYS = NUTRI_BACKUP_KEYS;
 
 /* ---------- exportar ---------- */
 export type ExportSource = { db: LegacyDB; nutri: Nutri; diets: DietRecord[]; responses: BResponse[] };

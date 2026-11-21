@@ -411,7 +411,7 @@ const acts = {
   },
   dtEdit: async b => { if (startEdit(b.dataset.id)) go('dietEdit', b.dataset.id); },
   dtVis: async b => { const rec = S?.get(b.dataset.id); if (!rec) return; const r = await S.save({ ...rec, visible: !rec.visible }); render(); toast(r.visible ? 'Plano visível no portal do paciente' : 'Plano oculto do portal'); },
-  dtPdf: async b => { const rec = S?.get(b.dataset.id); if (!rec) return; exportDietPdf(rec.data, metaOf(rec)); },
+  dtPdf: async b => { const rec = S?.get(b.dataset.id); if (!rec) return; exportDietPdf(rec.data, { ...metaOf(rec), ...(ctx.dietBrand ? await ctx.dietBrand() : {}) }); },
   dtImg: async b => { const rec = S?.get(b.dataset.id); if (!rec) return; toast('Gerando imagem…'); const blob = await dietImage(rec.data, metaOf(rec)); const r = await shareOrDownload(blob, dietFileName(rec.data, metaOf(rec), 'png'), rec.title); if (r==='downloaded') toast('Imagem baixada ✓'); },
   dtSend: async b => { const rec = S?.get(b.dataset.id); if (!rec) return; await ctx.sendDiet(rec); },
   dtDel: async b => { const rec = S?.get(b.dataset.id); if (!rec) return;

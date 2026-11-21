@@ -9,6 +9,8 @@ import {formScreens} from "./forms-screens.js";
 import {backupScreens} from "./backup-screens.js";
 import {waSvg} from "./wa-icon";
 import {checkAssessment,openAlerts} from "./conferir";
+import {nutriScreens} from "./nutri-screens.js";
+import {crnLabel as crnText,signLine,displayName,workPrefs,pdfPrefs,brandColor,placeLine,igHandle,webLabel} from "./nutri";
 const FOLD_NAME=Object.fromEntries(FOLDS.map(f=>[f.k,f.l]));
 export function mountOriginal(options){
 
@@ -20,6 +22,7 @@ const uid = () => crypto.randomUUID(); const DRAFT_KEY = 'avf.draft.'+options.us
 /* ---------- ícones ---------- */
 const I = {
   info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5v.5"/>',
+  eye:'<path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
   alert:'<path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4"/><path d="M12 17v.5"/>',
   link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   back:'<path d="M15 18l-6-6 6-6"/>',
@@ -105,8 +108,9 @@ function prevOf(a){ const l = listOf(a.profileId).filter(x=>x.id!==a.id && (x.da
 /* ---------- nutricionista & pacientes ---------- */
 const nutriName = () => (nutri.name||'').trim() || (options.email||'').split('@')[0] || 'Nutricionista';
 // CRN exibido sempre como "CRN 3-12345", mesmo se a pessoa digitar o prefixo "CRN"
-const crnLabel = () => { const c = (nutri.crn||'').trim().replace(/^crn[\s:-]*/i,''); return c ? 'CRN '+c : ''; };
-const nutriSign = () => (nutri.name||'').trim() ? nutri.name.trim() + (crnLabel() ? ' · ' + crnLabel() : '') : '';
+const crnLabel = () => crnText(nutri.crn);
+// "Dra. Helena Duarte · CRN-3 12345" — avaliador(a) padrão das avaliações
+const nutriSign = () => (nutri.name||'').trim() ? signLine(nutri) : '';
 // primeiro acesso: antes do primeiro paciente, o nutricionista monta o próprio perfil (pode pular)
 const SETUP_KEY = 'avf.setup.'+options.userId;
 const setupSkipped = () => { try { return localStorage.getItem(SETUP_KEY)==='skip'; } catch { return false; } };
@@ -232,7 +236,7 @@ function abPick(id, list, value, p){
 }
 function initForm(route, param){
   if (route==='onboard'){ const p = param ? db.profiles.find(x=>x.id===param) : null; state.form = { goal:p?.goal||'', ret:num(p?.returnDays)?String(num(p.returnDays)):'' }; }
-  if (route==='nutri') state.form = { nret:String(num(nutri.returnDays)||30) };
+  if (route==='nutri'){ NS.initForm(state.nuWant); delete state.nuWant; }
 }
 const waLink = s => { const d = phoneDigits(s); return d ? 'https://wa.me/' + (d.length<=11 ? '55'+d : d) : ''; };
 function teamStats(){
@@ -547,7 +551,7 @@ function formBar(cancelAttrs, saveAttrs, saveLabel, cancelLabel='Cancelar', canc
 /* ---------- PAINEL SEM PACIENTES (conta nova) ---------- */
 function nutriTopbar(){
   return `<header class="top top-home">
-    <button class="avatar" style="background:var(--yellow-2)" data-act="go" data-to="profile" aria-label="Seu perfil">${esc(initials(nutriName()))}</button>
+    <button class="avatar${NS.media().photo?' has-img':''}" style="background:var(--yellow-2)" data-act="go" data-to="profile" aria-label="Seu perfil">${NS.avatarInner()}</button>
     <button class="hello" data-act="go" data-to="profile"><small>Olá,</small><b>${esc(firstName(nutriName()))}</b></button>
     <div class="grow"></div>
     <span class="top-date">${fmtDate(today(),{weekday:'long',day:'numeric',month:'long'})}</span>
@@ -1095,74 +1099,40 @@ function viewPatient(id){
 /* ---------- PERFIL DO NUTRICIONISTA ---------- */
 function viewProfile(){
   const s = teamStats(), done = !!((nutri.name||'').trim() && (nutri.crn||'').trim());
-  const row = (k, v) => `<div class="kv-row kv-t"><span class="k">${k}</span><span class="t ${v?'':'none'}">${v?esc(v):'Não informado'}</span></div>`;
   /* celular: voltar dentro do banner, números coloridos, sem atalhos, cartão sem borda; computador: cabeçalho da página, números com divisórias e atalhos */
-  return `<header class="top nu-top-d"><button class="icon-btn" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button><div class="title-block"><small>Sua conta</small><b>Perfil profissional</b></div><div class="grow"></div>
-    <button class="icon-btn" data-act="go" data-to="nutri" aria-label="Editar perfil" title="Editar perfil">${ic('edit')}</button></header>
-  ${(() => {
-    const fields = [nutri.name, nutri.crn, nutri.specialty, nutri.phone, nutri.place], pct = Math.round(fields.filter(x=>String(x||'').trim()).length/fields.length*100), n = CS.pendingCount();
-    return idCard({ tone:'yellow', edit:'data-act="go" data-to="nutri" aria-label="Editar perfil profissional"', nav:{back:'data-act="go" data-to="home"', small:'', title:''}, tiles:true, cls:'idc-pro', linksCls:'d-only',
-      avatar:`<span class="avatar xl nu-av">${esc(initials(nutriName()))}</span>`, ring: pct<100 ? pct : null, ringLabel:`Perfil ${pct}% completo`, ringShort:'perfil',
-      name: esc(nutriName()), sub: [esc((nutri.specialty||'').trim()||'Nutricionista'), crnLabel()?`<span class="nowrap">${esc(crnLabel())}</span>`:null].filter(Boolean).join(' · '),
-      chips: nutri.place ? `<span class="tag">${ic('pin','sm')}${esc(nutri.place)}</span>` : '',
-      stats: [{v:s.active, l:s.active===1?'Paciente ativo':'Pacientes ativos', tone:'blue', icon:ic('users','sm'), attrs:'data-act="go" data-to="patients"'}, {v:s.month, l:'Avaliações em 30 dias', tone:'green', icon:ic('clip','sm'), attrs:'data-act="go" data-to="list"'}, {v:s.late, l:s.late===1?'Retorno atrasado':'Retornos atrasados', tone:s.late?'peach':'yellow', cls:s.late?'late':'', icon:ic('clock','sm'), attrs:'data-act="go" data-to="returns"'}],
-      links: [] });
-  })()}
-  ${done?'':`<button class="draft-banner" data-act="go" data-to="nutri">${ic('badge')}<span class="grow">Complete seu perfil: nome e CRN entram como avaliador(a) nas novas avaliações e nos PDFs.</span><b>Completar</b></button>`}
-  ${CS.returnsBanner()}
-  <div class="two-col">
-  <div>
-    <h2 class="sec">Atendimento <button data-act="go" data-to="nutri">editar</button></h2>
-    <div class="kv">
-      ${row('Registro (CRN)', nutri.crn)}${row('Especialidade', nutri.specialty)}${row('Telefone', fmtPhone(nutri.phone))}${row('Local de atendimento', nutri.place)}
-      <div class="kv-row"><span class="k">Retorno padrão</span><span class="t">a cada ${returnEvery({})} dias</span></div>
-    </div>
-    <h2 class="sec">Pacientes</h2>
+  return NS.viewProfile({
+    header: `<header class="top nu-top-d"><button class="icon-btn" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button><div class="title-block"><small>Sua conta</small><b>Perfil profissional</b></div><div class="grow"></div>
+    <button class="icon-btn" data-act="nuGo" data-v="perfil" aria-label="Editar perfil" title="Editar perfil">${ic('edit')}</button></header>`,
+    stats: [{v:s.active, l:s.active===1?'Paciente ativo':'Pacientes ativos', tone:'blue', icon:ic('users','sm'), attrs:'data-act="go" data-to="patients"'}, {v:s.month, l:'Avaliações em 30 dias', tone:'green', icon:ic('clip','sm'), attrs:'data-act="go" data-to="list"'}, {v:s.late, l:s.late===1?'Retorno atrasado':'Retornos atrasados', tone:s.late?'peach':'yellow', cls:s.late?'late':'', icon:ic('clock','sm'), attrs:'data-act="go" data-to="returns"'}],
+    banner: `${done?'':`<button class="draft-banner" data-act="nuGo" data-v="perfil">${ic('badge')}<span class="grow">Complete nome e CRN: eles entram como avaliador(a) nas novas avaliações e nos PDFs.</span><b>Completar</b></button>`}${CS.returnsBanner()}`,
+    patients: `<h2 class="sec">Pacientes</h2>
     <div class="actions">
       <button class="act-row" data-act="go" data-to="returns"><span class="chip-ico">${ic('bell','sm')}</span><span class="grow"><b>Retornos da semana</b><span>${(n=>n?`${plural(n,'paciente para avisar','pacientes para avisar')} pelo WhatsApp`:'Atrasados e próximos 7 dias, com mensagem pronta')(CS.pendingCount())}</span></span>${CS.pendingCount()?`<em class="row-badge" aria-label="${CS.pendingCount()} para avisar">${CS.pendingCount()}</em>`:''}${ic('right','sm')}</button>
       <button class="act-row" data-act="go" data-to="patients"><span class="chip-ico">${ic('users','sm')}</span><span class="grow"><b>Gerenciar pacientes</b><span>${plural(s.active,'ativo','ativos')}${s.arch?` · ${plural(s.arch,'arquivado','arquivados')}`:''} · busca e filtros por retorno</span></span>${ic('right','sm')}</button>
       <button class="act-row" data-act="newProfile"><span class="chip-ico">${ic('plus','sm')}</span><span class="grow"><b>Cadastrar paciente</b><span>Dados, contato, objetivo e observações</span></span>${ic('right','sm')}</button>
-    </div>
-  </div>
-  <div>
-    <h2 class="sec">Dados e conta</h2>
+    </div>`,
+    account: `<h2 class="sec">Dados e conta</h2>
     <div class="actions">
       <button class="act-row" data-act="tour"><span class="chip-ico">${ic('target','sm')}</span><span class="grow"><b>Tour de apresentação</b><span>Reveja em 1 minuto como usar o sistema</span></span>${ic('right','sm')}</button>
       <button class="act-row" data-act="backupOut"><span class="chip-ico">${ic('dl','sm')}</span><span class="grow"><b>Exportar backup</b><span>Escolha pacientes e o que levar: fichas, avaliações, metas, planos, fotos…</span></span>${ic('right','sm')}</button>
       <button class="act-row" data-act="backupIn"><span class="chip-ico">${ic('ul','sm')}</span><span class="grow"><b>Importar backup</b><span>Veja o que tem no arquivo e escolha o que trazer, sem duplicar</span></span>${ic('right','sm')}</button>
     </div>
     <button class="logout-row" data-act="logout"><span class="chip-ico">${ic('out','sm')}</span><span class="grow"><b>Sair da conta</b><span>${esc(options.email||'')}</span></span></button>
-  </div></div>
-  <p class="small muted" style="margin-top:20px;text-align:center">Seus dados estão salvos na sua conta.</p>`;
+    <p class="small muted" style="margin-top:16px;text-align:center">Seus dados estão salvos na sua conta.</p>`,
+  });
 }
 function viewNutri(){
-  const tf = (id, label, val, ph, hint='', type='text') => `<label class="field"><div class="f-top"><span class="f-label">${label}</span></div>${hint?`<span class="f-hint">${hint}</span>`:''}
-    <div class="f-input text"><input id="${id}" type="${type}" value="${esc(type==='tel'?fmtPhone(val):(val||''))}" placeholder="${ph}" autocomplete="off"${type==='tel'?' inputmode="tel" data-mask="phone" maxlength="15"':''}></div></label>`;
   const first = inSetup();
-  return `${first ? `${setupSteps(1)}<div class="onb-hero"><div class="blob"></div><div class="blob b2"></div>
+  const setupHtml = `${setupSteps(1)}<div class="onb-hero nu-hero"><div class="blob"></div><div class="blob b2"></div>
     <div style="position:relative"><span class="tag" style="margin-bottom:14px">${ic('steth','sm')} Bem-vindo(a)</span>
     <h1>Vamos começar por você.</h1>
-    <p>Seu nome e CRN aparecem como avaliador(a) em cada avaliação e nos relatórios em PDF. Depois, se quiser, você já cadastra o primeiro paciente.</p></div></div>`
-    : `<header class="top"><button class="icon-btn" data-act="go" data-to="profile" aria-label="Voltar">${ic('back')}</button><div class="title-block"><small>Perfil profissional</small><b>Editar perfil</b></div></header>`}
-  <h2 class="sec" style="margin-top:6px">Identificação</h2>
-  <div class="form-grid">
-    ${tf('nu-name','Nome completo',nutri.name,'Seu nome','Aparece como avaliador(a) nas avaliações e nos relatórios em PDF.')}
-    <div class="fields two">${tf('nu-crn','CRN',nutri.crn,'Ex.: 3-12345')}${tf('nu-spec','Especialidade',nutri.specialty,'Ex.: Nutrição esportiva')}</div>
-  </div>
-  <h2 class="sec">Atendimento</h2>
-  <div class="form-grid">
-    <div class="fields two">${tf('nu-phone','Telefone',nutri.phone,'(11) 99999-9999','','tel')}${tf('nu-place','Local de atendimento',nutri.place,'Clínica, cidade ou online')}</div>
-    <div class="field"><div class="f-top"><span class="f-label">Retorno padrão</span></div><span class="f-hint">Vale para os pacientes sem um retorno próprio. Define quem aparece como “atrasado”.</span>
-      ${dropdown('nret', RETURNS.map(d=>[String(d),`A cada ${d} dias`]), state.form.nret, {label:'Retorno padrão'})}</div>
-  </div>
-  ${first ? `<p class="small muted" style="text-align:center;margin-top:22px">Conta: ${esc(options.email||'')} · dá para mudar tudo depois em Perfil.</p>` : ''}
-  ${first ? formBar('data-v="1"', 'data-act="saveNutri"', 'Continuar', 'Pular por agora', 'skipSetup') : formBar('data-to="profile"', 'data-act="saveNutri"', 'Salvar perfil')}`;
+    <p>Em 3 partes rápidas: quem você é, como os pacientes falam com você e a sua marca nos PDFs. Só o nome é obrigatório; o resto dá para completar depois.</p></div></div>`;
+  return NS.viewEdit(first, setupHtml);
 }
-
 /* ---------- WIZARD ---------- */
 function newDraft(){
   const p = prof(), last = listOf(p.id).at(-1);
-  return {id:null, tid:uid(), profileId:p.id, date:today(), weight:'', height: p.height || last?.height || '', protocol: last?.protocol || protoSuggest(ageAt(p.birth, today())), multi:false, circ:{}, folds:{}, extra: nutriSign() ? {evaluator:nutriSign()} : {}};
+  return {id:null, tid:uid(), profileId:p.id, date:today(), weight:'', height: p.height || last?.height || '', protocol: last?.protocol || (ageAt(p.birth, today())<18 ? protoSuggest(ageAt(p.birth, today())) : (PROTOCOLS[workPrefs(nutri).proto] ? workPrefs(nutri).proto : 'jp7')), multi: !!workPrefs(nutri).multi, circ:{}, folds:{}, extra: nutriSign() ? {evaluator:nutriSign()} : {}};
 }
 function wizPrev(){
   if (!draft) return null;
@@ -1199,7 +1169,7 @@ function foldField(f, req){
 }
 /* ---------- "Confere?": valores fora do esperado (src/lib/conferir.ts) ---------- */
 function wizAlerts(){
-  if (!draft) return [];
+  if (!draft || !workPrefs(nutri).check) return [];
   const p = prof(), r = calc(draft, p);
   const all = checkAssessment(draft, { prev: wizPrev(), age: r.age, birth: p.birth,
     otherDates: listOf(p.id).filter(a=>a.id!==state.editingId).map(a=>a.date), bfFolds: r.bfMethod==='proto' ? r.bf : null });
@@ -1427,7 +1397,7 @@ function render(){
   // sem pacientes: 1º acesso passa pelo perfil; depois o sistema funciona normalmente, com telas vazias que convidam a cadastrar
   if (!db.profiles.length){
     if (needsSetup() && !['onboard','nutri'].includes(state.route)){ state.route = 'nutri'; state.param = null; initForm('nutri', null); }
-    if (state.route==='nutri' && state.form.nret==null) initForm('nutri', null);
+    if (state.route==='nutri' && !state.form.nu) initForm('nutri', null);
     if (state.route==='onboard' && state.param){ state.param = null; initForm('onboard', null); }
   } else if (state.setup) state.setup = false;
   if (db.profiles.length && !db.profiles.find(p=>p.id===db.activeId)) { db.activeId = db.profiles[0].id; }
@@ -1472,7 +1442,7 @@ function render(){
       <div class="side-links side-sub">${ofPatient.map(navBtn).join('')}</div>
       ${p ? `<button class="side-cta" data-act="new">${ic('plus')}<span>${hasDraft()?'Continuar avaliação':'Nova avaliação'}</span></button>` : ''}
     </div>
-    <button class="side-prof" data-act="go" data-to="profile"><span class="avatar">${esc(initials(nutriName()))}</span><span class="grow"><b>${esc(nutriName())}</b><small>${crnLabel()?esc(crnLabel()):'Perfil profissional'}</small></span>${ic('right','sm')}</button>
+    <button class="side-prof" data-act="go" data-to="profile">${NS.avatar()}<span class="grow"><b>${esc(displayName(nutri) || nutriName())}</b><small>${crnLabel()?esc(crnLabel()):'Perfil profissional'}</small></span>${ic('right','sm')}</button>
   </nav>`; }
   // key muda = tela nova (anima a entrada); dir = indo "para frente" ou voltando
   const key = state.route==='wizard' ? 'wizard' : state.route+':'+(state.param||'');
@@ -1575,6 +1545,19 @@ function download(name, content, type){
   setTimeout(()=>URL.revokeObjectURL(url), 1000);
 }
 
+/* perfil do nutricionista como os PDFs usam (marca, cor, contatos, assinatura) */
+async function pdfNutri(n){
+  const mu = await NS.mediaNow(), pp = pdfPrefs(n), col = brandColor(n.color);
+  return { name: displayName(n), crn: crnText(n.crn), phone: fmtPhone(n.phone||''), place: placeLine(n), email: (n.email||'').trim(), instagram: igHandle(n.instagram) ? '@'+igHandle(n.instagram) : '', site: webLabel(n.site),
+    clinic: (n.clinic||'').trim(), logo: mu.logo || '', sign: pp.sign==='image' ? (mu.sign || '') : '', color: { bg: col.bg, ink: col.ink }, pdf: pp };
+}
+/* PDF de teste (tela do perfil): última avaliação, com o perfil informado (mesmo antes de salvar) */
+async function testPdf(n){
+  const a = db.assessments.filter(x=>db.profiles.some(p=>p.id===x.profileId)).sort((x,y)=>x.date<y.date?1:-1)[0];
+  if (!a) return toast('Registre uma avaliação para ver o PDF de teste');
+  const p = db.profiles.find(x=>x.id===a.profileId), list = listOf(p.id);
+  exportPdf('summary', { a, p, list, ctx: { nutri: await pdfNutri(n), photos: {} } });
+}
 /* ---------- PDFs das avaliações: junta fotos, profissional, objetivo, retorno e planos alimentares ---------- */
 async function pdfExport(kind, data){
   const p = data.p, list = data.list || listOf(p.id);
@@ -1584,13 +1567,16 @@ async function pdfExport(kind, data){
   const st = pStatus(p);
   const ctx = { photos, goal: goalLabel(p.goal) || '', nextReturn: !p.archived && st.next ? st.next : null,
     goals: p.plan?.goals || [], energy: p.plan?.energy ? (a => CS.energyFor(p, a)) : null,
-    nutri: { name: (nutri.name||'').trim(), crn: crnLabel(), phone: fmtPhone(nutri.phone), place: (nutri.place||'').trim() },
+    nutri: await pdfNutri(nutri),
     diets: options.diets ? options.diets.ofPatient(p.id).map(r=>({ title:r.title, prescribedAt:r.prescribedAt, assessmentId:r.assessmentId, data:r.data })) : [] };
   if (Object.keys(photos).length) toast('Preparando o PDF com as fotos…');
   exportPdf(kind, { ...data, ctx });
 }
 /* ---------- plano alimentar (src/lib/diet-screens.js) ---------- */
 const DS = dietScreens({
+  // marca do nutricionista no PDF do plano alimentar
+  dietBrand: async () => { const pn = await pdfNutri(nutri), own = pn.pdf.head!=='system';
+    return { nutri: pn.name || nutriName(), crn: pn.crn, logo: own && (pn.pdf.head==='logo' || pn.pdf.head==='logoOnly') ? pn.logo : '', brand: own && pn.pdf.head!=='logoOnly' ? (pn.clinic || '') : '', color: own ? pn.color : null, contacts: pn.pdf.contacts ? [pn.phone, pn.instagram, pn.site, pn.email].filter(Boolean).join(' · ') : '' }; },
   options, state, ic, go, render, toast, sheet, dropdown, dpill, paged, findA, listOf, prof, setActive, nutriName, crnLabel, firstName,
   energyChip: pid => CS.energyChip(pid),
   done: options.done ? spec => done(spec) : null,
@@ -1621,8 +1607,15 @@ Object.assign(DD_PICK, DS.ddPick);
 const CS = careScreens({
   options, state, ic, go, render, toast, sheet, listOf, pStatus, pAvatar, waLink, daysTo, ring, nutriName, paCopyText,
   db: () => db, save, nutri: () => nutri, setNutri: n => { nutri = n; },
+  energyDefaults: () => { const w = workPrefs(nutri); return { formula: w.formula, activity: w.activity }; },
   preLink: pid => FS.preLinkLine(pid), answeredPre: pid => FS.answeredPre(pid),
 });
+/* ---------- perfil do nutricionista (src/lib/nutri-screens.js) ---------- */
+const NS = nutriScreens({
+  options, state, ic, go, render, toast, sheet, dropdown, formBar, fmtPhone, phoneDigits, idCard,
+  nutri: () => nutri, setNutri: n => { nutri = n; }, app: () => app, inSetup: () => inSetup(), testPdf: n => testPdf(n),
+});
+Object.assign(DD_PICK, NS.ddPick);
 /* ---------- pré-consulta e anamnese (src/lib/forms-screens.js) ---------- */
 const FS = formScreens({
   options, state, ic, go, render, toast, sheet, listOf, nutriName, paCopyText, waLink, formBar,
@@ -1654,7 +1647,7 @@ const ACT = {
   resume: async () => ACT.new(),
   /* ---------- acesso do paciente ---------- */
   paCreate: async b => {
-    const pid = b.dataset.id; const access = await options.portalAccess.issue(pid);
+    const pid = b.dataset.id; const wp = workPrefs(nutri); const access = await options.portalAccess.issue(pid, {photos:wp.sharePhotos, notes:wp.shareNotes});
     PA[pid] = {loaded:true, available:true, access}; render();
     const p = db.profiles.find(x=>x.id===pid); if (p) doneAccess(p, access); else toast('Código criado ✓');
   },
@@ -1702,7 +1695,7 @@ const ACT = {
     const list = listOf(p.id), ids = new Set(list.map(a=>a.id));
     const photos = PH.list().filter(m=>ids.has(m.assessmentId)).map(m=>({ aid:m.assessmentId, pose:m.pose, load: async () => { const b = await PH.blob(m); if (!b) throw new Error('Foto indisponível'); return b; } }));
     if (!photos.length) return toast('Nenhuma foto para montar a imagem');
-    options.studio({ who:'nutri', patient:p.name, signature:[(nutri.name||'').trim(), crnLabel()].filter(Boolean).join(' · '),
+    options.studio({ who:'nutri', patient:p.name, signature:[signLine(nutri), igHandle(nutri.instagram) ? '@'+igHandle(nutri.instagram) : ''].filter(Boolean).join(' · '),
       assessments: list.map(a=>{ const r = calc(a,p); return { id:a.id, date:a.date, weight:num(a.weight), bf:r.bf ?? null, lean:r.leanMass ?? null, waist:num(a.circ?.waist) }; }),
       photos, pose: state.phPose, a: state.phA, b: state.phB });
   },
@@ -1858,16 +1851,7 @@ const ACT = {
   pfilter: async b => { state.pf = b.dataset.v; if (state.route!=='patients') go('patients'); else { try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} render(); }
     // a aba escolhida fica à vista na faixa de filtros (celular)
     setTimeout(()=>{ const on = app.querySelector('.pt-filters .chip.on'), bar = on?.parentElement; if (on && bar && bar.scrollWidth > bar.clientWidth) bar.scrollTo({ left: on.offsetLeft - bar.clientWidth/2 + on.offsetWidth/2, behavior:'smooth' }); }, 60); },
-  saveNutri: async () => {
-    const v = id => document.getElementById(id).value.trim();
-    const next = { name:v('nu-name'), crn:v('nu-crn'), specialty:v('nu-spec'), phone:fmtPhone(v('nu-phone')), place:v('nu-place'), returnDays: num(state.form.nret) || 30, ...(nutri.tourSeen ? {tourSeen:true} : {}), ...(nutri.returnMsg ? {returnMsg:nutri.returnMsg} : {}) };
-    if (!next.name) return toast('Informe seu nome');
-    if (next.phone && phoneDigits(next.phone).length < 10) return toast('Telefone incompleto: use DDD + número');
-    const setup = inSetup();
-    await options.saveNutri(next); nutri = next;
-    if (setup){ state.setup = true; go('onboard'); toast('Perfil salvo ✓'); return; }
-    go('profile'); toast('Perfil salvo ✓');
-  },
+  saveNutri: async () => NS.acts.nuSave(),
   tour: async () => { if (state.route!=='home'){ go('home'); setTimeout(startTour, 650); } else startTour(); },
   skipSetup: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} state.setup = true; go('onboard'); },
   setupLater: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} state.setup = false; go('home'); toast('Tudo pronto! Cadastre o paciente quando quiser.'); },
@@ -1895,6 +1879,7 @@ const ACT = {
   },
   ...DS.acts,
   ...CS.acts,
+  ...NS.acts,
   ...FS.acts,
   ...BK.acts,
 };
@@ -1913,8 +1898,10 @@ const input = e => {
   if (e.target.dataset?.dk && DS.onInput(e.target)) return;
   if ((e.target.dataset?.gk || e.target.dataset?.rk) && CS.onInput(e.target)) return;
   if (e.target.dataset?.ak && FS.onInput(e.target)) return;
+  if (e.target.dataset?.nu && e.target.dataset?.mask!=='phone'){ NS.onInput(e.target); return; }
   if (e.target.dataset?.mask==='phone'){
     const el = e.target, v = fmtPhone(el.value);
+    if (el.dataset.nu) setTimeout(()=>NS.onInput(el), 0);
     // apagando: não recoloca o traço/parêntese que a pessoa acabou de remover
     if (e.inputType?.startsWith('delete') && phoneDigits(v)===phoneDigits(el.value) && v.length>el.value.length) return;
     if (v!==el.value){ el.value = v; el.setSelectionRange(v.length, v.length); }
@@ -1945,6 +1932,7 @@ const pdown = e => { const st = e.target.closest?.('.phc-stage'); if (!st) retur
 const pmove = e => { if (!phDrag) return; const r = phDrag.getBoundingClientRect(); phSet(phDrag, (e.clientX-r.left)/r.width*100); };
 const pup = () => { phDrag = null; };
 const keydown = e => {
+  if (NS.onKey(e)) return;
   if ((e.key==='ArrowLeft'||e.key==='ArrowRight') && e.target.classList?.contains('phc-stage')){ e.preventDefault(); const cur = state.phMode==='fade' ? (state.phO??50) : (state.phX??50); phSet(e.target, cur + (e.key==='ArrowRight'?5:-5)); return; }
   if (e.key==='Escape' && state.dd){ const id = state.dd; state.dd = null; render(); app.querySelector(`[data-act="ddToggle"][data-dd="${id}"]`)?.focus({preventScroll:true}); return; }
   // setas navegam entre as opções do menu aberto

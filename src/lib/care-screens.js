@@ -25,6 +25,8 @@ const addDays = (iso, n) => { const d = toDate(iso); d.setDate(d.getDate()+n); r
 let saveTimer = 0;
 function saveSoon(ms=450){ clearTimeout(saveTimer); saveTimer = setTimeout(()=>{ ctx.save().catch(e=>toast(motivo(e,'Não foi possível salvar. Tente novamente.'))); }, ms); }
 const planOf = p => (p.plan ||= {});
+// gasto energético: o que o paciente tem salvo por cima do padrão escolhido nas preferências do nutricionista
+const ecfg = e => energyCfg({ ...(ctx.energyDefaults ? ctx.energyDefaults() : {}), ...(e ?? {}) });
 
 /* =========================================================
    METAS
@@ -157,13 +159,13 @@ function retire(p, goals){
 /* =========================================================
    GASTO ENERGÉTICO
    ========================================================= */
-function energyOfP(p, a){ a = a || listOf(p.id).at(-1); if (!a) return null; return energyOf(p.plan?.energy, energyInputs(p, a)); }
+function energyOfP(p, a){ a = a || listOf(p.id).at(-1); if (!a) return null; return energyOf(ecfg(p.plan?.energy), energyInputs(p, a)); }
 function energySection(p){
   const last = listOf(p.id).at(-1); if (!last) return '';
   const e = energyOfP(p, last); if (!e) return '';
   return `<h2 class="sec">Gasto energético <button data-act="go" data-to="energy" data-id="${p.id}">${p.plan?.energy?'ajustar':'configurar'}</button></h2>
     ${energyCardHtml(e, {mode:'nutri', pid:p.id})}
-    ${p.plan?.energy ? '' : `<p class="small muted en-hint">Cálculo padrão: atividade moderada e sem déficit. Toque para escolher a fórmula, o nível de atividade e os macros.</p>`}`;
+    ${p.plan?.energy ? '' : `<p class="small muted en-hint">Cálculo padrão (das suas preferências): atividade ${activityLabel(ecfg(null).activity).toLowerCase()} e sem déficit. Toque para escolher a fórmula, o nível de atividade e os macros.</p>`}`;
 }
 const tdeeOf = (p, a) => energyOfP(p, a)?.tdee ?? null;
 /* resumos para as seções recolhidas da ficha: [ícone, título, linha de baixo, etiqueta] */
@@ -189,7 +191,7 @@ function viewEnergy(pid){
     ${last ? `<button class="btn ghost sm en-copy" data-act="enCopy" data-id="${p.id}">${ic('clip','sm')}<span>Copiar resumo</span></button>` : ''}</header>`;
   if (!last) return `${head}<div class="card blue empty"><div class="e-ico">${ic('flame')}</div><h3>Falta a primeira avaliação</h3><p>O gasto energético usa peso, altura e composição corporal de ${fn}. Registre uma avaliação para calcular.</p>
     <button class="btn dark" style="margin:18px auto 0;display:inline-flex" data-act="newFor" data-id="${p.id}">${ic('plus','sm')} Nova avaliação</button></div>`;
-  const cfg = energyCfg(p.plan?.energy), x = energyInputs(p, last), e = energyOf(cfg, x);
+  const cfg = ecfg(p.plan?.energy), x = energyInputs(p, last), e = energyOf(cfg, x);
   if (!e) return `${head}<div class="card empty"><h3>Faltam dados</h3><p>Confira peso, altura e data de nascimento de ${fn}.</p></div>`;
   const autoK = x.lean ? 'katch' : 'mifflin';
   const opt = (on, act, attrs, title, sub, right, off=false) => `<button type="button" class="en-opt${on?' on':''}" data-act="${act}" ${attrs} role="radio" aria-checked="${on}"${off?' disabled':''}><span class="radio"></span><span class="grow"><b>${title}</b><small>${sub}</small></span>${right?`<em>${right}</em>`:''}</button>`;
@@ -246,7 +248,7 @@ function viewEnergy(pid){
 }
 function setEnergy(pid, patch){
   const p = P(pid); if (!p) return;
-  const plan = planOf(p); plan.energy = { ...energyCfg(plan.energy), ...patch };
+  const plan = planOf(p); plan.energy = { ...ecfg(plan.energy), ...patch };
   render(); saveSoon();
 }
 
@@ -412,10 +414,10 @@ const acts = {
   enF: async b => setEnergy(state.param, {formula:b.dataset.v}),
   enA: async b => setEnergy(state.param, {activity:Number(b.dataset.v)}),
   enAdj: async b => setEnergy(state.param, {adjust:Number(b.dataset.v)}),
-  enStep: async b => { const p = P(state.param); if (!p) return; const c = energyCfg(p.plan?.energy), k = b.dataset.k==='p'?'protein':'fat';
+  enStep: async b => { const p = P(state.param); if (!p) return; const c = ecfg(p.plan?.energy), k = b.dataset.k==='p'?'protein':'fat';
     const lim = k==='protein' ? [0.8,3.2] : [0.4,1.6]; const v = Math.round(Math.min(lim[1], Math.max(lim[0], c[k] + Number(b.dataset.d)))*10)/10;
     setEnergy(p.id, {[k]:v}); },
-  enShare: async b => { const p = P(b.dataset.id); if (!p) return; const on = !energyCfg(p.plan?.energy).share; setEnergy(p.id, {share:on});
+  enShare: async b => { const p = P(b.dataset.id); if (!p) return; const on = !ecfg(p.plan?.energy).share; setEnergy(p.id, {share:on});
     toast(on ? `${firstName(p.name)} passa a ver a meta diária e os macros no portal` : 'Energia oculta do portal'); },
   enReset: async b => { const p = P(b.dataset.id); if (!p) return; sheet('Voltar ao cálculo padrão?', 'Fórmula automática, atividade moderada, sem déficit e macros padrão. O portal deixa de mostrar a energia.', [
       {label:'Voltar ao padrão', cls:'dark', fn:async()=>{ planOf(p).energy = null; render(); saveSoon(0); toast('Cálculo padrão'); }}, {label:'Cancelar'}]); },

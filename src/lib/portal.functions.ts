@@ -1,3 +1,4 @@
+import { brandColor, crnLabel, displayName, igHandle, pdfPrefs, placeLine, shortName, specialtiesOf, webUrl, type NutriProfile } from './nutri';
 import { createServerFn } from '@tanstack/react-start';
 import { isCode, normCode, type DeleteResult, type PortalAssessment, type PortalData, type PortalDiet, type PortalPhoto, type PortalResult, type SubmitResult } from './portal-code';
 import { ANAMNESE_FORM, FORMS, PRE_FORM, cleanAnswers, currentAnamnese, type FormKind } from './forms';
@@ -186,8 +187,19 @@ async function loadPortal(code: string): Promise<PortalResult> {
     let nutri: PortalData['nutri'] = { name: '', crn: '', specialty: '', phone: '', place: '', returnDays: null };
     try {
       const u = await admin.auth.admin.getUserById(access.owner_id);
-      const m = ((u.data?.user?.user_metadata ?? {}) as { nutri?: Record<string, unknown> }).nutri ?? {};
-      nutri = { name: String(m['name'] ?? ''), crn: String(m['crn'] ?? ''), specialty: String(m['specialty'] ?? ''), phone: String(m['phone'] ?? ''), place: String(m['place'] ?? ''), returnDays: n(m['returnDays']) };
+      const m = ((u.data?.user?.user_metadata ?? {}) as { nutri?: NutriProfile }).nutri ?? {};
+      // foto, logo e assinatura: links temporários gerados aqui (só arquivos da pasta de perfil do próprio nutricionista)
+      const signed = async (path: unknown) => {
+        if (typeof path !== 'string' || !path.startsWith(access.owner_id + '/perfil/')) return '';
+        const r = await db.storage.from(PHOTO_BUCKET).createSignedUrl(path, 3600); return r.error ? '' : r.data?.signedUrl ?? '';
+      };
+      const pp = pdfPrefs(m), col = brandColor(m.color);
+      const [photo, logo, sign] = await Promise.all([signed(m.photoPath), signed(m.logoPath), pp.sign === 'image' ? signed(m.signPath) : Promise.resolve('')]);
+      nutri = {
+        name: String(m.name ?? ''), display: displayName(m), short: shortName(m), crn: crnLabel(m.crn), specialty: specialtiesOf(m).join(' · '), specialties: specialtiesOf(m),
+        bio: String(m.bio ?? ''), phone: String(m.phone ?? ''), email: String(m.email ?? ''), instagram: igHandle(m.instagram), site: webUrl(m.site), booking: webUrl(m.booking),
+        place: placeLine(m), address: String(m.address ?? ''), clinic: String(m.clinic ?? ''), color: { bg: col.bg, ink: col.ink }, photo, logo, sign, pdf: pp, returnDays: n(m.returnDays),
+      };
     } catch { /* sem perfil: o portal mostra só "seu nutricionista" */ }
 
     // registra o acesso (o nutricionista vê "último acesso" na ficha)

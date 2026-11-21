@@ -47,11 +47,19 @@ export type PortalAssessment = {
 export type PortalPhoto = { assessmentId: string; pose: 'front' | 'back' | 'right' | 'left'; url: string; w: number; h: number };
 /** plano alimentar visível para o paciente (o mais recente primeiro) */
 export type PortalDiet = { id: string; title: string; prescribedAt: string | null; assessmentId: string | null; data: import('./diet-parse').Diet; updatedAt: string | null };
+/** perfil do nutricionista como o portal mostra (imagens = links temporários de 1 hora) */
+export type PortalNutri = {
+  name: string; display?: string; short?: string; crn: string; specialty: string; specialties?: string[]; bio?: string;
+  phone: string; email?: string; instagram?: string; site?: string; booking?: string; place: string; address?: string;
+  clinic?: string; color?: { bg: string; ink: string } | null; photo?: string; logo?: string; sign?: string;
+  pdf?: { head: 'logo' | 'logoOnly' | 'name' | 'system'; contacts: boolean; sign: 'image' | 'line' | 'none'; note: string };
+  returnDays: number | null;
+};
 export type PortalData = {
   patient: { name: string; sex: 'F' | 'M'; birth: string; height: number | null; goal: string | null; returnDays: number | null;
     /** metas e (só se o nutricionista liberar) a energia diária */
     plan?: { goals: import('./plano').Goal[]; energy: import('./plano').EnergyCfg | null; history?: import('./plano').GoalHist[] } | null };
-  nutri: { name: string; crn: string; specialty: string; phone: string; place: string; returnDays: number | null };
+  nutri: PortalNutri;
   assessments: PortalAssessment[];
   photos: PortalPhoto[];
   diets: PortalDiet[];

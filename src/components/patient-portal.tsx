@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import {
   Activity, ArrowDown, ArrowLeftRight, ArrowRight, ArrowUp, BookOpen, ChevronDown, CalendarClock, Camera, ChevronLeft, ChevronRight, ClipboardList,
   Check, Droplet, Equal, Flame, Heart, House, KeyRound, LogOut, MapPin, MessageCircle, RefreshCw, Ruler, Scale, ShieldCheck, Target, TrendingUp, X, Zap,
+  CalendarPlus, AtSign, Globe, Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PhotoViewer, type ViewerSpec } from '@/components/photo-viewer';
@@ -212,8 +213,15 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
   const rOf = (a: A) => rs[list.indexOf(a)] ?? {};
   const last = list.at(-1), first = list[0], prev = list.at(-2);
   const rL = last ? rOf(last) : {}, rF = first ? rOf(first) : {}, rP = prev ? rOf(prev) : {};
-  const fn = firstName(data.patient.name), nutriName = data.nutri.name || 'seu nutricionista';
-  const crn = data.nutri.crn ? 'CRN ' + data.nutri.crn.replace(/^crn[\s:-]*/i, '') : '';
+  // nome com tratamento ("Dra. Helena Duarte") e como chamar no dia a dia ("Dra. Helena")
+  const fn = firstName(data.patient.name), nutriName = data.nutri.display || data.nutri.name || 'seu nutricionista';
+  const nutriShort = data.nutri.short || (data.nutri.name ? firstName(data.nutri.name) : 'seu nutricionista');
+  const crn = data.nutri.crn ? (/^crn/i.test(data.nutri.crn) ? data.nutri.crn : 'CRN ' + data.nutri.crn) : '';
+  const nAvatar = (style?: React.CSSProperties) => data.nutri.photo ? <span className="avatar has-img" style={style}><img src={data.nutri.photo} alt="" /></span> : <span className="avatar" style={style}>{initials(nutriName)}</span>;
+  const mapUrl = data.nutri.address ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(data.nutri.address) : '';
+  /* PDFs baixados pelo paciente saem com a mesma marca dos PDFs do nutricionista */
+  const pdfNutri = { name: nutriName === 'seu nutricionista' ? '' : nutriName, crn, phone: data.nutri.phone, place: data.nutri.place, email: data.nutri.email ?? '', instagram: data.nutri.instagram ? '@' + data.nutri.instagram : '',
+    site: (data.nutri.site ?? '').replace(/^https?:\/\/(www\.)?/i, ''), clinic: data.nutri.clinic ?? '', logo: data.nutri.logo ?? '', sign: data.nutri.sign ?? '', color: data.nutri.color ?? null, pdf: data.nutri.pdf };
   const wa = data.nutri.phone ? 'https://wa.me/' + (() => { const d = data.nutri.phone.replace(/\D/g, ''); return d.length <= 11 ? '55' + d : d; })() : '';
   const hasPhotos = data.share.photos && data.photos.length > 0;
   const diets = data.diets ?? [];
@@ -274,7 +282,7 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
   const [studio, setStudio] = useState<StudioSpec | null>(null);
   /* estúdio de imagens: as fotos compartilhadas, para montar o antes e depois das redes sociais */
   const openStudio = (k: string, a?: string, b?: string) => setStudio({
-    who: 'patient', patient: data.patient.name, signature: data.nutri.name ? `Acompanhamento: ${data.nutri.name}` : '',
+    who: 'patient', patient: data.patient.name, signature: data.nutri.name ? `Acompanhamento: ${nutriName}` : '',
     assessments: list.map((x) => { const r = rOf(x); return { id: x.id, date: x.date, weight: num(x.weight) ?? null, bf: num(r['bf']) ?? null, lean: num(r['leanMass']) ?? null, waist: num(x.circ?.['waist']) ?? null }; }),
     photos: data.photos.filter((ph) => list.some((x) => x.id === ph.assessmentId)).map((ph) => ({ aid: ph.assessmentId, pose: ph.pose, load: async () => { const r = await fetch(ph.url); if (!r.ok) throw new Error('Foto indisponível'); return r.blob(); } })),
     pose: k, ...(a ? { a } : {}), ...(b ? { b } : {}),
@@ -334,7 +342,7 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
     const ecfg = data.patient.plan?.energy;
     return { photos, goal: data.patient.goal ? GOAL[data.patient.goal] ?? '' : '', nextReturn: next,
       goals: data.patient.plan?.goals ?? [], energy: ecfg ? (a: A) => energyOf(ecfg, energyInputs(pp, a)) : null,
-      nutri: { name: data.nutri.name, crn, phone: data.nutri.phone, place: data.nutri.place },
+      nutri: pdfNutri,
       diets: diets.map((d) => ({ title: d.title, prescribedAt: d.prescribedAt, assessmentId: d.assessmentId, data: d.data })) };
   };
   const pp = { name: data.patient.name, sex: data.patient.sex, birth: data.patient.birth, height: data.patient.height };
@@ -374,7 +382,7 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
   const tourSteps = (): TourStep[] => {
     const svg = (p: string) => `<svg class="ico" viewBox="0 0 24 24">${p}</svg>`;
     const nav = (l: string) => [`.nav [aria-label="${l}"]`];
-    const nfn = firstName(nutriName);
+    const nfn = nutriShort;
     const s: (TourStep | false)[] = [
       { art: 'patient', title: `Olá, ${fn}! Boas-vindas ao seu portal.`, text: `${nutriName === 'seu nutricionista' ? 'Seu nutricionista' : nfn} preparou este espaço para você acompanhar sua evolução${hasDiet ? ' e seguir seu plano alimentar' : ''}. Em 30 segundos você conhece tudo.`, cta: 'Começar' },
       hasDiet && { sel: ['.dt-next'], icon: dtIcon('almoco'), title: 'Sua próxima refeição', text: 'Aqui aparece a refeição da vez, com o que comer e a quantidade. Muda sozinha ao longo do dia, conforme os horários do seu plano.' },
@@ -462,7 +470,7 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
       <div className="card pf-cta" role="button" tabIndex={0} onClick={() => go('form', 'pre')} onKeyDown={(e) => { if (e.key === 'Enter') go('form', 'pre'); }}>
         <span className="pf-cta-ico"><ClipboardList className="ico" /></span>
         <div className="grow"><small>{left! < 0 ? 'Seu retorno já passou da data' : left === 0 ? 'Sua consulta é hoje' : `Sua consulta é em ${left} ${left === 1 ? 'dia' : 'dias'}`}</small>
-          <b>Responda a pré-consulta</b><span>2 minutos. {firstName(nutriName) === 'seu' ? 'Seu nutricionista' : firstName(nutriName)} já chega sabendo como foram suas semanas.</span></div>
+          <b>Responda a pré-consulta</b><span>2 minutos. {data.nutri.name ? nutriShort : 'Seu nutricionista'} já chega sabendo como foram suas semanas.</span></div>
         <span className="pf-cta-go">Responder <ChevronRight className="ico sm" /></span>
         <Close k="pre" label="Fechar aviso da pré-consulta" />
       </div>
@@ -542,17 +550,22 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
       })()}
       </div>
       {energyHtml && <div className="pp-energy">{parseHtml(energyHtml)}</div>}
-      {lastNote && <div className="card pp-msg"><div className="card-head"><span className="chip-ico"><MessageCircle className="ico sm" /></span><span className="label">Recado de {firstName(nutriName)}<br /><span className="small muted">{dLong(lastNote.date)}</span></span></div><p>{lastNote.extra.notes}</p></div>}
+      {lastNote && <div className="card pp-msg"><div className="card-head"><span className="chip-ico"><MessageCircle className="ico sm" /></span><span className="label">Recado de {nutriShort}<br /><span className="small muted">{dLong(lastNote.date)}</span></span></div><p>{lastNote.extra.notes}</p></div>}
     </>)}
 
     <h2 className="sec">Seu acompanhamento</h2>
     <div className="pp-follow">
       <div className="card pp-nutri">
-        <span className="avatar">{initials(nutriName)}</span>
-        <div className="grow"><small>Seu nutricionista</small><b>{nutriName}</b><span>{[crn, data.nutri.specialty].filter(Boolean).join(' · ') || 'Acompanhamento nutricional'}</span></div>
-        {(wa || data.nutri.place) && <div className="pp-contact">
+        {nAvatar()}
+        <div className="grow"><small>Seu nutricionista</small><b>{nutriName}</b><span>{[crn, (data.nutri.specialties?.length ? data.nutri.specialties.slice(0, 3).join(', ') : data.nutri.specialty)].filter(Boolean).join(' · ') || 'Acompanhamento nutricional'}</span></div>
+        {data.nutri.bio && <p className="pp-bio">{data.nutri.bio}</p>}
+        {(wa || data.nutri.place || data.nutri.booking || data.nutri.instagram || data.nutri.site || data.nutri.email) && <div className="pp-contact">
           {wa && <a className="pc wa" href={wa} target="_blank" rel="noopener"><WaIcon />Falar no WhatsApp</a>}
-          {data.nutri.place && <span className="pc"><MapPin size={16} />{data.nutri.place}</span>}
+          {data.nutri.booking && <a className="pc book" href={data.nutri.booking} target="_blank" rel="noopener"><CalendarPlus size={16} />Agendar consulta</a>}
+          {data.nutri.instagram && <a className="pc" href={'https://instagram.com/' + data.nutri.instagram} target="_blank" rel="noopener"><AtSign size={16} />{data.nutri.instagram}</a>}
+          {data.nutri.site && <a className="pc" href={data.nutri.site} target="_blank" rel="noopener"><Globe size={16} />{data.nutri.site.replace(/^https?:\/\/(www\.)?/i, '')}</a>}
+          {data.nutri.email && <a className="pc" href={'mailto:' + data.nutri.email}><Mail size={16} />{data.nutri.email}</a>}
+          {data.nutri.place && (mapUrl ? <a className="pc" href={mapUrl} target="_blank" rel="noopener"><MapPin size={16} />{data.nutri.place}</a> : <span className="pc"><MapPin size={16} />{data.nutri.place}</span>)}
         </div>}
       </div>
       {next && left != null && (
@@ -839,7 +852,9 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
   const DietScreen = () => {
     const d = diets.find((x) => x.id === dietId) ?? diets[0];
     if (!d) return Home();
-    const meta = { patient: data.patient.name, nutri: data.nutri.name, crn, consult: d.assessmentId ? (() => { const a = list.find((x) => x.id === d.assessmentId); return a ? 'Consulta de ' + dShort(a.date) : ''; })() : '' };
+    const own = data.nutri.pdf?.head !== 'system';
+    const meta = { patient: data.patient.name, nutri: pdfNutri.name, crn, logo: own && (data.nutri.pdf?.head === 'logo' || data.nutri.pdf?.head === 'logoOnly') ? data.nutri.logo ?? '' : '', brand: own && data.nutri.pdf?.head !== 'logoOnly' ? data.nutri.clinic ?? '' : '', color: own ? data.nutri.color ?? null : null,
+      contacts: data.nutri.pdf?.contacts ? [data.nutri.phone, pdfNutri.instagram, pdfNutri.site, pdfNutri.email].filter(Boolean).join(' · ') : '', consult: d.assessmentId ? (() => { const a = list.find((x) => x.id === d.assessmentId); return a ? 'Consulta de ' + dShort(a.date) : ''; })() : '' };
     const img = async () => { const b = await dietImage(d.data, meta); await shareOrDownload(b, dietFileName(d.data, meta, 'png'), d.title); };
     const chips = [meta.consult ? `<span class="tag">${meta.consult}</span>` : '', d.id === diets[0]!.id ? '<span class="tag green">Plano atual</span>' : '<span class="tag">Plano anterior</span>'].join('');
     const foot = `<div class="card white dt-save"><div class="card-head"><span class="chip-ico" style="background:var(--green)">${dtIcon('leaf', 'sm')}</span><span class="label"><b>Leve com você</b><br><span class="small muted">Salve no celular, imprima ou mande para alguém</span></span></div>
@@ -856,7 +871,7 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
         if (a === 'ppImg') { void img(); return; }
         dietClick(e, d.id);
       }}>{parseHtml(dietHtml(d.data, uiFor(d.id), { mode: 'patient', nowMin, chips, foot }))}</div>
-      <p className="pp-ro"><ShieldCheck size={15} /> Plano prescrito por {nutriName}. Dúvidas? Fale com {firstName(nutriName)} antes de mudar algo.</p>
+      <p className="pp-ro"><ShieldCheck size={15} /> Plano prescrito por {nutriName}. Dúvidas? Fale com {nutriShort} antes de mudar algo.</p>
     </>);
   };
 
@@ -886,13 +901,14 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
     <main className={'app has-nav pp' + (view.tab === 'form' ? ' pp-form' : '')} ref={host}>
       <div className="view" key={view.tab + (view.id ?? '')} data-dir={dir}>{screens[view.tab]()}</div>
       <nav className={'nav' + (tabs.length > 5 ? ' six' : '')}>
-        <div className="side-brand"><span className="mark"><Heart className="ico sm" /></span><span>Portal do<br />paciente</span></div>
+        {data.nutri.logo ? <div className="side-brand has-logo"><img src={data.nutri.logo} alt={data.nutri.clinic || nutriName} /><span>Portal do paciente</span></div>
+          : <div className="side-brand"><span className="mark" style={data.nutri.color ? { background: data.nutri.color.bg } : undefined}><Heart className="ico sm" /></span><span>{data.nutri.clinic ? <>{data.nutri.clinic}<br /><small>Portal do paciente</small></> : <>Portal do<br />paciente</>}</span></div>}
         <div className="side-links">{tabs.map(({ k, l, I }) => { const n = cur === k ? 0 : badges[k] ?? 0; return <button key={k} className={cur === k ? 'on' : ''} onClick={() => go(k)} aria-label={n ? `${l} (${n} ${n === 1 ? 'novidade' : 'novidades'})` : l} aria-current={cur === k ? 'page' : undefined}><I className="ico" /><span>{l}</span>{n > 0 && <em className="nav-badge">{n}</em>}</button>; })}</div>
         {/* rodapé: quem cuida de você (e o atalho para falar com ele) logo acima de você */}
         <div className="side-bottom">
           <div className="side-nutri">
             <small>Seu nutricionista</small>
-            <span className="row"><span className="avatar" style={{ background: 'var(--peach)' }}>{initials(nutriName)}</span><span className="grow"><b>{nutriName}</b><small>{crn || data.nutri.specialty || 'Acompanhamento'}</small></span></span>
+            <span className="row">{nAvatar({ background: 'var(--peach)' })}<span className="grow"><b>{nutriName}</b><small>{crn || data.nutri.specialty || 'Acompanhamento'}</small></span></span>
             {wa && <a className="side-wa" href={wa} target="_blank" rel="noopener"><WaIcon /><span>Falar no WhatsApp</span></a>}
           </div>
           <button className="side-prof" onClick={() => setAskExit(true)} title="Sair deste aparelho"><span className="avatar" style={{ background: 'var(--yellow-2)' }}>{initials(data.patient.name)}</span><span className="grow"><b>{data.patient.name}</b><small>Sair deste aparelho</small></span><LogOut className="ico sm" /></button>

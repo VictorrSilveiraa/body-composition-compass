@@ -6,7 +6,8 @@ import { CAT_COLOR, KIND_COLOR, dayClock, dtIcon } from './diet-view';
  * Plano alimentar para levar: PDF (pelo "Salvar como PDF" do navegador, como os relatórios de avaliação)
  * e imagem (PNG alta resolução, ótima para mandar no WhatsApp e salvar na galeria).
  */
-export type DietMeta = { patient: string; nutri: string; crn?: string; consult?: string };
+/** logo/brand/color/contacts: marca do nutricionista (perfil > Marca e PDF); todos opcionais */
+export type DietMeta = { patient: string; nutri: string; crn?: string; consult?: string; logo?: string; brand?: string; color?: { bg: string; ink: string } | null; contacts?: string };
 const qtyText = (qty: string) => { const q = qtyParts(qty), a = fmtAmount(q); return [q.measure, a].filter(Boolean).join(' · ') || qty; };
 const subHtml = (s: DietSub) => `${esc(s.name)}${s.detail ? ` (${esc(s.detail)})` : ''}${s.qty ? ` — ${qtyText(s.qty).split(' · ').map((p) => `<span class="dp-nw">${esc(p)}</span>`).join(' · ')}` : ''}`;
 const subTxt = (s: DietSub) => `${s.name}${s.detail ? ` (${s.detail})` : ''}${s.qty ? ` — ${qtyText(s.qty)}` : ''}`;
@@ -26,7 +27,9 @@ export function dietPrintHtml(d: Diet, m: DietMeta) {
   }).join('');
   const cats = (Object.keys(CAT_LABEL) as FoodCat[]);
   const groups = new Map<FoodCat, string[]>(); for (const it of shop) { const c = foodCat(it); groups.set(c, [...(groups.get(c) ?? []), it]); }
-  return `<div class="dp">
+  const brandBar = m.logo || m.brand ? `<div class="dp-brand">${m.logo ? `<img src="${esc(m.logo)}" alt="">` : ''}${m.brand ? `<b>${esc(m.brand)}</b>` : ''}<span>${esc([m.nutri, m.crn].filter(Boolean).join(' · '))}</span></div>` : '';
+  return `<div class="dp"${m.color ? ` style="--dp-accent:${m.color.bg};--dp-accent-ink:${m.color.ink}"` : ''}>
+    ${brandBar}
     <header class="dp-head">
       <div><span class="dp-kicker">Plano alimentar</span><h1>${esc(d.title)}</h1>
         <p>${esc(m.patient)}${d.prescribedAt ? ` · prescrito em ${fmtDate(d.prescribedAt, { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}${m.consult ? ` · ${esc(m.consult)}` : ''}</p></div>
@@ -39,7 +42,7 @@ export function dietPrintHtml(d: Diet, m: DietMeta) {
     ${d.sections.map((x) => `<section class="dp-box"><h2>${esc(x.title)}</h2>${x.lines.map((l) => `<p>${esc(l)}</p>`).join('')}</section>`).join('')}
     ${shop.length ? `<section class="dp-shop"><h2>Lista de compras</h2><div class="dp-shop-g">${cats.filter((c) => groups.has(c)).map((c) => `<div><h3><i style="background:${CAT_COLOR[c]}"></i>${CAT_LABEL[c]}</h3>${groups.get(c)!.map((x) => `<p>☐ ${esc(x)}</p>`).join('')}</div>`).join('')}</div></section>` : ''}
     ${d.recipes.map((r) => `<section class="dp-box dp-recipe"><h2>Receita · ${esc(r.name)}</h2>${r.yield ? `<p class="dp-muted">Rende ${esc(r.yield)}</p>` : ''}<div class="dp-rc"><div><h3>Ingredientes</h3>${r.ingredients.map((x) => `<p>• ${esc(x)}</p>`).join('')}</div><div><h3>Modo de preparo</h3><ol>${r.steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div></div></section>`).join('')}
-    <footer class="dp-foot"><span>${esc([m.nutri, m.crn].filter(Boolean).join(' · ') || d.prescriber)}</span><span>Gerado em ${fmtDate(new Date().toISOString().slice(0, 10), { day: '2-digit', month: '2-digit', year: 'numeric' })}</span></footer>
+    <footer class="dp-foot"><span>${esc([m.nutri, m.crn].filter(Boolean).join(' · ') || d.prescriber)}${m.contacts ? `<br>${esc(m.contacts)}` : ''}</span><span>Gerado em ${fmtDate(new Date().toISOString().slice(0, 10), { day: '2-digit', month: '2-digit', year: 'numeric' })}</span></footer>
   </div>`;
 }
 export function exportDietPdf(d: Diet, m: DietMeta) {

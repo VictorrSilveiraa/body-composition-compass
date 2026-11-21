@@ -3,6 +3,7 @@ import { num, PROTO_KEYS } from './calculos.js';
 import type { Json } from '@/integrations/supabase/types';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CarePlan } from './plano';
+import type { NutriProfile } from './nutri';
 
 /*
  * Ficha do paciente (contato, objetivo, observações, retorno, arquivado).
@@ -29,7 +30,7 @@ function readLocalFicha(userId:string):Record<string,Ficha>{try{return JSON.pars
 function writeLocalFicha(userId:string,people:LegacyPerson[]){try{const m=Object.fromEntries(people.filter(p=>hasFicha(fichaOf(p))).map(p=>[p.id,fichaOf(p)]));Object.keys(m).length?localStorage.setItem(fichaKey(userId),JSON.stringify(m)):localStorage.removeItem(fichaKey(userId));}catch{/* sem armazenamento */}}
 
 /* Perfil do nutricionista: guardado nos dados da própria conta (não precisa de tabela). */
-export type Nutri = {name?:string;crn?:string;specialty?:string;phone?:string;place?:string;returnDays?:number;tourSeen?:boolean;returnMsg?:{late?:string;soon?:string}};
+export type Nutri = NutriProfile;
 export async function saveNutri(nutri:Nutri){const {error}=await supabase.auth.updateUser({data:{nutri}});if(error)throw error;}
 export type LegacyAssessment = {id:string;profileId:string;date:string;weight:string|number; height:string|number|null;protocol:string;multi:boolean;circ:Record<string,unknown>;folds:Record<string,unknown>;extra:Record<string,unknown>;createdAt?:number};
 export type LegacyDB={profiles:LegacyPerson[];assessments:LegacyAssessment[];activeId:string|null};

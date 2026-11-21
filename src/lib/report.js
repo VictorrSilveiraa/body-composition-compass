@@ -15,6 +15,18 @@ let CTX = {};
 const POSE_L = [['front','Frente'],['back','Costas'],['right','Lado direito'],['left','Lado esquerdo']];
 const photosOf = id => (CTX.photos && CTX.photos[id]) || {};
 const proLine = () => { const n = CTX.nutri || {}; return [n.name, n.crn].filter(Boolean).join(' · '); };
+/* marca do nutricionista (perfil > Marca e PDF): logo, nome da marca, cor, contatos e assinatura */
+const pdfP = () => ({ head:'logo', contacts:true, sign:'line', note:'', ...(CTX.nutri?.pdf || {}) });
+function brand(subtitle){
+  const n = CTX.nutri || {}, pp = pdfP(), name = (n.clinic || n.name || '').trim();
+  if (pp.head!=='system' && name){
+    if (pp.head==='logoOnly' && n.logo) return `<div class="rp-brand rp-brand-logo"><img class="rp-logo rp-logo-only" src="${esc(n.logo)}" alt="${esc(name)}"><div><small>${subtitle}</small></div></div>`;
+    if (pp.head==='logo' && n.logo) return `<div class="rp-brand rp-brand-logo"><img class="rp-logo" src="${esc(n.logo)}" alt=""><div><b>${esc(name)}</b><small>${subtitle}</small></div></div>`;
+    return `<div class="rp-brand"><span class="rp-mark rp-mark-txt">${esc(initials(name))}</span><div><b>${esc(name)}</b><small>${subtitle}</small></div></div>`;
+  }
+  return `<div class="rp-brand"><span class="rp-mark">${ic('heart')}</span><div><b>Avaliação Física</b><small>${subtitle}</small></div></div>`;
+}
+const contactLine = () => { const n = CTX.nutri || {}; return pdfP().contacts ? [n.phone, n.instagram, n.site, n.email].filter(Boolean).join(' · ') : ''; };
 /* "Próximo retorno" só faz sentido no documento da avaliação mais recente e com data que ainda não passou
    (num relatório de maio, o retorno de dezembro confunde; um retorno já vencido não é "próximo") */
 const extraFacts = (withReturn = true) => [CTX.goal && ['Objetivo', esc(CTX.goal)],
@@ -151,7 +163,7 @@ export function buildReport({a, p, list}, o = {}){
 
   /* ---------- cabeçalho e identificação ---------- */
   const header = `<header class="rp-head">
-    <div class="rp-brand"><span class="rp-mark">${ic('heart')}</span><div><b>Avaliação Física</b><small>Relatório de composição corporal</small></div></div>
+    ${brand('Relatório de composição corporal')}
     <div class="rp-head-r"><small>Data da avaliação</small><b>${fmtDate(a.date,{day:'numeric',month:'long',year:'numeric'})}</b><small>Avaliação ${idx+1} de ${list.length}</small></div>
   </header>`;
 
@@ -319,19 +331,24 @@ const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 864e5);
 /* rodapé: assinatura + profissional. compact = numa faixa só (resumo de 1 página);
    note = texto final (fichas respondidas pelo paciente não levam assinatura) */
 function footer(evaluator, o = {}){
-  const pro = CTX.nutri?.name ? `<p class="rp-pro"><b>Nutricionista responsável:</b> ${esc(proLine())}${CTX.nutri.phone ? ' · ' + esc(CTX.nutri.phone) : ''}${CTX.nutri.place ? ' · ' + esc(CTX.nutri.place) : ''}</p>` : '';
-  const note = o.note || 'Valores estimados por equações de referência; este documento é informativo e não substitui avaliação profissional.';
-  if (o.compact) return `<footer class="rp-foot rp-foot-c"><div class="rp-signature"><span></span><small>${evaluator ? esc(evaluator) : proLine() ? esc(proLine()) : 'Avaliador(a)'}</small></div><div class="rp-foot-t">${pro}<p>Relatório gerado em ${longDate(today())}. ${note}</p></div></footer>`;
+  const n = CTX.nutri || {}, pp = pdfP(), ct = contactLine();
+  const pro = n.name ? `<p class="rp-pro"><b>Nutricionista responsável:</b> ${esc(proLine())}${n.place ? ' · ' + esc(n.place) : ''}${ct ? `<br><span class="rp-contacts">${esc(ct)}</span>` : ''}</p>` : '';
+  const note = o.note || (pp.note ? esc(pp.note) : 'Valores estimados por equações de referência; este documento é informativo e não substitui avaliação profissional.');
+  const who = evaluator ? esc(evaluator) : proLine() ? esc(proLine()) : 'Avaliador(a)';
+  // a assinatura em imagem é do nutricionista: só vai quando ele mesmo é o avaliador (ou não há avaliador informado)
+  const own = !evaluator || !n.name || String(evaluator).includes(String(n.name).replace(/^(Dra?\.)\s*/, '').split(' ')[0] || '');
+  const sig = pp.sign==='none' ? '' : `<div class="rp-signature">${pp.sign==='image' && n.sign && own ? `<img class="rp-sign-img" src="${esc(n.sign)}" alt="Assinatura">` : ''}<span></span><small>${who}</small></div>`;
+  if (o.compact) return `<footer class="rp-foot rp-foot-c${sig?'':' rp-nosign'}">${sig}<div class="rp-foot-t">${pro}<p>Relatório gerado em ${longDate(today())}. ${note}</p></div></footer>`;
   if (o.sign === false) return `<footer class="rp-foot rp-foot-s"><p>Gerado em ${longDate(today())}. ${note}</p></footer>`;
-  return `<footer class="rp-foot${o.compact ? ' rp-foot-c' : ''}">
-    <div class="rp-signature"><span></span><small>${evaluator ? esc(evaluator) : proLine() ? esc(proLine()) : 'Avaliador(a)'}</small></div>
+  return `<footer class="rp-foot${sig?'':' rp-nosign'}">
+    ${sig}
     ${pro}
     <p>Relatório gerado em ${longDate(today())}. ${note}</p>
   </footer>`;
 }
 function head(subtitle, rSmall, rBig, rSub){
   return `<header class="rp-head">
-    <div class="rp-brand"><span class="rp-mark">${ic('heart')}</span><div><b>Avaliação Física</b><small>${subtitle}</small></div></div>
+    ${brand(subtitle)}
     <div class="rp-head-r"><small>${rSmall}</small><b>${rBig}</b>${rSub?`<small>${rSub}</small>`:''}</div>
   </header>`;
 }
@@ -350,7 +367,7 @@ function glossary(){
       <div><b>Metabolismo basal</b><p>Calorias gastas em repouso total. Base para planejar a dieta.</p></div>
       <div><b>Dobras cutâneas</b><p>Espessura da gordura sob a pele. A soma das dobras é ótima para acompanhar a evolução.</p></div>
     </div>
-    <p class="rp-method"><b>Metodologia.</b> % de gordura por dobras cutâneas (Pollock 7 ou 3 dobras, Durnin & Womersley) e equação de Siri; na falta de dobras, bioimpedância ou fórmula da Marinha dos EUA. Metabolismo basal pela equação escolhida pelo nutricionista (Mifflin-St Jeor, Harris-Benedict, Katch-McArdle, Cunningham ou FAO/OMS) ou, sem ela, Katch-McArdle (com massa magra) ou Mifflin-St Jeor. Classificações: ACE (% de gordura) e OMS (IMC). pp = pontos percentuais.</p>
+    <p class="rp-method"><b>Metodologia.</b> % de gordura por dobras cutâneas (Pollock, Petroski, Guedes, Durnin & Womersley com a equação de Siri; Faulkner e Slaughter direto); na falta de dobras, bioimpedância ou fórmula da Marinha dos EUA. Metabolismo basal pela equação escolhida pelo nutricionista (Mifflin-St Jeor, Harris-Benedict, Katch-McArdle, Cunningham ou FAO/OMS) ou, sem ela, Katch-McArdle (com massa magra) ou Mifflin-St Jeor. Classificações: ACE ou Lohman (crianças e adolescentes) para % de gordura; OMS, OMS 2007 (5 a 19 anos) ou Lipschitz (idosos) para IMC. pp = pontos percentuais.</p>
   </section>`;
 }
 const legendLine = `<p class="rp-legend-s"><span class="rp-delta good">verde</span> evolução favorável · <span class="rp-delta bad">laranja</span> pede atenção · <span class="rp-delta neu">azul</span> variação neutra · pp = pontos percentuais</p>`;
@@ -508,7 +525,8 @@ export function reportTitle(kind, data){
 export function exportPdf(kind, data){
   let root = document.getElementById('print-root');
   if (!root){ root = document.createElement('div'); root.id = 'print-root'; document.body.appendChild(root); }
-  root.innerHTML = `<article class="rp">${reportHtml(kind, data)}</article>`;
+  const col = data.ctx?.nutri?.color, head = data.ctx?.nutri?.pdf?.head;
+  root.innerHTML = `<article class="rp"${col && head!=='system' ? ` style="--rp-accent:${col.bg};--rp-accent-ink:${col.ink}"` : ''}>${reportHtml(kind, data)}</article>`;
   const oldTitle = document.title;
   document.title = reportTitle(kind, data); // vira o nome sugerido do arquivo PDF
   document.body.classList.add('printing-report');

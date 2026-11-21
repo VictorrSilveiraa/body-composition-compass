@@ -8,6 +8,8 @@ import { PoseCamera, type CameraSpec } from '@/components/pose-camera';
 import { PhotoViewer, type ViewerSpec } from '@/components/photo-viewer';
 import { PhotoStudio, type StudioSpec } from '@/components/photo-studio';
 import { DoneSheet, type DoneSpec } from '@/components/done-sheet';
+import { MediaEditor, type MediaSpec } from '@/components/media-editor';
+import { nutriMedia } from '@/lib/nutri-media';
 import { loadPhotos, photoStore } from '@/lib/photos';
 import { getAccess, issueCode, updateAccess } from '@/lib/portal-access';
 import { dietStore, loadDiets } from '@/lib/diets';
@@ -60,6 +62,7 @@ const bridge = {
   camera: (_c: CameraSpec) => {},
   viewer: (_v: ViewerSpec) => {},
   studio: (_s: StudioSpec) => {},
+  media: (_m: MediaSpec) => {},
   done: (_d: DoneSpec) => {},
   showDone: () => {},
 };
@@ -91,6 +94,7 @@ export function AssessmentApp() {
   const [camera, setCamera] = useState<CameraSpec | null>(null);
   const [viewer, setViewer] = useState<ViewerSpec | null>(null);
   const [studio, setStudio] = useState<StudioSpec | null>(null);
+  const [media, setMedia] = useState<MediaSpec | null>(null);
   const [done, setDone] = useState<{ spec: DoneSpec; n: number } | null>(null);
   const navigate = useNavigate(), queryClient = useQueryClient();
   const path = useRouterState({ select: (s) => s.location.pathname });
@@ -109,6 +113,7 @@ export function AssessmentApp() {
     bridge.camera = setCamera;
     bridge.viewer = setViewer;
     bridge.studio = setStudio;
+    bridge.media = setMedia;
     // abre depois da transição de página (senão a barra de navegação fica por cima durante a animação)
     bridge.done = (d) => {
       doneQueued = { spec: { onError: (e) => bridge.toast(motivo(e, 'Não foi possível concluir. Tente novamente.')), ...d }, n: ++doneSeq };
@@ -152,6 +157,8 @@ export function AssessmentApp() {
           camera: (c: CameraSpec) => bridge.camera(c),
           viewer: (v: ViewerSpec) => bridge.viewer(v),
           studio: (st: StudioSpec) => bridge.studio(st),
+          // imagens do perfil (foto, logo, assinatura): editor + armazenamento privado da conta
+          mediaEditor: (m: MediaSpec) => bridge.media(m), media: nutriMedia(user.id),
           done: (d: DoneSpec) => bridge.done(d),
           logout: async () => { dropLive(); await queryClient.cancelQueries(); queryClient.clear(); await supabase.auth.signOut(); await navigate({ to: '/login', replace: true }); },
         });
@@ -241,6 +248,7 @@ export function AssessmentApp() {
       {camera && <PoseCamera spec={camera} onEnd={() => setCamera(null)} />}
       {viewer && <PhotoViewer spec={viewer} onEnd={() => setViewer(null)} />}
       {studio && <PhotoStudio spec={studio} onEnd={() => setStudio(null)} />}
+      {media && <MediaEditor key={media.kind} spec={media} onEnd={() => setMedia(null)} />}
       {done && <DoneSheet key={done.n} spec={done.spec} onEnd={() => { if (doneQueued?.n === done.n) doneQueued = null; setDone(null); }} />}
     </>
   );
