@@ -219,7 +219,16 @@ function viewEdit(first, setupHtml){
       <section class="nu-main" data-key="nu-${tab}">${body}</section>
       <aside class="nu-aside"><h3 class="nu-aside-t">${ic('eye','sm')} Prévia ao vivo</h3>${pv}</aside>
     </div>
+    ${dock(pv)}
     ${bar}`;
+}
+/* celular: botão "Ver prévia" acima de Salvar; abre a prévia de baixo para cima, sem sair do campo */
+function dock(pv){
+  const open = !!state.form.nuPv;
+  return `<div class="nu-dock${open?' open':''}">
+    ${open ? `<div class="nu-dock-panel" id="nu-dock-panel" role="region" aria-label="Prévia ao vivo"><div class="nu-dock-h"><b>${ic('eye','sm')} Prévia ao vivo</b><span>Muda enquanto você edita</span></div><div class="nu-dock-body">${pv}</div></div>` : ''}
+    <button type="button" class="nu-dock-btn" data-act="nuPv" aria-expanded="${open}" aria-controls="nu-dock-panel">${ic(open?'down':'eye','sm')}<span>${open?'Fechar prévia':'Ver prévia'}</span></button>
+  </div>`;
 }
 const toProfileSafe = f => { try { return toProfile(f); } catch { return f; } };
 
@@ -258,8 +267,10 @@ function viewProfile(o){
   <div>
     <h2 class="sec">Como você aparece <button data-act="nuGo" data-v="marca">marca e PDF</button></h2>
     <div class="nu-shows">${portalPreview(formOf(n))}${pdfPreview(formOf(n))}</div>
+    <div class="actions nu-acts">
     <button type="button" class="act-row nu-test" data-act="nuTest"><span class="chip-ico">${ic('pdf','sm')}</span><span class="grow"><b>Ver um PDF de teste</b><span>Com a sua marca, na última avaliação</span></span>${ic('right','sm')}</button>
     <button type="button" class="act-row" data-act="nuGo" data-v="prefs"><span class="chip-ico">${ic('gear','sm')}</span><span class="grow"><b>Preferências</b><span>${esc(prefsLine(n))}</span></span>${ic('right','sm')}</button>
+    </div>
     ${o.account}
   </div></div>`;
 }
@@ -304,7 +315,10 @@ const ERR_FIELD = [[/nome/i,'perfil','name'],[/CRN/i,'perfil','crnNum'],[/aprese
 function showErr(msg){ const [, tab, k] = ERR_FIELD.find(([re])=>re.test(msg)) || [null,'perfil','name']; toast(msg); if (state.form.nuTab!==tab){ state.form.nuTab = tab; render(); } setTimeout(()=>{ const el = app()?.querySelector(`[data-nu="${k}"]`); if (el){ el.scrollIntoView({block:'center',behavior:'smooth'}); el.focus({preventScroll:true}); } }, 120); }
 const ACT = {
   nuGo: async b => { state.nuWant = b.dataset.v; go('nutri'); },
-  nuTab: async b => { state.form.nuTab = b.dataset.v; render(); window.scrollTo({top:0,behavior:'smooth'}); },
+  nuTab: async b => { state.form.nuTab = b.dataset.v; render(); window.scrollTo({top:0,behavior:'smooth'});
+    // a aba escolhida fica inteira à vista na faixa (celular)
+    const k = b.dataset.v; setTimeout(()=>{ const on = app()?.querySelector(`.nu-tabs [data-v="${k}"]`), bar = on?.parentElement; if (on && bar){ const r = on.getBoundingClientRect(), br = bar.getBoundingClientRect(); if (r.left < br.left + 16 || r.right > br.right - 16) bar.scrollLeft += r.left < br.left + 16 ? r.left - br.left - 16 : r.right - br.right + 16; } }, 30); },
+  nuPv: async () => { state.form.nuPv = !state.form.nuPv; render(); },
   nuStep: async b => {
     // 1º acesso: só segue com o nome preenchido
     if (+b.dataset.v > SETUP_TABS.indexOf(state.form.nuTab) && !(F().name||'').trim()){ toast('Informe seu nome para continuar'); state.form.nuTab='perfil'; render(); setTimeout(()=>app()?.querySelector('[data-nu="name"]')?.focus(),80); return; }

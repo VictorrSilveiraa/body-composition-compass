@@ -3836,9 +3836,9 @@ button.idc-st:active{scale:.97}
 .avatar.has-img img{width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit}
 
 /* abas da edição */
-.nu-tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:6px -16px 16px;padding:2px 16px;scroll-snap-type:x proximity}
+.nu-tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:6px -16px 16px;padding:2px 16px;scroll-padding-inline:16px}
 .nu-tabs::-webkit-scrollbar{display:none}
-.nu-tabs button{display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 16px 0 8px;border-radius:99px;background:var(--card);font-weight:600;font-size:14.5px;white-space:nowrap;flex:none;scroll-snap-align:start;transition:background-color .25s,color .25s}
+.nu-tabs button{display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 16px 0 8px;border-radius:99px;background:var(--card);font-weight:600;font-size:14.5px;white-space:nowrap;flex:none;transition:background-color .25s,color .25s}
 .nu-tabs button.on{background:var(--ink);color:var(--surface)}
 .nu-tab-ico{width:30px;height:30px;border-radius:50%;background:var(--surface);color:var(--ink);display:grid;place-items:center;font-size:12.5px;font-weight:700;flex:none}
 .nu-tab-ico .ico{width:16px;height:16px}
@@ -3949,7 +3949,7 @@ button.idc-st:active{scale:.97}
 .nu-todo-i small{display:block;font-size:12.5px;color:var(--ink-2)}
 .nu-todo-i .chip-ico{background:var(--surface)}
 .nu-shows{display:grid;gap:10px}
-.nu-test{margin-top:10px}
+.nu-acts{margin-top:12px}
 .kv-bio .t{white-space:normal;line-height:1.45}
 .kv-row .t a{color:var(--blue-ink);font-weight:600;text-decoration:none}
 .nu-hero p{max-width:560px}
@@ -4049,3 +4049,22 @@ button.idc-st:active{scale:.97}
 .pp-nutri .pp-contact .pc:not(.wa):not(.book){background:var(--surface)}
 /* portal no computador: o logo do nutricionista abre a barra lateral */
 @media (min-width:1024px){ .pp .nav .side-brand.has-logo{display:flex;padding:4px 10px 18px} }
+
+/* prévia no celular: botão acima de Salvar + painel que sobe de baixo */
+.nu-dock{position:fixed;left:0;right:0;bottom:calc(84px + env(safe-area-inset-bottom));z-index:26;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 12px;pointer-events:none}
+.nu-dock>*{pointer-events:auto}
+.nu-dock-btn{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 18px;border-radius:99px;background:var(--surface);color:var(--ink);font-weight:600;font-size:14px;box-shadow:0 6px 20px oklch(0 0 0 / .12),0 0 0 1px var(--line);transition:background-color .2s,scale .2s var(--ease)}
+.nu-dock-btn .ico{width:17px;height:17px}
+.nu-dock.open .nu-dock-btn{background:var(--ink);color:var(--surface);box-shadow:0 6px 20px oklch(0 0 0 / .18)}
+.nu-dock-btn:active{scale:.96}
+.nu-dock-panel{width:min(520px,100%);max-height:min(56dvh,520px);overflow-y:auto;overscroll-behavior:contain;background:var(--surface);border-radius:26px;padding:14px 12px 12px;box-shadow:0 -6px 40px oklch(0 0 0 / .16),0 0 0 1px var(--line);animation:nuDockUp .34s var(--spring,cubic-bezier(.2,.8,.2,1)) both}
+.nu-dock-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:0 4px 10px}
+.nu-dock-h b{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:15px}
+.nu-dock-h b .ico{width:16px;height:16px}
+.nu-dock-h span{font-size:12px;color:var(--muted)}
+.nu-dock-body{display:grid;gap:10px;grid-template-columns:minmax(0,1fr)}
+@keyframes nuDockUp{from{opacity:0;translate:0 40px;scale:.98}}
+.app:has(.nu-dock){padding-bottom:calc(190px + env(safe-area-inset-bottom))}
+@media (max-width:1023px){ .nu-aside{display:none} }
+@media (min-width:1024px){ .nu-dock{display:none} .app:has(.nu-dock){padding-bottom:140px} }
+@media (prefers-reduced-motion:reduce){ .nu-dock-panel{animation:none} }
