@@ -61,6 +61,11 @@ const I = {
   chat:'<path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 10h6M9 13.5h4"/>',
   chev:'<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>',
   search:'<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>',
+  filter:'<path d="M4 6.5h16M7 12h10M10 17.5h4"/>',
+  grid:'<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>',
+  rows:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+  densIn:'<path d="M12 3v6M9 6l3 3 3-3M12 21v-6M9 18l3-3 3 3M5 12h14"/>',
+  densOut:'<path d="M12 9V3M9 6l3-3 3 3M12 15v6M9 18l3 3 3-3M5 12h14"/>',
   archive:'<rect x="3" y="4" width="18" height="5" rx="2"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/>',
   badge:'<rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="11" r="2"/><path d="M6 16c.6-1.4 1.7-2 3-2s2.4.6 3 2M14.5 10h3.5M14.5 13.5h3"/>',
   pin:'<path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
@@ -85,6 +90,8 @@ let draft = loadDraft();
 const state = { route:'home', param:null, step:0, editingId:null, evo:'weight', cmpA:null, cmpB:null, cmpTab:'evo', onlyFilled:true, pq:'', pf:'active', ps:'recent', dd:null, form:{}, setup:false };
 let nutri = { returnDays:30, ...(options.nutri||{}) };
 try { Object.assign(state,JSON.parse(sessionStorage.getItem('avf.view.'+options.userId)||'{}')); } catch {}
+// lista de pacientes: formato (tabela/cartões) e densidade ficam lembrados neste aparelho
+try { state.pv ||= localStorage.getItem('avf.pv') || 'table'; state.pd ||= localStorage.getItem('avf.pd') || 'comfy'; } catch { state.pv ||= 'table'; state.pd ||= 'comfy'; }
 
 let draftTimer; let draftPending = Promise.resolve();
 async function save(){ await options.save(db); }
@@ -896,16 +903,106 @@ function kpi(k, label, val, cls, icn, act=true){
   const tag = act ? 'button' : 'div';
   return `<${tag} class="kpi ${cls} ${act&&state.route==='patients'&&state.pf===k?'on':''}" ${act?`data-act="pfilter" data-v="${k}"`:''}><span class="chip-ico">${ic(icn,'sm')}</span><b>${val}</b><small>${label}</small></${tag}>`;
 }
-function ptCard({p, st, list}){
-  const last = list.at(-1), r = last ? calc(last,p) : null, on = p.id===db.activeId;
-  const stIco = st.k==='ok' ? ic('check','sm') : (st.k==='late'||st.k==='soon') ? ic('clock','sm') : st.k==='arch' ? ic('archive','sm') : '';
-  return `<div class="pt-cell" data-key="pt-${p.id}"><button class="pt-card ${on?'on':''}" data-act="go" data-to="patient" data-id="${p.id}">
-    <span class="pt-top">${pAvatar(p)}<span class="pt-name"><b>${esc(p.name)}</b><small>${esc(pMeta(p))}</small></span>${ic('right','sm')}</span>
-    <span class="pt-tags"><span class="tag ${st.cls}">${stIco}${st.l}</span>${goalLabel(p.goal)?`<span class="tag">${esc(goalLabel(p.goal))}</span>`:''}${CS.goalTag(p)}${FS.ptTag(p)}${on?`<span class="tag dark">Atual</span>`:''}</span>
-    <span class="pt-nums">${last
-      ? `<span><small>Peso</small><b>${fmt(num(last.weight))}<small>kg</small></b></span><span><small>Gordura</small><b>${r.bf!=null?fmt(r.bf)+'<small>%</small>':'—'}</b></span><span><small>${plural(list.length,'avaliação','avaliações')}</small><b class="d">${ago(last.date)}</b></span>`
-      : `<span class="pt-none">Nenhuma avaliação registrada ainda</span>`}</span>
-  </button></div>`;
+/* Lista de pacientes (v2): cabeçalho com resumo, abas + busca + filtro, "visão geral" em cartões
+   (ativos com bolhas dos avaliados por último, objetivos em bolhas, novos e atrasados) e a lista
+   em Tabela ou Cartões, com densidade "mais informações" / compacta. No celular a tabela vira lista. */
+const GOAL_TONE = {emagrecimento:'peach', hipertrofia:'blue', saude:'green', performance:'yellow', reeducacao:'pink', clinico:'ink'};
+const GOAL_SHORT = {emagrecimento:'Emagrecimento', hipertrofia:'Hipertrofia', saude:'Saúde', performance:'Performance', reeducacao:'Reeducação', clinico:'Clínico'};
+const ST_TONE = {ok:'green', soon:'blue', late:'red', none:'yellow', arch:'muted'};
+const ST_SHORT = {ok:'Em dia', soon:'Retorno próximo', late:'Atrasado', none:'Sem avaliação', arch:'Arquivado'};
+function ptInfo({p, st, list}){
+  const last = list.at(-1), prev = list.at(-2), r = last ? calc(last,p) : null, rp = prev ? calc(prev,p) : null;
+  let cyc = null;
+  if (last && !p.archived){
+    const tot = returnEvery(p), pct = Math.max(0, Math.min(100, Math.round((tot - st.left) / tot * 100)));
+    const txt = st.left < 0 ? `${plural(-st.left,'dia','dias')} de atraso` : st.left===0 ? 'Retorno hoje' : `em ${plural(st.left,'dia','dias')}`;
+    const long = st.left < 0 ? `Retorno atrasado há ${plural(-st.left,'dia','dias')}` : st.left===0 ? 'Retorno hoje' : `Retorno em ${plural(st.left,'dia','dias')}`;
+    cyc = {pct, txt, long, date: fmtDate(st.next,{day:'numeric',month:'short'})};
+  }
+  const wDir = p.goal==='emagrecimento' ? -1 : p.goal==='hipertrofia' ? 1 : 0;
+  return {p, st, list, last, r, cyc, unread: FS.hasUnread(p.id), gp: CS.goalsAvg(p), on: p.id===db.activeId,
+    tone: ST_TONE[st.k], label: ST_SHORT[st.k], goal: goalLabel(p.goal), gTone: GOAL_TONE[p.goal] || 'none',
+    wD: last && prev ? deltaChip(num(last.weight), num(prev.weight), wDir, 'kg', 1) : '',
+    bD: r?.bf!=null && rp?.bf!=null ? deltaChip(r.bf, rp.bf, -1, '%', 1) : ''};
+}
+const ptAv = d => `<span class="pl-av">${pAvatar(d.p)}${d.unread?'<i class="pl-unread" title="Respostas novas do portal"></i>':''}</span>`;
+const ptHit = d => `<button type="button" class="pl-hit" data-act="go" data-to="patient" data-id="${d.p.id}" aria-label="Abrir ficha de ${esc(d.p.name)}"></button>`;
+const ptMeter = d => d.cyc ? `<span class="pl-meter t-${d.tone}"><i style="width:${d.cyc.pct}%"></i></span>` : '';
+const xs = t => t ? `<small class="pl-x">${t}</small>` : '';
+function ptRow(d){
+  const {p, last, r, cyc} = d;
+  return `<div class="pl-row${d.on?' on':''}" role="row" data-key="pr-${p.id}">${ptHit(d)}
+    <div class="pl-c pl-who" role="cell">${ptAv(d)}<span class="pl-nm"><b>${esc(p.name)}</b><small>${esc(pMeta(p))}</small></span>${d.on?'<span class="tag dark pl-cur">Atual</span>':''}</div>
+    <div class="pl-c pl-goal" role="cell">${d.goal?`<span class="pl-pill g-${d.gTone}" title="${esc(d.goal)}">${esc(GOAL_SHORT[p.goal]||d.goal)}</span>`:'<span class="pl-dim">—</span>'}${xs(d.gp!=null?`Metas ${d.gp}%`:'')}</div>
+    <div class="pl-c pl-st" role="cell"><span class="pl-dot t-${d.tone}">${d.label}</span>${last?`<span class="pl-mo">${ago(last.date)}</span>`:''}${xs(d.unread?'Respostas novas':'')}</div>
+    <div class="pl-c pl-ret" role="cell">${cyc?`<span class="pl-rl">${ptMeter(d)}<span class="pl-rs">${cyc.txt}</span><span class="pl-rlg">${cyc.long}</span></span>${xs('Retorno em '+cyc.date)}`:'<span class="pl-dim">—</span>'}</div>
+    <div class="pl-c pl-n pl-w" role="cell">${last?`<b>${fmt(num(last.weight))}<small>kg</small></b>${xs(d.wD)}`:'<span class="pl-dim">—</span>'}</div>
+    <div class="pl-c pl-n pl-bf" role="cell">${r?.bf!=null?`<b>${fmt(r.bf)}<small>%</small></b>${xs(d.bD)}`:'<span class="pl-dim">—</span>'}</div>
+    <div class="pl-c pl-last" role="cell">${last?`<span>${ago(last.date)}</span>${xs(plural(d.list.length,'avaliação','avaliações'))}`:'<span class="pl-dim">Nunca avaliado</span>'}</div>
+    <div class="pl-c pl-go" role="cell" aria-hidden="true">${ic('right','sm')}</div>
+  </div>`;
+}
+function ptCard(d){
+  const {p, last, r, cyc} = d;
+  return `<div class="pl-cell" data-key="pc-${p.id}"><div class="pl-card${d.on?' on':''}">${ptHit(d)}
+    <div class="pl-ct">${ptAv(d)}<span class="pl-nm"><b>${esc(p.name)}</b><small>${esc(pMeta(p))}</small></span><span class="pl-go" aria-hidden="true">${ic('right','sm')}</span></div>
+    <div class="pl-tags">${d.goal?`<span class="pl-pill g-${d.gTone}">${esc(d.goal)}</span>`:''}<span class="pl-dot t-${d.tone}">${d.label}</span>${CS.goalTag(p)}${FS.ptTag(p)}${d.on?'<span class="tag dark">Atual</span>':''}</div>
+    <div class="pl-kv">${last
+      ? `<span><small>Peso</small><b>${fmt(num(last.weight))}<small>kg</small></b>${d.wD}</span><span><small>Gordura</small><b>${r.bf!=null?fmt(r.bf)+'<small>%</small>':'—'}</b>${d.bD}</span><span><small>Última avaliação</small><b class="d">${ago(last.date)}</b></span>`
+      : `<span class="pl-none">Nenhuma avaliação registrada ainda</span>`}</div>
+    <div class="pl-cyc"><small>${cyc?'Ciclo de retorno':p.archived?'Acompanhamento encerrado':'Primeira avaliação'}</small><span>${cyc?cyc.txt:p.archived?'Arquivado':'pendente'}</span></div>
+    <span class="pl-meter wide t-${d.tone}">${cyc?`<i style="width:${cyc.pct}%"></i>`:''}</span>
+  </div></div>`;
+}
+// bolhas: posição (x%, y%) e diâmetro máximo (% da altura da área) de cada vaga, da maior para a menor
+const BUB_SLOTS = [[57,46,58],[25,27,40],[34,74,36],[82,20,32],[86,62,38],[10,62,27],[58,92,25],[6,22,22]];
+const GOAL_SLOTS = [[31,52,80],[75,21,50],[79,70,44],[52,90,30]];
+function ptOverview(rows, s){
+  const act = rows.filter(r=>!r.p.archived), lastD = r => r.list.at(-1)?.date || '';
+  const recent = act.slice().sort((a,b)=> lastD(b).localeCompare(lastD(a)) || (b.p.createdAt||0)-(a.p.createdAt||0));
+  const wk = addDays(today(), -7), week = act.filter(r=>lastD(r)>=wk).length;
+  const inDay = act.filter(r=>r.st.k==='ok'||r.st.k==='soon').length, withEval = act.filter(r=>r.list.length).length;
+  const bubs = recent.slice(0, act.length > BUB_SLOTS.length ? BUB_SLOTS.length - 1 : BUB_SLOTS.length);
+  const more = act.length - bubs.length;
+  const bubHtml = bubs.map((r,i)=>{ const [x,y,sz] = BUB_SLOTS[i];
+    return `<button type="button" class="pl-bub" style="--x:${x}%;--y:${y}%;--s:${sz};--i:${i};background:${avColor(r.p.id)}" data-act="go" data-to="patient" data-id="${r.p.id}" aria-label="Abrir ficha de ${esc(r.p.name)}">${esc(initials(r.p.name))}<span class="pl-tip">${esc(firstName(r.p.name))}${r.list.length?' · '+ago(lastD(r)):''}</span></button>`; }).join('')
+    + (more>0 ? (() => { const [x,y,sz] = BUB_SLOTS[BUB_SLOTS.length-1]; return `<span class="pl-bub more" style="--x:${x+8}%;--y:${y+68}%;--s:${sz+4};--i:${bubs.length}" title="Mais ${plural(more,'paciente ativo','pacientes ativos')}">+${more}</span>`; })() : '');
+  // objetivos dos pacientes ativos (as quatro maiores fatias; o resto vira "Outros")
+  const cnt = new Map(); act.forEach(r=>{ const k = goalLabel(r.p.goal) ? r.p.goal : ''; cnt.set(k, (cnt.get(k)||0)+1); });
+  const gAll = [...cnt].sort((a,b)=>b[1]-a[1]), gl = gAll.slice(0, GOAL_SLOTS.length);
+  const top = gl[0]?.[1] || 1, qg = norm(state.pq.trim());
+  const gName = k => k==='_o' ? 'Outros' : k ? goalLabel(k) : 'Sem objetivo';
+  const gShort = k => ({emagrecimento:'Emagrecer', saude:'Saúde', performance:'Performance', reeducacao:'Reeducação', clinico:'Clínico', hipertrofia:'Hipertrofia', _o:'Outros', '':'Sem objetivo'})[k] || gName(k);
+  const goalHtml = gl.map(([k,n],i)=>{ const [x,y,max] = GOAL_SLOTS[i], sz = Math.max(24, Math.round(Math.min(max, GOAL_SLOTS[0][2] * Math.sqrt(n/top))));
+    const clickable = k && k!=='_o', on = clickable && qg && qg===norm(goalLabel(k));
+    const inner = `<b>${n}</b>${sz>=34?`<small>${gShort(k)}</small>`:''}`;
+    return clickable
+      ? `<button type="button" class="pl-gb g-${GOAL_TONE[k]||'none'}${on?' on':''}" style="--x:${x}%;--y:${y}%;--s:${sz};--i:${i}" data-act="pgoal" data-v="${k}" aria-pressed="${on}" title="${on?'Limpar busca':`Ver pacientes com objetivo ${gName(k)}`}">${inner}</button>`
+      : `<span class="pl-gb g-none" style="--x:${x}%;--y:${y}%;--s:${sz};--i:${i}" title="${gName(k)}">${inner}</span>`; }).join('');
+  const legend = gl.slice(0,3).map(([k,n])=>`${gShort(k)} ${Math.round(n/(act.length||1)*100)}%`).join(' · ');
+  // novos nos últimos 30 dias
+  const since = Date.now() - 30*864e5, fresh = act.filter(r=>(r.p.createdAt||0)>=since).sort((a,b)=>(b.p.createdAt||0)-(a.p.createdAt||0));
+  const stack = fresh.slice(0,4).map(r=>pAvatar(r.p)).join('') + (fresh.length>4?`<span class="avatar pl-more">+${fresh.length-4}</span>`:'');
+  return `<section class="pl-ov" aria-label="Visão geral">
+    <div class="pl-ov-head"><h2>Visão geral <span>${fmtDate(today(),{month:'long',year:'numeric'})} · últimos 30 dias</span></h2>
+      <button type="button" class="pl-link" data-act="go" data-to="returns">Ver retornos ${ic('right','sm')}</button></div>
+    <div class="pl-ov-grid">
+      <article class="pl-hero">
+        <div class="pl-hero-h"><b>Pacientes ativos</b><span class="pl-live" title="Avaliados nos últimos 7 dias"><i></i>${week ? `${plural(week,'avaliado','avaliados')}<span class="pl-lx"> nesta semana</span>` : `0<span class="pl-lx"> avaliados</span> nesta semana`}</span></div>
+        <div class="pl-bubs" aria-label="Avaliados por último">${bubHtml}</div>
+        <div class="pl-hero-n"><b class="pl-big">${s.active}</b><p>${plural(s.month,'avaliação','avaliações')} em 30 dias · ${withEval ? Math.round(inDay/withEval*100) : 0}% com retorno em dia</p></div>
+      </article>
+      <article class="pl-goals">
+        <h3>Por objetivo</h3>
+        <div class="pl-gfield">${goalHtml || '<p class="pl-dim">Sem pacientes ativos</p>'}</div>
+        <p class="pl-legend">${legend}</p>
+      </article>
+      <div class="pl-minis">
+        <article class="pl-mini"><h3>Novos em 30 dias</h3><div class="pl-mini-b"><b class="pl-big">${fresh.length}</b>${fresh.length?`<span class="pl-stack">${stack}</span>`:'<small class="pl-dim">ninguém novo ainda</small>'}</div></article>
+        <button type="button" class="pl-mini" data-act="pfilter" data-v="late"><h3>Retornos atrasados</h3><span class="pl-mini-b"><span><b class="pl-big">${s.late}</b><small class="pl-of">de ${s.active}</small></span>${s.soon?`<span class="pl-soon">${s.soon} em 7 dias</span>`:''}</span></button>
+      </div>
+    </div>
+  </section>`;
 }
 function viewPatients(){
   if (!db.profiles.length) return `<header class="top"><button class="icon-btn" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button>
@@ -918,9 +1015,12 @@ function viewPatients(){
     ${kpi('active','Pacientes ativos',0,'blue','users',false)}${kpi('late','Retornos atrasados',0,'peach','clock',false)}${kpi('soon','Retornos em 7 dias',0,'yellow','cal',false)}${kpi('month','Avaliações em 30 dias',0,'green','clip',false)}
   </div>`;
   const s = teamStats();
-  const nNew = FS.unreadPatients();
-  const FILTERS = [['active','Ativos',s.active],...(nNew||state.pf==='new'?[['new','Respostas novas',nNew]]:[]),['late','Atrasados',s.late],['soon','Próximos 7 dias',s.soon],['none','Sem avaliação',s.none],['arch','Arquivados',s.arch],['all','Todos',s.total]];
+  const nNew = FS.unreadPatients(), pend = CS.pendingCount();
+  const TABS = [['active','Ativos',s.active],['late','Atrasados',s.late],['soon','Próximos 7 dias',s.soon],['all','Todos',s.total]];
+  const EXTRA = [['new','Respostas novas',nNew,'Pré-consulta ou anamnese enviadas pelo portal'],['none','Sem avaliação',s.none,'Cadastrados que ainda não foram avaliados'],['arch','Arquivados',s.arch,'Acompanhamento encerrado; o histórico fica guardado']];
+  const FILTERS = [...TABS, ...EXTRA];
   if (!FILTERS.some(f=>f[0]===state.pf)) state.pf = 'active';
+  const extraOn = EXTRA.find(f=>f[0]===state.pf);
   const q = norm(state.pq.trim()), qd = phoneDigits(state.pq);
   const rows = db.profiles.map(p=>({p, st:pStatus(p), list:listOf(p.id)}));
   let shown = rows.filter(r => state.pf==='all' ? true : state.pf==='active' ? !r.p.archived : state.pf==='arch' ? !!r.p.archived : state.pf==='new' ? FS.hasUnread(r.p.id) : r.st.k===state.pf);
@@ -934,25 +1034,56 @@ function viewPatients(){
   shown.sort(SORT[state.ps] || SORT.recent);
   const emptyMsg = q ? ['Nenhum paciente encontrado', `Nada com “${esc(state.pq.trim())}” em ${FILTERS.find(f=>f[0]===state.pf)[1].toLowerCase()}. Tente outro nome ou veja “Todos”.`]
     : {new:['Nenhuma resposta nova','Quando um paciente responder a pré-consulta ou a anamnese pelo portal, ele aparece aqui.'], late:['Nenhum retorno atrasado','Todos os pacientes ativos estão com a avaliação em dia.'], soon:['Nenhum retorno nos próximos 7 dias','Quando um retorno estiver chegando, ele aparece aqui.'], none:['Todos já foram avaliados','Pacientes cadastrados sem avaliação aparecem aqui.'], arch:['Nenhum paciente arquivado','Arquive quem encerrou o acompanhamento: o histórico fica guardado e a lista principal, limpa.']}[state.pf] || ['Nenhum paciente aqui','Cadastre um paciente para começar.'];
-  return `<header class="top"><button class="icon-btn" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button>
-    <div class="title-block"><small>${esc(nutriName())}</small><b>Pacientes</b></div><div class="grow"></div>
-    <button class="btn dark sm pt-new" data-act="newProfile">${ic('plus','sm')}<span>Novo paciente</span></button></header>
-  ${CS.returnsBanner()}${FS.unreadBanner(state.pf==='new')}
-  <div class="pt-kpis">
-    ${kpi('active','Pacientes ativos',s.active,'blue','users')}
-    ${kpi('late','Retornos atrasados',s.late,'peach','clock')}
-    ${kpi('soon','Retornos em 7 dias',s.soon,'yellow','cal')}
-    ${kpi('month','Avaliações em 30 dias',s.month,'green','clip',false)}
+  const SORTS = [['recent','Última avaliação','Quem foi avaliado por último primeiro'],['next','Próximo retorno','Atrasados e mais próximos primeiro'],['name','Nome (A–Z)','Ordem alfabética']];
+  const sortTxt = {recent:'ordenados pela última avaliação', next:'ordenados pelo próximo retorno', name:'em ordem alfabética'}[state.ps] || '';
+  const table = state.pv!=='cards', comfy = state.pd!=='compact', open = state.dd==='pfm';
+  const goals = new Set(rows.filter(r=>!r.p.archived && goalLabel(r.p.goal)).map(r=>r.p.goal)).size;
+  const lastAll = db.assessments.filter(a=>db.profiles.some(p=>p.id===a.profileId)).reduce((m,a)=>a.date>m?a.date:m, '');
+  const summary = [plural(s.active,'paciente ativo','pacientes ativos'), plural(s.all,'avaliação registrada','avaliações registradas'), goals?plural(goals,'objetivo','objetivos'):'', lastAll?`última avaliação ${ago(lastAll)}`:''].filter(Boolean).join(' · ');
+  const tab = ([k,l,n]) => `<button type="button" class="${state.pf===k?'on':''}" role="tab" aria-selected="${state.pf===k}" data-act="pfilter" data-v="${k}">${l}<span class="n">${n}</span></button>`;
+  const sh = (k,l) => `<button type="button" class="pl-sh${state.ps===k?' on':''}" data-act="ddPick" data-dd="psort" data-v="${k}" aria-label="Ordenar por ${l.toLowerCase()}">${l}${state.ps===k?ic('down','sm'):''}</button>`;
+  const listTitle = q ? `Resultados para “${esc(state.pq.trim())}”` : extraOn ? extraOn[1] : {active:'Todos os ativos', late:'Retornos atrasados', soon:'Retornos nos próximos 7 dias', all:'Todos os pacientes'}[state.pf];
+  let listHtml;
+  if (!shown.length) listHtml = `<div class="card empty"><div class="e-ico">${ic(q?'search':'users')}</div><h3>${emptyMsg[0]}</h3><p>${emptyMsg[1]}</p></div>`;
+  else {
+    const pg = paged('pt', shown, {per: table ? 15 : 12, sig:`${state.pf}|${q}|${state.ps}|${table}`, noun:['paciente','pacientes']});
+    const items = pg.items.map(ptInfo);
+    listHtml = (table
+      ? `<div class="pl-table${comfy?'':' compact'}" role="table" aria-label="Pacientes">
+          <div class="pl-row pl-hrow" role="row"><span class="pl-c pl-who" role="columnheader">${sh('name','Paciente')}</span><span class="pl-c pl-goal" role="columnheader">Objetivo</span><span class="pl-c pl-st" role="columnheader">Situação</span><span class="pl-c pl-ret" role="columnheader">${sh('next','Retorno')}</span><span class="pl-c pl-n pl-w" role="columnheader">Peso</span><span class="pl-c pl-n pl-bf" role="columnheader">Gordura</span><span class="pl-c pl-last" role="columnheader">${sh('recent','Última avaliação')}</span><span class="pl-c pl-go" role="columnheader"></span></div>
+          ${items.map(ptRow).join('')}</div>`
+      : `<div class="pl-cards${comfy?'':' compact'}">${items.map(ptCard).join('')}</div>`) + pg.html;
+  }
+  return `<header class="pl-top">
+    <button class="icon-btn pl-back" data-act="go" data-to="home" aria-label="Início">${ic('back')}</button>
+    <nav class="pl-crumbs" aria-label="Caminho"><button type="button" data-act="go" data-to="home">Início</button><span aria-hidden="true">/</span><b>Pacientes</b></nav>
+    <div class="grow"></div>
+    <div class="pl-alerts">
+      ${pend?`<button type="button" class="pl-alert wa" data-act="go" data-to="returns" aria-label="${plural(pend,'retorno para avisar','retornos para avisar')} pelo WhatsApp" title="Retornos para avisar pelo WhatsApp">${waSvg('ico')}<span class="lbl"><b>${pend}</b> para avisar</span><em class="nav-badge">${pend}</em></button>`:''}
+      <button type="button" class="pl-alert bell${nNew?' has':''}${state.pf==='new'?' on':''}" data-act="pfilter" data-v="${state.pf==='new'?'active':'new'}" aria-label="${nNew?`${nNew===1?'1 paciente respondeu':nNew+' pacientes responderam'} pelo portal`:'Nenhuma resposta nova do portal'}" title="${nNew?'Respostas novas do portal (pré-consulta e anamnese)':'Nenhuma resposta nova do portal'}">${ic('bell')}<span class="lbl">${nNew?`<b>${nNew}</b> ${nNew===1?'respondeu':'responderam'}`:'Portal'}</span>${nNew?`<em class="nav-badge">${nNew}</em>`:''}</button>
+    </div>
+    <button type="button" class="pl-plus" data-act="newProfile" aria-label="Novo paciente">${ic('plus')}<span>Novo paciente</span></button>
+  </header>
+  <div class="pl-title"><h1>Pacientes</h1><p>${summary}</p></div>
+  <div class="pl-tools">
+    <label class="pl-search">${ic('search','sm')}<input id="pt-q" type="search" value="${esc(state.pq)}" placeholder="Buscar por nome ou telefone" autocomplete="off" enterkeyhint="search" aria-label="Buscar por nome, telefone, e-mail ou objetivo"></label>
+    <div class="pl-tabs" role="tablist" aria-label="Filtrar pacientes">${extraOn?`<button type="button" class="on pl-xf" role="tab" aria-selected="true" data-act="pfilter" data-v="active" title="Tirar o filtro">${extraOn[1]}<span class="n">${extraOn[2]}</span>${ic('x','sm')}</button>`:''}${TABS.map(tab).join('')}</div>
+    <div class="dd pl-filter${open?' open':''}">
+      <button type="button" class="pl-fbtn${extraOn||state.ps!=='recent'?' on':''}" data-act="ddToggle" data-dd="pfm" aria-haspopup="true" aria-expanded="${open}" aria-label="Filtrar e ordenar">${ic('filter','sm')}<span>Filtro</span></button>
+      ${open?`<div class="dd-menu pl-fmenu"><div class="pl-fm-g"><small>Mostrar</small>${EXTRA.map(([k,l,n,sub])=>`<button type="button" class="dd-opt${state.pf===k?' on':''}" data-act="pfilter" data-v="${state.pf===k?'active':k}" aria-pressed="${state.pf===k}"><span class="grow">${l}<small>${sub}</small></span><span class="pl-fm-n">${n}</span></button>`).join('')}</div>
+        <div class="pl-fm-g"><small>Ordenar por</small>${SORTS.map(([v,l,sub])=>`<button type="button" class="dd-opt${state.ps===v?' on':''}" data-act="ddPick" data-dd="psort" data-v="${v}" aria-pressed="${state.ps===v}"><span class="grow">${l}<small>${sub}</small></span>${state.ps===v?ic('check','sm'):''}</button>`).join('')}</div></div>`:''}
+    </div>
   </div>
-  <div class="pt-bar">
-    <label class="pt-search">${ic('search','sm')}<input id="pt-q" type="search" value="${esc(state.pq)}" placeholder="Buscar por nome, telefone ou e-mail" autocomplete="off" enterkeyhint="search" aria-label="Buscar por nome, telefone, e-mail ou objetivo"></label>
-    <div class="pt-filters" role="tablist" aria-label="Filtrar pacientes">${FILTERS.map(([k,l,n])=>`<button class="chip ${state.pf===k?'on':''}" role="tab" aria-selected="${state.pf===k}" data-act="pfilter" data-v="${k}">${l}<span class="n">${n}</span></button>`).join('')}</div>
-    <span class="pt-count">${plural(shown.length,'paciente','pacientes')}${q&&shown.length?' encontrados':''}</span>
-    ${dropdown('psort', [['recent','Última avaliação','Quem foi avaliado por último primeiro'],['next','Próximo retorno','Retornos atrasados e mais próximos primeiro'],['name','Nome (A–Z)','Ordem alfabética']], state.ps, {icon:'sort', cls:'pt-sort', label:'Ordenar pacientes'})}
+  ${ptOverview(rows, s)}
+  <div class="pl-lhead" id="pg-pt">
+    <h2>${listTitle}<span>${plural(shown.length,'paciente','pacientes')}${shown.length>1?' · '+sortTxt:''}</span></h2>
+    <button type="button" class="pl-ibtn" data-act="pdens" aria-pressed="${comfy}" aria-label="${comfy?'Compactar a lista':'Mostrar mais informações'}" title="${comfy?'Compactar a lista':'Mostrar mais informações'}">${ic(comfy?'densIn':'densOut')}</button>
+    <div class="pl-seg" role="group" aria-label="Formato da lista">
+      <button type="button" class="${table?'on':''}" data-act="pview" data-v="table" aria-pressed="${table}">${ic('rows','sm')}<span>Tabela</span></button>
+      <button type="button" class="${table?'':'on'}" data-act="pview" data-v="cards" aria-pressed="${!table}">${ic('grid','sm')}<span>Cartões</span></button>
+    </div>
   </div>
-  ${shown.length
-    ? (() => { const pg = paged('pt', shown, {per:12, sig:`${state.pf}|${q}|${state.ps}`, noun:['paciente','pacientes']}); return `<div class="pt-grid" id="pg-pt">${pg.items.map(ptCard).join('')}</div>${pg.html}`; })()
-    : `<div class="card empty"><div class="e-ico">${ic(q?'search':'users')}</div><h3>${emptyMsg[0]}</h3><p>${emptyMsg[1]}</p></div>`}`;
+  <div class="pl-list">${listHtml}</div>`;
 }
 
 /* ---------- ACESSO DO PACIENTE (portal somente leitura) ---------- */
@@ -1848,9 +1979,13 @@ const ACT = {
   evoAll: async () => { state.evoAll = !state.evoAll; render(); },
   ddToggle: async b => { state.dd = state.dd===b.dataset.dd ? null : b.dataset.dd; render(); },
   ddPick: async b => { const fn = DD_PICK[b.dataset.dd]; state.dd = null; if (fn) fn(b.dataset.v); render(); app.querySelector(`[data-act="ddToggle"][data-dd="${b.dataset.dd}"]`)?.focus({preventScroll:true}); },
-  pfilter: async b => { state.pf = b.dataset.v; if (state.route!=='patients') go('patients'); else { try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} render(); }
+  pfilter: async b => { state.pf = b.dataset.v; state.dd = null; if (state.route!=='patients') go('patients'); else { try{sessionStorage.setItem('avf.view.'+options.userId,JSON.stringify(state));}catch{} render(); }
     // a aba escolhida fica à vista na faixa de filtros (celular)
-    setTimeout(()=>{ const on = app.querySelector('.pt-filters .chip.on'), bar = on?.parentElement; if (on && bar && bar.scrollWidth > bar.clientWidth) bar.scrollTo({ left: on.offsetLeft - bar.clientWidth/2 + on.offsetWidth/2, behavior:'smooth' }); }, 60); },
+    setTimeout(()=>{ const on = app.querySelector('.pl-tabs .on'), bar = on?.parentElement; if (on && bar && bar.scrollWidth > bar.clientWidth) bar.scrollTo({ left: on.offsetLeft - bar.clientWidth/2 + on.offsetWidth/2, behavior:'smooth' }); }, 60); },
+  pview: async b => { state.pv = b.dataset.v==='cards' ? 'cards' : 'table'; try { localStorage.setItem('avf.pv', state.pv); } catch {} saveView(); render(); },
+  pdens: async () => { state.pd = state.pd==='compact' ? 'comfy' : 'compact'; try { localStorage.setItem('avf.pd', state.pd); } catch {} saveView(); render(); },
+  // bolha de objetivo: busca pelo objetivo (tocar de novo limpa a busca)
+  pgoal: async b => { const l = goalLabel(b.dataset.v); state.pq = norm(state.pq.trim())===norm(l) ? '' : l; saveView(); render(); },
   saveNutri: async () => NS.acts.nuSave(),
   tour: async () => { if (state.route!=='home'){ go('home'); setTimeout(startTour, 650); } else startTour(); },
   skipSetup: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} state.setup = true; go('onboard'); },

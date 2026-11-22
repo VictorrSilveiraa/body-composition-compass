@@ -11,9 +11,10 @@ const REVEAL = [
   '.empty', '.chips', '.cmp-pick', '.toggle', '.seg.full', '.steps', '.progress', '.auth-mark', '.auth-links',
   '.pt-cell', '.kpi', '.pt-bar', '.pt-actions', '.rt-banner', '.rt-row', '.en-opt', '.en-adj',
   '.dt-meal', '.dt-stats', '.dt-shop-g', '.dt-drop', '.dt-saved', '.dt-how', '.dt-read', '.dt-stepper',
+  '.pl-title', '.pl-tools', '.pl-ov-head', '.pl-hero', '.pl-goals', '.pl-mini', '.pl-lhead', '.pl-row', '.pl-cell',
 ].join(',');
-const COUNT = '.big,.mid,.stat b,.ring-wrap .inner b,.pill .val,.kv-row .v,.cmp-row .vals b,.kpi b';
-const RIPPLE = '.cta,.btn,.aitem,.act-row,.prof-row,.proto,.chip,.step-chip,.nav button,.icon-btn,.seg button,.toggle,.draft-banner,.kv-row[data-act],.card[data-act],.tag[data-act],.vs,.pt-card,.kpi,.pa,.pc,.dt-opts button,.dt-swap,.dt-check';
+const COUNT = '.pl-big,.big,.mid,.stat b,.ring-wrap .inner b,.pill .val,.kv-row .v,.cmp-row .vals b,.kpi b';
+const RIPPLE = '.pl-hit,.pl-mini,.pl-alert,.pl-fbtn,.pl-seg button,.pl-ibtn,.pl-plus,.cta,.btn,.aitem,.act-row,.prof-row,.proto,.chip,.step-chip,.nav button,.icon-btn,.seg button,.toggle,.draft-banner,.kv-row[data-act],.card[data-act],.tag[data-act],.vs,.pt-card,.kpi,.pa,.pc,.dt-opts button,.dt-swap,.dt-check';
 
 const STAGGER = 55;
 const MAX_STAGGER = 9;
@@ -61,7 +62,7 @@ function reveal(el: HTMLElement, delay: number) {
     countUp(n, delay + 120, n.closest('.kv-row,.cmp-row') ? 650 : 1000),
   );
   el.querySelectorAll<SVGCircleElement>('.ring-wrap svg circle:nth-of-type(2)').forEach((c) => ringIn(c, delay + 200));
-  el.querySelectorAll<HTMLElement>('.combar span').forEach((s, i) => grow(s, 'width', delay + 250 + i * 120, '1.1s cubic-bezier(.22,1,.36,1)'));
+  el.querySelectorAll<HTMLElement>('.combar span,.pl-meter i').forEach((s, i) => grow(s, 'width', delay + 250 + i * 120, '1.1s cubic-bezier(.22,1,.36,1)'));
   el.querySelectorAll<HTMLElement>('.pill').forEach((p, i) => {
     const t = delay + 200 + i * 80;
     const fill = p.querySelector<HTMLElement>('.fill'), val = p.querySelector<HTMLElement>('.val');
