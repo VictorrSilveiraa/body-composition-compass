@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { appMounted, splashHtml } from '@/lib/boot-splash';
+import { THEME_BOOT, watchTheme } from '@/lib/theme';
 import {
   Outlet,
   Link,
@@ -85,6 +86,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "theme-color", content: "#ffffff" },
       { title: "Avaliação Física" },
       { name: "description", content: "Avaliações físicas e acompanhamento da composição corporal." },
       { name: "author", content: "Lovable" },
@@ -114,8 +116,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" suppressHydrationWarning>
       <head>
+        {/* tema claro/escuro antes da primeira pintura (src/lib/theme.ts) */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
         <HeadContent />
       </head>
       <body>
@@ -131,7 +135,7 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router=useRouter();
-  useEffect(()=>{appMounted();},[]);
+  useEffect(()=>{appMounted();watchTheme();},[]);
   useEffect(()=>{const {data}=supabase.auth.onAuthStateChange(event=>{if(!['SIGNED_IN','SIGNED_OUT','USER_UPDATED'].includes(event))return;void router.invalidate();if(event!=='SIGNED_OUT')void queryClient.invalidateQueries();});return()=>data.subscription.unsubscribe();},[router,queryClient]);
 
   return (

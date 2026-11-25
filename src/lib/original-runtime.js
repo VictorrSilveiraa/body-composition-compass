@@ -10,6 +10,7 @@ import {backupScreens} from "./backup-screens.js";
 import {waSvg} from "./wa-icon";
 import {checkAssessment,openAlerts} from "./conferir";
 import {nutriScreens} from "./nutri-screens.js";
+import {setTheme,toggleTheme,themePref} from "./theme";
 import {crnLabel as crnText,signLine,displayName,workPrefs,pdfPrefs,brandColor,placeLine,igHandle,webLabel} from "./nutri";
 const FOLD_NAME=Object.fromEntries(FOLDS.map(f=>[f.k,f.l]));
 export function mountOriginal(options){
@@ -54,6 +55,8 @@ const I = {
   print:'<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
   swap:'<path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>',
   target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/>',
+  moon:'<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
   heart:'<path d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 8 3.5C20 15.4 12 20 12 20z"/>',
   out:'<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M10 16l-4-4 4-4M6 12h10"/>',
   phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
@@ -83,6 +86,12 @@ const I = {
   gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
 };
 const ic = (n, cls='') => `<svg class="ico ${cls}" viewBox="0 0 24 24">${I[n]||''}</svg>`;
+/* tema: lua no claro, sol no escuro (o CSS mostra o ícone certo, sem redesenhar a tela) */
+/* tema: linha "Modo escuro" no rodapé da barra lateral (só computador); ícone e chave seguem a classe .dark, sem redesenhar a tela */
+const themeRow = () => `<button class="side-theme" data-act="theme" role="switch" aria-checked="${document.documentElement.classList.contains('dark')}" aria-label="Modo escuro">${ic('moon','tb-moon')}${ic('sun','tb-sun')}<span>Modo escuro</span><i class="switch" aria-hidden="true"></i></button>`;
+const THEMES = [['light','Claro','Fundo branco, como papel'],['dark','Escuro','Descansa a vista à noite'],['auto','Automático','Segue o celular ou computador']];
+const themePicker = () => { const cur = themePref(); return `<h2 class="sec">Aparência</h2>
+    <div class="theme-pick" role="radiogroup" aria-label="Tema do app">${THEMES.map(([v,l,d])=>`<button class="tp ${cur===v?'on':''}" data-act="theme" data-v="${v}" role="radio" aria-checked="${cur===v}"><span class="tp-prev tp-${v}" aria-hidden="true"><i></i><i></i><i></i></span><span class="tp-txt"><b>${l}</b><small>${d}</small></span><span class="tp-ok" aria-hidden="true">${ic('check','sm')}</span></button>`).join('')}</div>`; };
 
 /* ---------- estado / storage ---------- */
 let db = options.db;
@@ -203,7 +212,7 @@ function idCard(o){
   const link = x => x.href ? `<a class="idc-ln${x.cls?' '+x.cls:''}" href="${x.href}" ${x.ext?'target="_blank" rel="noopener"':''} aria-label="${x.label}" title="${x.label}">${x.icon}<span>${x.short||x.label}</span></a>`
     : `<button class="idc-ln${x.cls?' '+x.cls:''}" ${x.attrs} aria-label="${x.label}" title="${x.label}">${x.icon}${x.badge?`<em class="nav-badge">${x.badge}</em>`:''}<span>${x.short||x.label}</span></button>`;
   return `<section class="idc${o.cls?' '+o.cls:''}">
-    <div class="idc-banner t-${o.tone}${o.nav?' has-nav':''}">${BANNER_ART}${o.nav?`<div class="idc-nav"><button class="idc-back" ${o.nav.back} aria-label="Voltar">${ic('back')}</button>${o.nav.title?`<div class="idc-nav-t"><small>${o.nav.small}</small><b>${o.nav.title}</b></div>`:''}</div>`:''}<button class="idc-edit" ${o.edit}>${ic('edit','sm')}<span>Editar</span></button></div>
+    <div class="idc-banner t-${o.tone}${o.nav?' has-nav':''}">${BANNER_ART}${o.nav?`<div class="idc-nav"><button class="idc-back" ${o.nav.back} aria-label="Voltar">${ic('back')}</button>${o.theme?`<button class="idc-back idc-theme" data-act="theme" aria-label="Alternar tema claro ou escuro" title="Alternar tema claro ou escuro">${ic('moon','tb-moon')}${ic('sun','tb-sun')}</button>`:''}${o.nav.title?`<div class="idc-nav-t"><small>${o.nav.small}</small><b>${o.nav.title}</b></div>`:''}</div>`:''}<button class="idc-edit" ${o.edit}>${ic('edit','sm')}<span>Editar</span></button></div>
     <div class="idc-head">
       <div class="idc-av${ring!=null?' has-ring':''}" style="--p:${ring??0}"${ring!=null?` title="${esc(o.ringLabel)}"`:''}>${o.avatar}</div>
       ${ring!=null ? `<div class="idc-prog" aria-label="${esc(o.ringLabel)}"><small>${esc(o.ringShort||'')}</small><span class="idc-bar">${Array.from({length:20},(_,i)=>`<i class="${i < Math.round(ring/5)?'on':''}" style="--i:${i}"></i>`).join('')}</span><b>${ring}%</b></div>` : ''}
@@ -1243,7 +1252,7 @@ function viewProfile(){
       <button class="act-row" data-act="go" data-to="patients"><span class="chip-ico">${ic('users','sm')}</span><span class="grow"><b>Gerenciar pacientes</b><span>${plural(s.active,'ativo','ativos')}${s.arch?` · ${plural(s.arch,'arquivado','arquivados')}`:''} · busca e filtros por retorno</span></span>${ic('right','sm')}</button>
       <button class="act-row" data-act="newProfile"><span class="chip-ico">${ic('plus','sm')}</span><span class="grow"><b>Cadastrar paciente</b><span>Dados, contato, objetivo e observações</span></span>${ic('right','sm')}</button>
     </div>`,
-    account: `<h2 class="sec">Dados e conta</h2>
+    account: `${themePicker()}<h2 class="sec">Dados e conta</h2>
     <div class="actions">
       <button class="act-row" data-act="tour"><span class="chip-ico">${ic('target','sm')}</span><span class="grow"><b>Tour de apresentação</b><span>Reveja em 1 minuto como usar o sistema</span></span>${ic('right','sm')}</button>
       <button class="act-row" data-act="backupOut"><span class="chip-ico">${ic('dl','sm')}</span><span class="grow"><b>Exportar backup</b><span>Escolha pacientes e o que levar: fichas, avaliações, metas, planos, fotos…</span></span>${ic('right','sm')}</button>
@@ -1482,7 +1491,7 @@ function bmiSub(r){ const i = bmiInfo(r.bmi, r); if (!i) return ''; return esc(i
 function clsRow(l, i){ return i ? `<div class="kv-row"><span class="k muted small">${l}</span><span></span><span class="v small tone-${i.tone}">${esc(i.cls)}</span></div>` + (i.note ? `<p class="small muted kv-note">${esc(i.note)}</p>` : '') : ''; }
 function protoWarn(k, r){ return protoFits(k, r.age, r.sex) ? '' : `<p class="proto-warn">${ic('info','sm')}<span>${esc(protoOf(k).name)} foi validado para ${protoAgeTxt(k, r.sex)}. Com ${r.age} anos o resultado é uma estimativa menos precisa.</span></p>`; }
 /* escala do IMC do público: adulto 15–40, idoso (Lipschitz) e criança/adolescente com as faixas em kg/m² para a idade */
-const TONE_BG = {neu:['var(--blue-2)'], good:['oklch(0.877 0.093 129)'], warn:['oklch(0.908 0.143 102)','oklch(0.93 0.1 95)'], bad:['oklch(0.838 0.083 49)','oklch(0.785 0.099 20)','oklch(0.74 0.1 15)']};
+const TONE_BG = {neu:['var(--blue-2)'], good:['var(--green-2)'], warn:['var(--yellow-2)','var(--tone-w2)'], bad:['var(--peach)','var(--pink)','var(--tone-b3)']};
 function bmiRange(r){ const i = bmiInfo(r.bmi ?? 22, r); return i?.scale || {min:15,max:40,bands:[]}; }
 function bmiPos(b, r){ if (b==null) return 0; const s = r ? bmiRange(r) : {min:15,max:40}; return Math.max(0, Math.min(100, (b-s.min)/(s.max-s.min)*100)); }
 function bmiTitle(r){ const g = r.group; return g==='child'||g==='teen' ? 'IMC para idade · OMS 2007' : g==='elder' ? 'IMC · referência para idosos' : 'Índice de Massa Corporal'; }
@@ -1574,6 +1583,7 @@ function render(){
       <div class="side-links side-sub">${ofPatient.map(navBtn).join('')}</div>
       ${p ? `<button class="side-cta" data-act="new">${ic('plus')}<span>${hasDraft()?'Continuar avaliação':'Nova avaliação'}</span></button>` : ''}
     </div>
+    ${themeRow()}
     <button class="side-prof" data-act="go" data-to="profile">${NS.avatar()}<span class="grow"><b>${esc(displayName(nutri) || nutriName())}</b><small>${crnLabel()?esc(crnLabel()):'Perfil profissional'}</small></span>${ic('right','sm')}</button>
   </nav>`; }
   // key muda = tela nova (anima a entrada); dir = indo "para frente" ou voltando
@@ -1988,6 +1998,8 @@ const ACT = {
   // bolha de objetivo: busca pelo objetivo (tocar de novo limpa a busca)
   pgoal: async b => { const l = goalLabel(b.dataset.v); state.pq = norm(state.pq.trim())===norm(l) ? '' : l; saveView(); render(); },
   saveNutri: async () => NS.acts.nuSave(),
+  /* tema: sem data-v alterna claro/escuro (botão da barra lateral); com data-v escolhe (Perfil > Aparência) */
+  theme: async (b,e) => { const at = e?.clientX ? {x:e.clientX, y:e.clientY} : (r=>({x:r.left+r.width/2, y:r.top+r.height/2}))(b.getBoundingClientRect()); if (b.dataset.v) setTheme(b.dataset.v, at); else toggleTheme(at); },
   tour: async () => { if (state.route!=='home'){ go('home'); setTimeout(startTour, 650); } else startTour(); },
   skipSetup: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} state.setup = true; go('onboard'); },
   setupLater: async () => { try { localStorage.setItem(SETUP_KEY,'skip'); } catch {} state.setup = false; go('home'); toast('Tudo pronto! Cadastre o paciente quando quiser.'); },
@@ -2081,12 +2093,14 @@ const keydown = e => {
 
 const importChange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const data=JSON.parse(await f.text());const preview=options.previewImport(data);sheet('Importar backup',`${preview.profiles.length} pessoas e ${preview.assessments.length} avaliações.`,[{label:'Importar sem duplicar',cls:'dark',fn:async()=>{try{db=await options.importBackup(preview);go('home');toast('Backup importado');}catch(e2){toast(motivo(e2,'Não foi possível importar o backup'));}}},{label:'Cancelar'}]);}catch(e2){toast(motivo(e2,'Arquivo de backup inválido'));}e.target.value='';};
 let file=null;
+const onTheme = () => render();
 function listen(on){
   const m = on ? 'addEventListener' : 'removeEventListener';
   if (on) file = document.getElementById('importFile');
   file?.[m]('change',importChange);
   app[m]('click',click); app[m]('input',input); app[m]('change',change); app[m]('keydown',keydown);
   app[m]('pointerdown',pdown); app[m]('pointermove',pmove); app[m]('pointerup',pup); app[m]('pointercancel',pup);
+  window[m]('avf-theme',onTheme); /* tema trocado (aqui ou pelo sistema): chave e Aparência acompanham */
   app[m]('dragover',DS.dragOver); app[m]('dragleave',DS.dragLeave); app[m]('drop',DS.drop);
 }
 listen(true);

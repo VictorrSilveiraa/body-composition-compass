@@ -240,7 +240,7 @@ function viewProfile(o){
   const row = (k, v, raw) => `<div class="kv-row kv-t"><span class="k">${k}</span><span class="t ${v?'':'none'}">${v ? (raw ? v : esc(v)) : 'Não informado'}</span></div>`;
   const link = (u, l) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(l)}</a>`;
   const ig = igHandle(n.instagram), site = webUrl(n.site);
-  const card = idCard({ tone:'yellow', edit:'data-act="nuGo" data-v="perfil" aria-label="Editar perfil profissional"', nav:{back:'data-act="go" data-to="home"', small:'', title:''}, tiles:true, cls:'idc-pro', linksCls:'d-only',
+  const card = idCard({ tone:'yellow', theme:true, edit:'data-act="nuGo" data-v="perfil" aria-label="Editar perfil profissional"', nav:{back:'data-act="go" data-to="home"', small:'', title:''}, tiles:true, cls:'idc-pro', linksCls:'d-only',
     avatar: avatar('xl nu-av'), ring: pct<100 ? pct : null, ringLabel:`Perfil ${pct}% completo`, ringShort:'perfil',
     name: esc(displayName(n) || nameOf()), sub: [esc(sp.slice(0,2).join(' · ') || 'Nutricionista'), crnLabel(n.crn)?`<span class="nowrap">${esc(crnLabel(n.crn))}</span>`:null].filter(Boolean).join(' · '),
     chips: [placeLine(n) && `<span class="tag">${ic('pin','sm')}${esc(placeLine(n))}</span>`, ig && `<span class="tag">@${esc(ig)}</span>`].filter(Boolean).join(''),
