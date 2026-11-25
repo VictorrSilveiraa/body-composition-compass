@@ -3,9 +3,8 @@ import { flushSync } from 'react-dom';
 import {
   Activity, ArrowDown, ArrowLeftRight, ArrowRight, ArrowUp, BookOpen, ChevronDown, CalendarClock, Camera, ChevronLeft, ChevronRight, ClipboardList,
   Check, Droplet, Equal, Flame, Heart, House, KeyRound, LogOut, MapPin, MessageCircle, RefreshCw, Ruler, Scale, ShieldCheck, Target, TrendingUp, X, Zap,
-  CalendarPlus, AtSign, Globe, Mail, Moon, Sun,
+  CalendarPlus, AtSign, Globe, Mail,
 } from 'lucide-react';
-import { toggleTheme } from '@/lib/theme';
 import { Button } from '@/components/ui/button';
 import { PhotoViewer, type ViewerSpec } from '@/components/photo-viewer';
 import { PhotoStudio, type StudioSpec } from '@/components/photo-studio';
@@ -463,7 +462,6 @@ function PortalApp({ data, code, onExit, onRefresh, notice, submit, remove }: { 
       <div className="hello"><small>Olá,</small><b>{fn}</b></div>
       <div className="grow" />
       <span className="top-date">{fmtDate(today(), { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-      <button className="icon-btn tgl-theme" onClick={(e) => toggleTheme({ x: e.clientX, y: e.clientY })} aria-label="Alternar tema claro ou escuro" title="Alternar tema claro ou escuro"><Moon className="ico tb-moon" /><Sun className="ico tb-sun" /></button>
       <button className={'icon-btn pp-sync' + (sync === 'busy' ? ' busy' : '')} onClick={() => void refresh()} aria-label={sync === 'busy' ? 'Atualizando…' : 'Buscar novidades'} title="Buscar novidades" disabled={sync === 'busy'}><RefreshCw className="ico" /></button>
       <button className="icon-btn" onClick={() => setAskExit(true)} aria-label="Sair deste aparelho" title="Sair deste aparelho"><LogOut className="ico" /></button>
     </header>
